@@ -1,9 +1,10 @@
 /*jslint maxlen:80, es6:true, this:true */
 
 /*property
-    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, charCodeAt, defineProperty,
-    exports, floor, fromCodePoint, getOwnPropertyDescriptor, isFinite, isNaN,
-    iterator, max, min, prototype, returnExports, sign, unscopables
+    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, charCodeAt, configurable,
+    defineProperty, enumerable, exports, floor, fromCodePoint,
+    getOwnPropertyDescriptor, hasOwnProperty, isFinite, isNaN, iterator, max,
+    min, prototype, sign, unscopables, value, writable
 */
 
 // UMD (Universal Module Definition)
@@ -21,7 +22,12 @@
     module.exports = factory();
   } else {
     // Browser globals (root is window)
-    root.returnExports = factory();
+    Object.defineProperty(root, 'returnExports', {
+      enumerable: false,
+      writable: true,
+      configurable: true,
+      value: factory()
+    });
   }
 }(this, function () {
   'use strict';
@@ -46,10 +52,19 @@
     $DEFINEPROPERTY = $O.defineProperty,
     $ISNAN = $NUMBER.isNaN,
     $ISFINITE = $NUMBER.isFinite,
-    $FROMCODEPOINT = $S.fromCodePoint;
+    $FROMCODEPOINT = $S.fromCodePoint,
+    $METHODDESCRIPTOR = $O.getOwnPropertyDescriptor($AP, 'push'),
+    $EXPORTS = {};
 
-  let property = 'push',
-    methodDescriptor = $O.getOwnPropertyDescriptor($AP, property);
+  function setProperty(object, property, value) {
+    if (!object.hasOwnProperty(property)) {
+      $METHODDESCRIPTOR.value = value;
+      $DEFINEPROPERTY(object, property, $METHODDESCRIPTOR);
+      if (object === $APU) {
+        $APU[property] = true;
+      }
+    }
+  }
 
   function $RequireObjectCoercible(inputArg) {
     if (inputArg == null) {
@@ -128,12 +143,7 @@
     }
   }
 
-  property = 'values';
-  if (!$AP.hasOwnProperty(property)) {
-    methodDescriptor.value = $AP[$SI];
-    $DEFINEPROPERTY($AP, property, methodDescriptor);
-    $APU[property] = true;
-  }
+  setProperty($AP, 'values', $AP[$SI]);
 
   function* reversArrayKeys(inputArg) {
     for (let key of countDown(inputArg.length - 1, 0)) {
@@ -141,43 +151,25 @@
     }
   }
 
-  property = 'reverseKeys';
-  if (!$AP.hasOwnProperty(property)) {
-    methodDescriptor.value = function () {
-      return reversArrayKeys($ToObject(this));
-    };
+  setProperty($AP, 'reverseKeys', function () {
+    return reversArrayKeys($ToObject(this));
+  });
 
-    $DEFINEPROPERTY($AP, property, methodDescriptor);
-    $APU[property] = true;
-  }
+  setProperty($AP, 'reverseValues', function* () {
+    const object = $ToObject(this);
 
-  property = 'reverseValues';
-  if (!$AP.hasOwnProperty(property)) {
-    methodDescriptor.value = function* () {
-      const object = $ToObject(this);
+    for (let key of reversArrayKeys(object)) {
+      yield object[key];
+    }
+  });
 
-      for (let key of reversArrayKeys(object)) {
-        yield object[key];
-      }
-    };
+  setProperty($AP, 'reverseEntries', function* () {
+    const object = $ToObject(this);
 
-    $DEFINEPROPERTY($AP, property, methodDescriptor);
-    $APU[property] = true;
-  }
-
-  property = 'reverseEntries';
-  if (!$AP.hasOwnProperty(property)) {
-    methodDescriptor.value = function* () {
-      const object = $ToObject(this);
-
-      for (let key of reversArrayKeys(object)) {
-        yield [key, object[key]];
-      }
-    };
-
-    $DEFINEPROPERTY($AP, property, methodDescriptor);
-    $APU[property] = true;
-  }
+    for (let key of reversArrayKeys(object)) {
+      yield [key, object[key]];
+    }
+  });
 
   function* stringKeys(string) {
     let next = true;
@@ -192,36 +184,21 @@
     }
   }
 
-  property = 'keys';
-  if (!$SP.hasOwnProperty(property)) {
-    methodDescriptor.value = function () {
-      return stringKeys($onlyCoercibleToString(this));
-    };
+  setProperty($SP, 'keys', function () {
+    return stringKeys($onlyCoercibleToString(this));
+  });
 
-    $DEFINEPROPERTY($SP, property, methodDescriptor);
-  }
+  setProperty($SP, 'values', function () {
+    return $onlyCoercibleToString(this)[Symbol.iterator]();
+  });
 
-  property = 'values';
-  if (!$SP.hasOwnProperty(property)) {
-    methodDescriptor.value = function () {
-        return $onlyCoercibleToString(this)[Symbol.iterator]();
-      };
+  setProperty($SP, 'entries', function* () {
+    const string = $onlyCoercibleToString(this);
 
-    $DEFINEPROPERTY($SP, property, methodDescriptor);
-  }
-
-  property = 'entries';
-  if (!$SP.hasOwnProperty(property)) {
-    methodDescriptor.value = function* () {
-      const string = $onlyCoercibleToString(this);
-
-      for (let key of stringKeys(string)) {
-        yield [key, $FROMCODEPOINT(string.codePointAt(key))];
-      }
-    };
-
-    $DEFINEPROPERTY($SP, property, methodDescriptor);
-  }
+    for (let key of stringKeys(string)) {
+      yield [key, $FROMCODEPOINT(string.codePointAt(key))];
+    }
+  });
 
   function* reverseStringKeys(string) {
     let next = true;
@@ -239,88 +216,28 @@
     }
   }
 
-  property = 'reverseKeys';
-  if (!$SP.hasOwnProperty(property)) {
-    methodDescriptor.value = function () {
-      return reverseStringKeys(onlyCoercibleToString(this));
-    };
+  setProperty($SP, 'reverseKeys', function () {
+    return reverseStringKeys($onlyCoercibleToString(this));
+  });
 
-    $DEFINEPROPERTY($SP, property, methodDescriptor);
-  }
+  setProperty($SP, 'reverseValues', function* () {
+    const string = $onlyCoercibleToString(this);
 
-  property = 'reverseValues';
-  if (!$SP.hasOwnProperty(property)) {
-    methodDescriptor.value = function* () {
-      const string = $onlyCoercibleToString(this);
+    for (let key of reverseStringKeys(string)) {
+      yield $FROMCODEPOINT(string.codePointAt(key));
+    }
+  });
 
-      for (let key of reverseStringKeys(string)) {
-        yield $FROMCODEPOINT(string.codePointAt(key));
-      }
-    };
+  setProperty($SP, 'reverseEntries', function* () {
+    const string = $onlyCoercibleToString(this);
 
-    $DEFINEPROPERTY($SP, property, methodDescriptor);
-  }
+    for (let key of reverseStringKeys(string)) {
+      yield [key, $FROMCODEPOINT(string.codePointAt(key))];
+    }
+  });
 
-  property = 'reverseEntries';
-  if (!$SP.hasOwnProperty(property)) {
-    methodDescriptor.value = function* () {
-      const string = $onlyCoercibleToString(this);
+  setProperty($EXPORTS, 'countUp', countUp);
+  setProperty($EXPORTS, 'countDown', countDown);
 
-      for (let key of reverseStringKeys(string)) {
-        yield [key, $FROMCODEPOINT(string.codePointAt(key))];
-      }
-    };
-
-    $DEFINEPROPERTY($SP, property, methodDescriptor);
-  }
-
-  return {
-    countUp: countUp,
-    countDown: countDown
-  };
+  return $EXPORTS;
 }));
-
-console.log([Array]);
-
-var a = ['a', 'b', 'c'];
-
-for (var x of a.keys()) {
-  console.log(x);
-}
-
-console.log('');
-for (var x of a.values()) {
-  console.log(x);
-}
-
-console.log('');
-for (var x of a.entries()) {
-  console.log(x);
-}
-
-console.log('');
-for (var x of a.reverseKeys()) {
-  console.log(x);
-}
-
-console.log('');
-for (var x of a.reverseValues()) {
-  console.log(x);
-}
-
-console.log('');
-for (var x of a.reverseEntries()) {
-  console.log(x);
-}
-
-var s = 'A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6AD';
-
-console.log('');
-for (var c of s.entries()) {
-  console.log(c);
-}
-
-console.log('');
-for (var c of s.reverseEntries()) {
-  console.log(c);
-}
