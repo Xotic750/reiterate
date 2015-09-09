@@ -61,7 +61,7 @@
     if (!object.hasOwnProperty(property)) {
       $METHODDESCRIPTOR.value = value;
       $DEFINEPROPERTY(object, property, $METHODDESCRIPTOR);
-      if (object === $AP) {
+      if ($APU && object === $AP) {
         $APU[property] = true;
       }
     }
