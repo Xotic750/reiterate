@@ -38,6 +38,7 @@
 
   var $SY = Symbol,
     $SU = $SY.unscopables,
+    $SI = $SY.iterator,
     $O = Object,
     $OP = $O.prototype,
     $A = Array,
@@ -414,6 +415,62 @@
         tail.index += 1;
       }
     }
+  });
+
+  function setValue(result, mapFn, thisArg, value, index) {
+    if (mapFn) {
+      result[index] = mapFn.call(thisArg, value, index);
+    } else {
+      result[index] = value;
+    }
+  }
+
+  setProperty($A, 'from', function (items) {
+    var object = $ToObject(items),
+      mapFn,
+      iterator,
+      thisArg,
+      length,
+      result,
+      index,
+      value;
+
+    if (arguments.length > 1) {
+      mapFn = arguments[1];
+      if (!isFunction(mapFn)) {
+        throw new $T('When provided, the second argument must be a function');
+      }
+
+      if (arguments.length > 2) {
+        thisArg = arguments[2];
+      }
+    }
+
+    iterator = object[$SI];
+    if (!isNil(iterator) && !isFunction(iterator)) {
+      throw new $T('iterator is not a function');
+    }
+
+    index = 0;
+    if (!isNil(iterator)) {
+      result = isFunction(this) ? $O(new this()) : [];
+      for (value of object[$SI]()) {
+        setValue(result, mapFn, thisArg, value, index);
+        index += 1;
+      }
+    } else {
+      length = $ToLength(object.length);
+      result = isFunction(this) ? $O(new this(length)) : new $A(length);
+      while (index < length) {
+        value = object[index];
+        setValue(result, mapFn, thisArg, value, index);
+        index += 1;
+      }
+
+      result.length = length;
+    }
+
+    return result;
   });
 
   return $EXPORTS;
