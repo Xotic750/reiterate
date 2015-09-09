@@ -36,7 +36,8 @@
     $SU = $SY.unscopables,
     $SI = $SY.iterator,
     $O = Object,
-    $AP = Array.prototype,
+    $A = Array,
+    $AP = $A.prototype,
     $APU = $AP[$SU],
     $S = String,
     $SP = $S.prototype,
@@ -46,12 +47,12 @@
     $MAX = $M.max,
     $MIN = $M.min,
     $SIGN = $M.sign,
-    $NUMBER = Number,
-    $MIN_SAFE_INTEGER = $NUMBER.MIN_SAFE_INTEGER,
-    $MAX_SAFE_INTEGER = $NUMBER.MAX_SAFE_INTEGER,
+    $N = Number,
+    $MIN_SAFE_INTEGER = $N.MIN_SAFE_INTEGER,
+    $MAX_SAFE_INTEGER = $N.MAX_SAFE_INTEGER,
     $DEFINEPROPERTY = $O.defineProperty,
-    $ISNAN = $NUMBER.isNaN,
-    $ISFINITE = $NUMBER.isFinite,
+    $ISNAN = $N.isNaN,
+    $ISFINITE = $N.isFinite,
     $FROMCODEPOINT = $S.fromCodePoint,
     $METHODDESCRIPTOR = $O.getOwnPropertyDescriptor($AP, 'push'),
     $EXPORTS = {};
@@ -60,7 +61,7 @@
     if (!object.hasOwnProperty(property)) {
       $METHODDESCRIPTOR.value = value;
       $DEFINEPROPERTY(object, property, $METHODDESCRIPTOR);
-      if (object === $APU) {
+      if (object === $AP) {
         $APU[property] = true;
       }
     }
@@ -78,7 +79,7 @@
     return $O($RequireObjectCoercible(inputArg));
   }
 
-  function $onlyCoercibleToString(inputArg) {
+  function $OnlyCoercibleToString(inputArg) {
     return $S($RequireObjectCoercible(inputArg));
   }
 
@@ -123,7 +124,19 @@
     return false;
   }
 
-  function* countUp(start, end) {
+  function isFunction(inputArg) {
+    return typeof inputArg === 'function';
+  }
+
+  setProperty($A, 'entriesKey', function (item) {
+    return $ToObject(item)[0];
+  });
+
+  setProperty($A, 'entriesValue', function (item) {
+    return $ToObject(item)[1];
+  });
+
+  setProperty($N, 'countUp', function* countUp(start, end) {
     let from = $ToSafeInteger(start);
     const to = $ToSafeInteger(end);
 
@@ -131,9 +144,9 @@
       yield from;
       from += 1;
     }
-  }
+  });
 
-  function* countDown(start, end) {
+  setProperty($N, 'countDown', function* (start, end) {
     let from = $ToSafeInteger(start);
     const to = $ToSafeInteger(end);
 
@@ -141,24 +154,22 @@
       yield from;
       from -= 1;
     }
-  }
+  });
 
   setProperty($AP, 'values', $AP[$SI]);
 
-  function* reversArrayKeys(inputArg) {
-    for (let key of countDown(inputArg.length - 1, 0)) {
+  setProperty($AP, 'reverseKeys', function* reversArrayKeys() {
+    const object = $ToObject(this);
+
+    for (let key of $N.countDown(object.length - 1, 0)) {
       yield key;
     }
-  }
-
-  setProperty($AP, 'reverseKeys', function () {
-    return reversArrayKeys($ToObject(this));
   });
 
   setProperty($AP, 'reverseValues', function* () {
     const object = $ToObject(this);
 
-    for (let key of reversArrayKeys(object)) {
+    for (let key of object.keys()) {
       yield object[key];
     }
   });
@@ -166,15 +177,16 @@
   setProperty($AP, 'reverseEntries', function* () {
     const object = $ToObject(this);
 
-    for (let key of reversArrayKeys(object)) {
+    for (let key of object.keys()) {
       yield [key, object[key]];
     }
   });
 
-  function* stringKeys(string) {
+  setProperty($SP, 'keys', function* () {
+    const string = $OnlyCoercibleToString(this);
     let next = true;
 
-    for (let key of countUp(0, string.length - 1)) {
+    for (let key of $N.countUp(0, string.length - 1)) {
       if (next) {
         next = !isSurrogatePair(string[key], string[key + 1]);
         yield key;
@@ -182,28 +194,25 @@
         next = !next;
       }
     }
-  }
-
-  setProperty($SP, 'keys', function () {
-    return stringKeys($onlyCoercibleToString(this));
   });
 
   setProperty($SP, 'values', function () {
-    return $onlyCoercibleToString(this)[Symbol.iterator]();
+    return $OnlyCoercibleToString(this)[Symbol.iterator]();
   });
 
   setProperty($SP, 'entries', function* () {
-    const string = $onlyCoercibleToString(this);
+    const string = $OnlyCoercibleToString(this);
 
-    for (let key of stringKeys(string)) {
+    for (let key of string.keys()) {
       yield [key, $FROMCODEPOINT(string.codePointAt(key))];
     }
   });
 
-  function* reverseStringKeys(string) {
+  setProperty($SP, 'reverseKeys', function* () {
+    const string = $OnlyCoercibleToString(this);
     let next = true;
 
-    for (let key of countDown(string.length - 1, 0)) {
+    for (let key of $N.countDown(string.length - 1, 0)) {
       if (next) {
         next = !isSurrogatePair(string[key - 1], string[key]);
         if (next) {
@@ -214,30 +223,63 @@
         yield key;
       }
     }
-  }
-
-  setProperty($SP, 'reverseKeys', function () {
-    return reverseStringKeys($onlyCoercibleToString(this));
   });
 
   setProperty($SP, 'reverseValues', function* () {
-    const string = $onlyCoercibleToString(this);
+    const string = $OnlyCoercibleToString(this);
 
-    for (let key of reverseStringKeys(string)) {
+    for (let key of string.reverseKeys()) {
       yield $FROMCODEPOINT(string.codePointAt(key));
     }
   });
 
   setProperty($SP, 'reverseEntries', function* () {
-    const string = $onlyCoercibleToString(this);
+    const string = $OnlyCoercibleToString(this);
 
-    for (let key of reverseStringKeys(string)) {
+    for (let key of string.reverseKeys()) {
       yield [key, $FROMCODEPOINT(string.codePointAt(key))];
     }
   });
 
-  setProperty($EXPORTS, 'countUp', countUp);
-  setProperty($EXPORTS, 'countDown', countDown);
+  setProperty($O, 'unique', function* (inputArg, valueFunction, thisArg) {
+    const object = $ToObject(inputArg),
+      isFn = isFunction(valueFunction),
+      seen = new Set();
+
+    for (let item of object) {
+      const value = isFn ? valueFunction.call(thisArg, item) : item;
+      if (!seen.has(value)) {
+        seen.add(value, true);
+        yield item;
+      }
+    }
+  });
+
+  setProperty($O, 'enumerables', function* (inputArg) {
+    const object = $ToObject(inputArg);
+
+    for (let key in object) {
+      yield [key, object[key]];
+    }
+  });
+
+  setProperty($O, 'valuesByKeys', function* (inputArg, keysArray) {
+    const object = $ToObject(inputArg);
+
+    for (let key of keysArray) {
+      yield [key, object[key]];
+    }
+  });
+
+  setProperty($O, 'enumerate', function (inputArg, keysFunction, thisArg) {
+    const object = $ToObject(inputArg);
+
+    if (isFunction(keysFunction)) {
+      return $O.valuesByKeys(object, keysFunction.call(thisArg, object));
+    } else {
+      return $O.enumerables(object);
+    }
+  });
 
   return $EXPORTS;
 }));
