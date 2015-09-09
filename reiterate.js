@@ -32,7 +32,7 @@
 }(this, function () {
   'use strict';
 
-  const $SY = Symbol,
+  var $SY = Symbol,
     $SU = $SY.unscopables,
     $SI = $SY.iterator,
     $O = Object,
@@ -84,8 +84,8 @@
   }
 
   function $ToInteger(inputArg) {
-    const number = +inputArg;
-    let val = 0;
+    var number = +inputArg,
+      val = 0;
 
     if (!$ISNAN(number)) {
       if (!number || !$ISFINITE(number)) {
@@ -111,17 +111,21 @@
   }
 
   function isSurrogatePair(char1, char2) {
+    var result = false,
+      code1,
+      code2;
+
     if (char1 && char2) {
-      let code1 = char1.charCodeAt();
+      code1 = char1.charCodeAt();
       if (code1 >= 0xD800 && code1 <= 0xDBFF) {
-        let code2 = char2.charCodeAt();
+        code2 = char2.charCodeAt();
         if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
-          return true;
+          result = true;
         }
       }
     }
 
-    return false;
+    return result;
   }
 
   function isFunction(inputArg) {
@@ -137,8 +141,8 @@
   });
 
   setProperty($N, 'countUp', function* countUp(start, end) {
-    let from = $ToSafeInteger(start);
-    const to = $ToSafeInteger(end);
+    var from = $ToSafeInteger(start),
+      to = $ToSafeInteger(end);
 
     while (from <= to) {
       yield from;
@@ -147,8 +151,8 @@
   });
 
   setProperty($N, 'countDown', function* (start, end) {
-    let from = $ToSafeInteger(start);
-    const to = $ToSafeInteger(end);
+    var from = $ToSafeInteger(start),
+      to = $ToSafeInteger(end);
 
     while (from >= to) {
       yield from;
@@ -159,34 +163,38 @@
   setProperty($AP, 'values', $AP[$SI]);
 
   setProperty($AP, 'reverseKeys', function* reversArrayKeys() {
-    const object = $ToObject(this);
+    var object = $ToObject(this),
+      key;
 
-    for (let key of $N.countDown(object.length - 1, 0)) {
+    for (key of $N.countDown(object.length - 1, 0)) {
       yield key;
     }
   });
 
   setProperty($AP, 'reverseValues', function* () {
-    const object = $ToObject(this);
+    var object = $ToObject(this),
+      key;
 
-    for (let key of object.keys()) {
+    for (key of object.keys()) {
       yield object[key];
     }
   });
 
   setProperty($AP, 'reverseEntries', function* () {
-    const object = $ToObject(this);
+    var object = $ToObject(this),
+      key;
 
-    for (let key of object.keys()) {
+    for (key of object.keys()) {
       yield [key, object[key]];
     }
   });
 
   setProperty($SP, 'keys', function* () {
-    const string = $OnlyCoercibleToString(this);
-    let next = true;
+    var string = $OnlyCoercibleToString(this),
+      next = true,
+      key;
 
-    for (let key of $N.countUp(0, string.length - 1)) {
+    for (key of $N.countUp(0, string.length - 1)) {
       if (next) {
         next = !isSurrogatePair(string[key], string[key + 1]);
         yield key;
@@ -201,18 +209,20 @@
   });
 
   setProperty($SP, 'entries', function* () {
-    const string = $OnlyCoercibleToString(this);
+    var string = $OnlyCoercibleToString(this),
+      key;
 
-    for (let key of string.keys()) {
+    for (key of string.keys()) {
       yield [key, $FROMCODEPOINT(string.codePointAt(key))];
     }
   });
 
   setProperty($SP, 'reverseKeys', function* () {
-    const string = $OnlyCoercibleToString(this);
-    let next = true;
+    var string = $OnlyCoercibleToString(this),
+      next = true,
+      key;
 
-    for (let key of $N.countDown(string.length - 1, 0)) {
+    for (key of $N.countDown(string.length - 1, 0)) {
       if (next) {
         next = !isSurrogatePair(string[key - 1], string[key]);
         if (next) {
@@ -226,28 +236,32 @@
   });
 
   setProperty($SP, 'reverseValues', function* () {
-    const string = $OnlyCoercibleToString(this);
+    var string = $OnlyCoercibleToString(this),
+      key;
 
-    for (let key of string.reverseKeys()) {
+    for (key of string.reverseKeys()) {
       yield $FROMCODEPOINT(string.codePointAt(key));
     }
   });
 
   setProperty($SP, 'reverseEntries', function* () {
-    const string = $OnlyCoercibleToString(this);
+    var string = $OnlyCoercibleToString(this),
+      key;
 
-    for (let key of string.reverseKeys()) {
+    for (key of string.reverseKeys()) {
       yield [key, $FROMCODEPOINT(string.codePointAt(key))];
     }
   });
 
   setProperty($O, 'unique', function* (inputArg, valueFunction, thisArg) {
-    const object = $ToObject(inputArg),
+    var object = $ToObject(inputArg),
       isFn = isFunction(valueFunction),
-      seen = new Set();
+      seen = new Set(),
+      item,
+      value;
 
-    for (let item of object) {
-      const value = isFn ? valueFunction.call(thisArg, item) : item;
+    for (item of object) {
+      value = isFn ? valueFunction.call(thisArg, item) : item;
       if (!seen.has(value)) {
         seen.add(value, true);
         yield item;
@@ -256,23 +270,25 @@
   });
 
   setProperty($O, 'enumerables', function* (inputArg) {
-    const object = $ToObject(inputArg);
+    var object = $ToObject(inputArg),
+      key;
 
-    for (let key in object) {
+    for (key in object) {
       yield [key, object[key]];
     }
   });
 
   setProperty($O, 'valuesByKeys', function* (inputArg, keysArray) {
-    const object = $ToObject(inputArg);
+    var object = $ToObject(inputArg),
+      key;
 
-    for (let key of keysArray) {
+    for (key of keysArray) {
       yield [key, object[key]];
     }
   });
 
   setProperty($O, 'enumerate', function (inputArg, keysFunction, thisArg) {
-    const object = $ToObject(inputArg);
+    var object = $ToObject(inputArg);
 
     if (isFunction(keysFunction)) {
       return $O.valuesByKeys(object, keysFunction.call(thisArg, object));
