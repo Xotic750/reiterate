@@ -22,7 +22,11 @@
     module.exports = factory();
   } else {
     // Browser globals (root is window)
-    Object.defineProperty(root, 'returnExports', {
+    if (root.hasOwnProperty('reiterate')) {
+      throw new Error('Unable to define "reiterate"');
+    }
+
+    Object.defineProperty(root, 'reiterate', {
       enumerable: false,
       writable: true,
       configurable: true,
@@ -34,7 +38,6 @@
 
   var $SY = Symbol,
     $SU = $SY.unscopables,
-    $SI = $SY.iterator,
     $O = Object,
     $A = Array,
     $AP = $A.prototype,
@@ -55,6 +58,7 @@
     $ISFINITE = $N.isFinite,
     $FROMCODEPOINT = $S.fromCodePoint,
     $METHODDESCRIPTOR = $O.getOwnPropertyDescriptor($AP, 'push'),
+    $T = TypeError,
     $EXPORTS = {};
 
   function setProperty(object, property, value) {
@@ -65,11 +69,13 @@
         $APU[property] = true;
       }
     }
+
+    return value;
   }
 
   function $RequireObjectCoercible(inputArg) {
     if (inputArg == null) {
-      throw new TypeError('Cannot convert undefined or null to object');
+      throw new $T('Cannot convert undefined or null to object');
     }
 
     return inputArg;
@@ -132,15 +138,15 @@
     return typeof inputArg === 'function';
   }
 
-  setProperty($A, 'entriesKey', function (item) {
+  setProperty($EXPORTS, 'entriesKey', function (item) {
     return $ToObject(item)[0];
   });
 
-  setProperty($A, 'entriesValue', function (item) {
+  setProperty($EXPORTS, 'entriesValue', function (item) {
     return $ToObject(item)[1];
   });
 
-  setProperty($N, 'countUp', function* countUp(start, end) {
+  function* countUp(start, end) {
     var from = $ToSafeInteger(start),
       to = $ToSafeInteger(end);
 
@@ -148,9 +154,11 @@
       yield from;
       from += 1;
     }
-  });
+  }
 
-  setProperty($N, 'countDown', function* (start, end) {
+  setProperty($EXPORTS, 'countUp', countUp);
+
+  function* countDown(start, end) {
     var from = $ToSafeInteger(start),
       to = $ToSafeInteger(end);
 
@@ -158,15 +166,19 @@
       yield from;
       from -= 1;
     }
-  });
+  }
 
-  setProperty($AP, 'values', $AP[$SI]);
+  countDown = setProperty($EXPORTS, 'countDown', countDown);
+
+  setProperty($AP, 'values', function* () {
+    yield * $ToObject(this);
+  });
 
   setProperty($AP, 'reverseKeys', function* reversArrayKeys() {
     var object = $ToObject(this),
       key;
 
-    for (key of $N.countDown(object.length - 1, 0)) {
+    for (key of countDown(object.length - 1, 0)) {
       yield key;
     }
   });
@@ -175,7 +187,7 @@
     var object = $ToObject(this),
       key;
 
-    for (key of object.keys()) {
+    for (key of object.reverseKeys()) {
       yield object[key];
     }
   });
@@ -184,7 +196,7 @@
     var object = $ToObject(this),
       key;
 
-    for (key of object.keys()) {
+    for (key of object.reverseKeys()) {
       yield [key, object[key]];
     }
   });
@@ -194,7 +206,7 @@
       next = true,
       key;
 
-    for (key of $N.countUp(0, string.length - 1)) {
+    for (key of countUp(0, string.length - 1)) {
       if (next) {
         next = !isSurrogatePair(string[key], string[key + 1]);
         yield key;
@@ -204,8 +216,8 @@
     }
   });
 
-  setProperty($SP, 'values', function () {
-    return $OnlyCoercibleToString(this)[Symbol.iterator]();
+  setProperty($SP, 'values', function* () {
+    yield * $OnlyCoercibleToString(this);
   });
 
   setProperty($SP, 'entries', function* () {
@@ -222,7 +234,7 @@
       next = true,
       key;
 
-    for (key of $N.countDown(string.length - 1, 0)) {
+    for (key of countDown(string.length - 1, 0)) {
       if (next) {
         next = !isSurrogatePair(string[key - 1], string[key]);
         if (next) {
@@ -253,7 +265,7 @@
     }
   });
 
-  setProperty($O, 'unique', function* (inputArg, valueFunction, thisArg) {
+  setProperty($EXPORTS, 'unique', function* (inputArg, valueFunction, thisArg) {
     var object = $ToObject(inputArg),
       isFn = isFunction(valueFunction),
       seen = new Set(),
@@ -269,7 +281,7 @@
     }
   });
 
-  setProperty($O, 'enumerables', function* (inputArg) {
+  setProperty($EXPORTS, 'enumerables', function* (inputArg) {
     var object = $ToObject(inputArg),
       key;
 
@@ -278,24 +290,57 @@
     }
   });
 
-  setProperty($O, 'valuesByKeys', function* (inputArg, keysArray) {
+  setProperty($EXPORTS, 'keys', function* (inputArg) {
+    var object = $ToObject(inputArg),
+      entry;
+
+    for (entry of enumerables(object)) {
+      if (object.hasOwnProperty(entry)) {
+        yield entry;
+      }
+    }
+  });
+
+  setProperty($EXPORTS, 'ownPropertyNames', function* (inputArg) {
+    var object = $ToObject(inputArg),
+      name;
+
+    for (name of $O.getOwnPropertyNames(object)) {
+      yield [name, object[name]];
+    }
+  });
+
+  setProperty($EXPORTS, 'ownPropertySymbols', function* (inputArg) {
+    var object = $ToObject(inputArg),
+      name;
+
+    for (symbol of $O.getOwnPropertySymbols(object)) {
+      yield [symbol, object[symbol]];
+    }
+  });
+
+  function* valuesByKeys(inputArg, keysArray) {
     var object = $ToObject(inputArg),
       key;
 
     for (key of keysArray) {
       yield [key, object[key]];
     }
-  });
+  }
 
-  setProperty($O, 'enumerate', function (inputArg, keysFunction, thisArg) {
+  setProperty($EXPORTS, 'valuesByKeys', valuesByKeys);
+
+  function enumerate(inputArg, keysFunction, thisArg) {
     var object = $ToObject(inputArg);
 
-    if (isFunction(keysFunction)) {
-      return $O.valuesByKeys(object, keysFunction.call(thisArg, object));
-    } else {
-      return $O.enumerables(object);
+    if (!isFunction(keysFunction)) {
+      throw new $T('keysFunction must be a function');
     }
-  });
+
+    return valuesByKeys(object, keysFunction.call(thisArg, object));
+  }
+
+  setProperty($EXPORTS, 'enumerate', enumerate);
 
   return $EXPORTS;
 }));
