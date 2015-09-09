@@ -39,11 +39,13 @@
   var $SY = Symbol,
     $SU = $SY.unscopables,
     $O = Object,
+    $OP = $O.prototype,
     $A = Array,
     $AP = $A.prototype,
     $APU = $AP[$SU],
     $S = String,
     $SP = $S.prototype,
+    $TOSTRINGTAG = Function.call.bind($OP.toString),
     $M = Math,
     $FLOOR = $M.floor,
     $ABS = $M.abs,
@@ -57,6 +59,7 @@
     $ISNAN = $N.isNaN,
     $ISFINITE = $N.isFinite,
     $FROMCODEPOINT = $S.fromCodePoint,
+    $ISARRAY = $A.isArray,
     $METHODDESCRIPTOR = $O.getOwnPropertyDescriptor($AP, 'push'),
     $T = TypeError,
     $EXPORTS = {};
@@ -73,24 +76,28 @@
     return value;
   }
 
-  function $RequireObjectCoercible(inputArg) {
-    if (inputArg == null) {
+  function isNil(subject) {
+    return subject == null;
+  }
+
+  function $RequireObjectCoercible(subject) {
+    if (isNil(subject)) {
       throw new $T('Cannot convert undefined or null to object');
     }
 
-    return inputArg;
+    return subject;
   }
 
-  function $ToObject(inputArg) {
-    return $O($RequireObjectCoercible(inputArg));
+  function $ToObject(subject) {
+    return $O($RequireObjectCoercible(subject));
   }
 
-  function $OnlyCoercibleToString(inputArg) {
-    return $S($RequireObjectCoercible(inputArg));
+  function $OnlyCoercibleToString(subject) {
+    return $S($RequireObjectCoercible(subject));
   }
 
-  function $ToInteger(inputArg) {
-    var number = +inputArg,
+  function $ToInteger(subject) {
+    var number = +subject,
       val = 0;
 
     if (!$ISNAN(number)) {
@@ -108,12 +115,16 @@
     return $MIN($MAX(number, min), max);
   }
 
-  function $ToLength(inputArg) {
-    return clamp($ToInteger(inputArg), 0, $MAX_SAFE_INTEGER);
+  function $ToLength(subject) {
+    return clamp($ToInteger(subject), 0, $MAX_SAFE_INTEGER);
   }
 
-  function $ToSafeInteger(inputArg) {
-    return clamp($ToInteger(inputArg), $MIN_SAFE_INTEGER, $MAX_SAFE_INTEGER);
+  function $ToSafeInteger(subject) {
+    return clamp($ToInteger(subject), $MIN_SAFE_INTEGER, subject);
+  }
+
+  function isLength(subject) {
+    return $ToSafeInteger(subject) === subject && subject >= 0;
   }
 
   function isSurrogatePair(char1, char2) {
@@ -134,8 +145,16 @@
     return result;
   }
 
-  function isFunction(inputArg) {
-    return typeof inputArg === 'function';
+  function isFunction(subject) {
+    return typeof subject === 'function';
+  }
+
+  function isString(subject) {
+    return $TOSTRINGTAG(subject) === '[object String]';
+  }
+
+  function isArrayLike(subject) {
+    return !isNil(subject) && !isFunction(subject) && isLength(subject.length);
   }
 
   setProperty($EXPORTS, 'entriesKey', function (item) {
@@ -265,8 +284,8 @@
     }
   });
 
-  setProperty($EXPORTS, 'unique', function* (inputArg, valueFunction, thisArg) {
-    var object = $ToObject(inputArg),
+  setProperty($EXPORTS, 'unique', function* (subject, valueFunction, thisArg) {
+    var object = $ToObject(subject),
       isFn = isFunction(valueFunction),
       seen = new Set(),
       item,
@@ -281,8 +300,8 @@
     }
   });
 
-  setProperty($EXPORTS, 'enumerables', function* (inputArg) {
-    var object = $ToObject(inputArg),
+  setProperty($EXPORTS, 'enumerables', function* (subject) {
+    var object = $ToObject(subject),
       key;
 
     for (key in object) {
@@ -290,8 +309,8 @@
     }
   });
 
-  setProperty($EXPORTS, 'keys', function* (inputArg) {
-    var object = $ToObject(inputArg),
+  setProperty($EXPORTS, 'keys', function* (subject) {
+    var object = $ToObject(subject),
       entry;
 
     for (entry of enumerables(object)) {
@@ -301,8 +320,8 @@
     }
   });
 
-  setProperty($EXPORTS, 'ownPropertyNames', function* (inputArg) {
-    var object = $ToObject(inputArg),
+  setProperty($EXPORTS, 'ownPropertyNames', function* (subject) {
+    var object = $ToObject(subject),
       name;
 
     for (name of $O.getOwnPropertyNames(object)) {
@@ -310,8 +329,8 @@
     }
   });
 
-  setProperty($EXPORTS, 'ownPropertySymbols', function* (inputArg) {
-    var object = $ToObject(inputArg),
+  setProperty($EXPORTS, 'ownPropertySymbols', function* (subject) {
+    var object = $ToObject(subject),
       name;
 
     for (symbol of $O.getOwnPropertySymbols(object)) {
@@ -319,8 +338,8 @@
     }
   });
 
-  function* valuesByKeys(inputArg, keysArray) {
-    var object = $ToObject(inputArg),
+  function* valuesByKeys(subject, keysArray) {
+    var object = $ToObject(subject),
       key;
 
     for (key of keysArray) {
@@ -330,8 +349,8 @@
 
   setProperty($EXPORTS, 'valuesByKeys', valuesByKeys);
 
-  function enumerate(inputArg, keysFunction, thisArg) {
-    var object = $ToObject(inputArg);
+  function enumerate(subject, keysFunction, thisArg) {
+    var object = $ToObject(subject);
 
     if (!isFunction(keysFunction)) {
       throw new $T('keysFunction must be a function');
@@ -341,6 +360,61 @@
   }
 
   setProperty($EXPORTS, 'enumerate', enumerate);
+
+  function isArray(subject, relaxed) {
+    var isA;
+
+    if (relaxed) {
+      isA = isArrayLike(subject) && !isString(subject);
+    } else {
+      isA = $ISARRAY(subject);
+    }
+
+    return isA;
+  }
+
+  setProperty($AP, 'flatten', function* (relaxed) {
+    var object = $ToObject(this),
+      stack,
+      value,
+      tail;
+
+    if (!isArray(object, relaxed)) {
+      return;
+    }
+
+    stack = new Map();
+    stack.set(object, {
+      index: 0,
+      prev: null
+    });
+
+    while (stack.size) {
+      tail = stack.get(object);
+      if (tail.index >= object.length) {
+        stack.delete(object);
+        object = tail.prev;
+      } else {
+        value = object[tail.index];
+        if (isArray(value, relaxed)) {
+          if (stack.has(value)) {
+            throw new TypeError('Flattening circular array');
+          }
+
+          stack.set(value, {
+            index: 0,
+            prev: object
+          });
+
+          object = value;
+        } else {
+          yield value;
+        }
+
+        tail.index += 1;
+      }
+    }
+  });
 
   return $EXPORTS;
 }));
