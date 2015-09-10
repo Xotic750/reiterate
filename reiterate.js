@@ -48,6 +48,7 @@
     $S = String,
     $SP = $S.prototype,
     $F = Function,
+    $HOP = $F.call.bind($OP.hasOwnProperty),
     $TOSTRINGTAG = $F.call.bind($OP.toString),
     $STRINGTAG = $TOSTRINGTAG($SP),
     $FUNCTIONTYPE = typeof $F,
@@ -71,11 +72,11 @@
       configurable: true,
       value: undefined
     },
-    $T = TypeError,
-    $EXPORTS = {};
+    $TE = TypeError,
+    $E = {};
 
   function setProperty(object, property, value) {
-    if (!object.hasOwnProperty(property)) {
+    if (!$HOP(object, property)) {
       $METHODDESCRIPTOR.value = value;
       $DEFINEPROPERTY(object, property, $METHODDESCRIPTOR);
       if ($APU && object === $AP) {
@@ -92,7 +93,7 @@
 
   function $RequireObjectCoercible(subject) {
     if (isNil(subject)) {
-      throw new $T('Cannot convert undefined or null to object');
+      throw new $TE('Cannot convert undefined or null to object');
     }
 
     return subject;
@@ -142,7 +143,7 @@
       result;
 
     if (!isNil && !isFunction(func)) {
-      throw new $T('method is not a function');
+      throw new $TE('method is not a function');
     }
 
     return func;
@@ -202,41 +203,53 @@
     return $O(subject) === subject;
   }
 
-  setProperty($EXPORTS, 'enslave', function (subject, name, staticMethod) {
-    if (isFunction(subject) || !isObject(subject)) {
-      throw new $T('subject must be an object');
+  setProperty($E, 'enslave', function (subject, name, staticMethod, generator) {
+    if (!isObject(subject)) {
+      throw new $TE('subject must be an object');
     }
 
     if (!isFunction(staticMethod)) {
-      throw new $T('method must be a function');
+      throw new $TE('method must be a function');
     }
 
-    setProperty(subject, name, staticMethod.bind(undefined, subject));
+    var object;
+
+    if (!isNil(generator)) {
+      if (!isFunction(generator)) {
+        throw new $TE('generator must be a function');
+      }
+
+      object = generator(subject);
+    } else {
+      object = subject;
+    }
+
+    setProperty(subject, name, staticMethod.bind(undefined, object));
   });
 
-  setProperty($EXPORTS, 'appoint', function (subject, name, prototypeMethod) {
-    if (!isFunction(subject)) {
-      throw new $T('subject must be a constructor');
+  setProperty($E, 'appoint', function (subject, name, prototypeMethod) {
+    if (!isObject(subject)) {
+      throw new $TE('subject must be an object');
     }
 
     if (!isFunction(prototypeMethod)) {
-      throw new $T('prototypeMethod must be a function');
+      throw new $TE('prototypeMethod must be a function');
     }
 
-    setProperty(subject.prototype, name, prototypeMethod);
+    setProperty(subject, name, prototypeMethod);
   });
 
   function entriesKey(item) {
     return $ToObject(item)[0];
   }
 
-  setProperty($EXPORTS, 'entriesKey', entriesKey);
+  setProperty($E, 'entriesKey', entriesKey);
 
   function entriesValue(item) {
     return $ToObject(item)[1];
   }
 
-  setProperty($EXPORTS, 'entriesValue', entriesValue);
+  setProperty($E, 'entriesValue', entriesValue);
 
   function* countUp(start, end) {
     var from = $ToSafeInteger(start),
@@ -248,7 +261,7 @@
     }
   }
 
-  setProperty($EXPORTS, 'countUp', countUp);
+  setProperty($E, 'countUp', countUp);
 
   function* countDown(start, end) {
     var from = $ToSafeInteger(start),
@@ -260,26 +273,33 @@
     }
   }
 
-  countDown = setProperty($EXPORTS, 'countDown', countDown);
+  countDown = setProperty($E, 'countDown', countDown);
 
   setProperty($AP, 'values', function* () {
-    yield * $ToObject(this);
+    var object = $ToObject(this),
+      key;
+
+    for (key of countUp(0, object.length - 1)) {
+      yield object[key];
+    }
   });
 
-  setProperty($AP, 'reverseKeys', function* reversArrayKeys() {
+  function* reverseArrayKeys() {
     var object = $ToObject(this),
       key;
 
     for (key of countDown(object.length - 1, 0)) {
       yield key;
     }
-  });
+  }
+
+  setProperty($AP, 'reverseKeys', reverseArrayKeys);
 
   setProperty($AP, 'reverseValues', function* () {
     var object = $ToObject(this),
       key;
 
-    for (key of object.reverseKeys()) {
+    for (key of reverseArrayKeys.call(object)) {
       yield object[key];
     }
   });
@@ -288,12 +308,12 @@
     var object = $ToObject(this),
       key;
 
-    for (key of object.reverseKeys()) {
+    for (key of reverseArrayKeys.call(object)) {
       yield [key, object[key]];
     }
   });
 
-  setProperty($SP, 'keys', function* () {
+  function* stringKeys() {
     var string = $OnlyCoercibleToString(this),
       next = true,
       key;
@@ -306,22 +326,29 @@
         next = !next;
       }
     }
-  });
+  }
+
+  setProperty($SP, 'keys', stringKeys);
 
   setProperty($SP, 'values', function* () {
-    yield * $OnlyCoercibleToString(this);
+    var string = $OnlyCoercibleToString(this),
+      key;
+
+    for (key of stringKeys.call(string)) {
+      yield $FROMCODEPOINT(string.codePointAt(key));
+    }
   });
 
   setProperty($SP, 'entries', function* () {
     var string = $OnlyCoercibleToString(this),
       key;
 
-    for (key of string.keys()) {
+    for (key of stringKeys.call(string)) {
       yield [key, $FROMCODEPOINT(string.codePointAt(key))];
     }
   });
 
-  setProperty($SP, 'reverseKeys', function* () {
+  function* reverseStringKeys() {
     var string = $OnlyCoercibleToString(this),
       next = true,
       key;
@@ -337,13 +364,15 @@
         yield key;
       }
     }
-  });
+  }
+
+  setProperty($SP, 'reverseKeys', reverseStringKeys);
 
   setProperty($SP, 'reverseValues', function* () {
     var string = $OnlyCoercibleToString(this),
       key;
 
-    for (key of string.reverseKeys()) {
+    for (key of reverseStringKeys.call(string)) {
       yield $FROMCODEPOINT(string.codePointAt(key));
     }
   });
@@ -352,12 +381,12 @@
     var string = $OnlyCoercibleToString(this),
       key;
 
-    for (key of string.reverseKeys()) {
+    for (key of reverseStringKeys.call(string)) {
       yield [key, $FROMCODEPOINT(string.codePointAt(key))];
     }
   });
 
-  setProperty($EXPORTS, 'unique', function* (subject) {
+  setProperty($E, 'unique', function* (subject) {
     var object = $ToObject(subject),
       seen = new Set(),
       item,
@@ -381,14 +410,39 @@
     }
   }
 
-  setProperty($EXPORTS, 'enumerate', enumerate);
+  setProperty($E, 'enumerate', enumerate);
 
-  setProperty($EXPORTS, 'keys', function* (subject) {
+  function* enumerateReverse(subject) {
+    var object = $ToObject(subject),
+      entries = [],
+      entry;
+
+    for (entry of enumerate(object)) {
+      entries.push(entry);
+    }
+
+    yield * entries.reverseValues();
+  }
+
+  setProperty($E, 'enumerateReverse', enumerateReverse);
+
+  setProperty($E, 'keys', function* (subject) {
     var object = $ToObject(subject),
       entry;
 
     for (entry of enumerate(object)) {
-      if (object.hasOwnProperty(entriesKey(entry))) {
+      if ($HOP(object, entriesKey(entry))) {
+        yield entry;
+      }
+    }
+  });
+
+  setProperty($E, 'keysReverse', function* (subject) {
+    var object = $ToObject(subject),
+      entry;
+
+    for (entry of enumerateReverse(object)) {
+      if ($HOP(object, entriesKey(entry))) {
         yield entry;
       }
     }
@@ -403,7 +457,7 @@
     }
   }
 
-  setProperty($EXPORTS, 'ownPropertyNames', ownPropertyNames);
+  setProperty($E, 'ownPropertyNames', ownPropertyNames);
 
   function* ownPropertySymbols(subject) {
     var object = $ToObject(subject),
@@ -414,9 +468,9 @@
     }
   }
 
-  setProperty($EXPORTS, 'ownPropertySymbols', ownPropertySymbols);
+  setProperty($E, 'ownPropertySymbols', ownPropertySymbols);
 
-  setProperty($EXPORTS, 'ownKeys', function* (subject) {
+  setProperty($E, 'ownKeys', function* (subject) {
     yield * ownPropertyNames(subject);
     yield * ownPropertySymbols(subject);
   });
@@ -477,7 +531,7 @@
     if (arguments.length > 1) {
       mapFn = arguments[1];
       if (!isFunction(mapFn)) {
-        throw new $T('When provided, the second argument must be a function');
+        throw new $TE('When provided, the second argument must be a function');
       }
 
       if (arguments.length > 2) {
@@ -508,13 +562,13 @@
     return result;
   });
 
-  setProperty($EXPORTS, 'map', function* (subject, callback, thisArg) {
+  setProperty($E, 'map', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
 
     if (!isFunction(callback)) {
-      throw new $T('callback must be a function');
+      throw new $TE('callback must be a function');
     }
 
     index = 0;
@@ -524,13 +578,13 @@
     }
   });
 
-  setProperty($EXPORTS, 'filter', function* (subject, callback, thisArg) {
+  setProperty($E, 'filter', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
 
     if (!isFunction(callback)) {
-      throw new $T('callback must be a function');
+      throw new $TE('callback must be a function');
     }
 
     index = 0;
@@ -542,13 +596,13 @@
     }
   });
 
-  setProperty($EXPORTS, 'reduce', function (subject, callback, initialValue) {
+  setProperty($E, 'reduce', function (subject, callback, initialValue) {
     var object = $ToObject(subject),
       element,
       index;
 
     if (!isFunction(callback)) {
-      throw new $T('callback must be a function');
+      throw new $TE('callback must be a function');
     }
 
     index = 0;
@@ -560,13 +614,13 @@
     return initialValue;
   });
 
-  setProperty($EXPORTS, 'forEach', function (subject, callback, thisArg) {
+  setProperty($E, 'forEach', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
 
     if (!isFunction(callback)) {
-      throw new $T('callback must be a function');
+      throw new $TE('callback must be a function');
     }
 
     index = 0;
@@ -576,13 +630,13 @@
     }
   });
 
-  setProperty($EXPORTS, 'every', function (subject, callback, thisArg) {
+  setProperty($E, 'every', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
 
     if (!isFunction(callback)) {
-      throw new $T('callback must be a function');
+      throw new $TE('callback must be a function');
     }
 
     index = 0;
@@ -598,5 +652,5 @@
     return true;
   });
 
-  return $EXPORTS;
+  return $E;
 }));
