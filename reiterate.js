@@ -560,5 +560,43 @@
     return initialValue;
   });
 
+  setProperty($EXPORTS, 'forEach', function (subject, callback, thisArg) {
+    var object = $ToObject(subject),
+      element,
+      index;
+
+    if (!isFunction(callback)) {
+      throw new $T('callback must be a function');
+    }
+
+    index = 0;
+    for (element of object) {
+      callback.call(thisArg, element, index, object);
+      index += 1;
+    }
+  });
+
+  setProperty($EXPORTS, 'every', function (subject, callback, thisArg) {
+    var object = $ToObject(subject),
+      element,
+      index;
+
+    if (!isFunction(callback)) {
+      throw new $T('callback must be a function');
+    }
+
+    index = 0;
+    for (element of object) {
+      if (!callback.call(thisArg, element, index, object)) {
+        return false;
+        break;
+      }
+
+      index += 1;
+    }
+
+    return true;
+  });
+
   return $EXPORTS;
 }));
