@@ -15,12 +15,12 @@
 
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
-    define([], factory);
+    define([], Function.prototype.call.bind(factory, root));
   } else if (typeof module === 'object' && module.exports) {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like environments that support module.exports,
     // like Node.
-    module.exports = factory();
+    module.exports = factory(root);
   } else {
     // Browser globals (root is window)
     if (root.hasOwnProperty('reiterate')) {
@@ -31,10 +31,10 @@
       enumerable: false,
       writable: true,
       configurable: true,
-      value: factory()
+      value: factory(root)
     });
   }
-}(this, function () {
+}(this, function (root) {
   'use strict';
 
   var $SY = Symbol,
@@ -197,6 +197,34 @@
       object[key] = value;
     }
   }
+
+  function isObject(subject) {
+    return $O(subject) === subject;
+  }
+
+  setProperty($EXPORTS, 'enslave', function (subject, name, staticMethod) {
+    if (isFunction(subject) || !isObject(subject)) {
+      throw new $T('subject must be an object');
+    }
+
+    if (!isFunction(staticMethod)) {
+      throw new $T('method must be a function');
+    }
+
+    setProperty(subject, name, staticMethod.bind(undefined, subject));
+  });
+
+  setProperty($EXPORTS, 'appoint', function (subject, name, prototypeMethod) {
+    if (!isFunction(subject)) {
+      throw new $T('subject must be a constructor');
+    }
+
+    if (!isFunction(prototypeMethod)) {
+      throw new $T('prototypeMethod must be a function');
+    }
+
+    setProperty(subject.prototype, name, prototypeMethod);
+  });
 
   function entriesKey(item) {
     return $ToObject(item)[0];
