@@ -1,10 +1,11 @@
 /*jslint maxlen:80, es6:true, this:true */
 
 /*property
-    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, charCodeAt, configurable,
-    defineProperty, enumerable, exports, floor, fromCodePoint,
-    getOwnPropertyDescriptor, hasOwnProperty, isFinite, isNaN, iterator, max,
-    min, prototype, sign, unscopables, value, writable
+    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, bind, call, charCodeAt,
+    configurable, defineProperty, enumerable, exports, floor, fromCodePoint,
+    getOwnPropertyDescriptor, hasOwnProperty, isArray, isFinite, isNaN,
+    iterator, length, max, min, prototype, sign, toString, unscopables, value,
+    writable
 */
 
 // UMD (Universal Module Definition)
@@ -417,11 +418,22 @@
     }
   });
 
-  function setValue(result, mapFn, thisArg, value, index) {
+  function $GetMethod(object, property) {
+    var func = object[property],
+      result;
+
+    if (!isNil && !isFunction(func)) {
+      throw new $T('method is not a function');
+    }
+
+    return func
+  }
+
+  function set(object, key, value, mapFn, thisArg) {
     if (mapFn) {
-      result[index] = mapFn.call(thisArg, value, index);
+      object[key] = mapFn.call(thisArg, value, key);
     } else {
-      result[index] = value;
+      object[key] = value;
     }
   }
 
@@ -446,16 +458,12 @@
       }
     }
 
-    iterator = object[$SI];
-    if (!isNil(iterator) && !isFunction(iterator)) {
-      throw new $T('iterator is not a function');
-    }
-
+    iterator = $GetMethod(object, $SI);
     index = 0;
-    if (!isNil(iterator)) {
+    if (iterator) {
       result = isFunction(this) ? $O(new this()) : [];
       for (value of object[$SI]()) {
-        setValue(result, mapFn, thisArg, value, index);
+        set(result, index, value, mapFn, thisArg);
         index += 1;
       }
     } else {
@@ -463,7 +471,7 @@
       result = isFunction(this) ? $O(new this(length)) : new $A(length);
       while (index < length) {
         value = object[index];
-        setValue(result, mapFn, thisArg, value, index);
+        set(result, index, value, mapFn, thisArg);
         index += 1;
       }
 
