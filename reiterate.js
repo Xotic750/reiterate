@@ -198,13 +198,17 @@
     }
   }
 
-  setProperty($EXPORTS, 'entriesKey', function (item) {
+  function entriesKey(item) {
     return $ToObject(item)[0];
-  });
+  }
 
-  setProperty($EXPORTS, 'entriesValue', function (item) {
+  setProperty($EXPORTS, 'entriesKey', entriesKey);
+
+  function entriesValue(item) {
     return $ToObject(item)[1];
-  });
+  }
+
+  setProperty($EXPORTS, 'entriesValue', entriesValue);
 
   function* countUp(start, end) {
     var from = $ToSafeInteger(start),
@@ -325,15 +329,14 @@
     }
   });
 
-  setProperty($EXPORTS, 'unique', function* (subject, valueFunction, thisArg) {
+  setProperty($EXPORTS, 'unique', function* (subject) {
     var object = $ToObject(subject),
-      isFn = isFunction(valueFunction),
       seen = new Set(),
       item,
       value;
 
     for (item of object) {
-      value = isFn ? valueFunction.call(thisArg, item) : item;
+      value = item;
       if (!seen.has(value)) {
         seen.add(value, true);
         yield item;
@@ -357,7 +360,7 @@
       entry;
 
     for (entry of enumerate(object)) {
-      if (object.hasOwnProperty(entry)) {
+      if (object.hasOwnProperty(entriesKey(entry))) {
         yield entry;
       }
     }
@@ -475,6 +478,58 @@
     }
 
     return result;
+  });
+
+  setProperty($EXPORTS, 'map', function* (subject, callback, thisArg) {
+    var object = $ToObject(subject),
+      element,
+      index;
+
+    if (!isFunction(callback)) {
+      throw new $T('callback must be a function');
+    }
+
+    index = 0;
+    for (element of object) {
+      yield callback.call(thisArg, element, index, object);
+      index += 1;
+    }
+  });
+
+  setProperty($EXPORTS, 'filter', function* (subject, callback, thisArg) {
+    var object = $ToObject(subject),
+      element,
+      index;
+
+    if (!isFunction(callback)) {
+      throw new $T('callback must be a function');
+    }
+
+    index = 0;
+    for (element of object) {
+      if (callback.call(thisArg, element, index, object)) {
+        yield element;
+        index += 1;
+      }
+    }
+  });
+
+  setProperty($EXPORTS, 'reduce', function (subject, callback, initialValue) {
+    var object = $ToObject(subject),
+      element,
+      index;
+
+    if (!isFunction(callback)) {
+      throw new $T('callback must be a function');
+    }
+
+    index = 0;
+    for (element of object) {
+      initialValue = callback(initialValue, element, index, object);
+      index += 1;
+    }
+
+    return initialValue;
   });
 
   return $EXPORTS;
