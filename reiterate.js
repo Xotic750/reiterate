@@ -47,7 +47,10 @@
     $APU = $AP[$SU],
     $S = String,
     $SP = $S.prototype,
-    $TOSTRINGTAG = Function.call.bind($OP.toString),
+    $F = Function,
+    $TOSTRINGTAG = $F.call.bind($OP.toString),
+    $STRINGTAG = $TOSTRINGTAG($SP),
+    $FUNCTIONTYPE = typeof $F,
     $M = Math,
     $FLOOR = $M.floor,
     $ABS = $M.abs,
@@ -62,7 +65,12 @@
     $ISFINITE = $N.isFinite,
     $FROMCODEPOINT = $S.fromCodePoint,
     $ISARRAY = $A.isArray,
-    $METHODDESCRIPTOR = $O.getOwnPropertyDescriptor($AP, 'push'),
+    $METHODDESCRIPTOR = {
+      enumerable: false,
+      writable: true,
+      configurable: true,
+      value: undefined
+    },
     $T = TypeError,
     $EXPORTS = {};
 
@@ -126,7 +134,7 @@
   }
 
   function isFunction(subject) {
-    return typeof subject === 'function';
+    return typeof subject === $FUNCTIONTYPE;
   }
 
   function $GetMethod(object, property) {
@@ -141,7 +149,7 @@
   }
 
   function isString(subject) {
-    return $TOSTRINGTAG(subject) === '[object String]';
+    return $TOSTRINGTAG(subject) === $STRINGTAG;
   }
 
   function isArrayLike(subject) {
