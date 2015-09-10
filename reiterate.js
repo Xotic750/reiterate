@@ -341,66 +341,54 @@
     }
   });
 
-  setProperty($EXPORTS, 'enumerables', function* (subject) {
+  function* enumerate(subject) {
     var object = $ToObject(subject),
       key;
 
     for (key in object) {
       yield [key, object[key]];
     }
-  });
+  }
+
+  setProperty($EXPORTS, 'enumerate', enumerate);
 
   setProperty($EXPORTS, 'keys', function* (subject) {
     var object = $ToObject(subject),
       entry;
 
-    for (entry of enumerables(object)) {
+    for (entry of enumerate(object)) {
       if (object.hasOwnProperty(entry)) {
         yield entry;
       }
     }
   });
 
-  setProperty($EXPORTS, 'ownPropertyNames', function* (subject) {
+  function* ownPropertyNames(subject) {
     var object = $ToObject(subject),
       name;
 
     for (name of $O.getOwnPropertyNames(object)) {
       yield [name, object[name]];
     }
-  });
+  }
 
-  setProperty($EXPORTS, 'ownPropertySymbols', function* (subject) {
+  setProperty($EXPORTS, 'ownPropertyNames', ownPropertyNames);
+
+  function* ownPropertySymbols(subject) {
     var object = $ToObject(subject),
-      name;
+      symbol;
 
     for (symbol of $O.getOwnPropertySymbols(object)) {
       yield [symbol, object[symbol]];
     }
+  }
+
+  setProperty($EXPORTS, 'ownPropertySymbols', ownPropertySymbols);
+
+  setProperty($EXPORTS, 'ownKeys', function* (subject) {
+    yield * ownPropertyNames(subject);
+    yield * ownPropertySymbols(subject);
   });
-
-  function* valuesByKeys(subject, keysArray) {
-    var object = $ToObject(subject),
-      key;
-
-    for (key of keysArray) {
-      yield [key, object[key]];
-    }
-  }
-
-  setProperty($EXPORTS, 'valuesByKeys', valuesByKeys);
-
-  function enumerate(subject, keysFunction, thisArg) {
-    var object = $ToObject(subject);
-
-    if (!isFunction(keysFunction)) {
-      throw new $T('keysFunction must be a function');
-    }
-
-    return valuesByKeys(object, keysFunction.call(thisArg, object));
-  }
-
-  setProperty($EXPORTS, 'enumerate', enumerate);
 
   setProperty($AP, 'flatten', function* (relaxed) {
     var object = $ToObject(this),
