@@ -125,6 +125,41 @@
     return clamp($ToInteger(subject), $MIN_SAFE_INTEGER, subject);
   }
 
+  function isFunction(subject) {
+    return typeof subject === 'function';
+  }
+
+  function $GetMethod(object, property) {
+    var func = object[property],
+      result;
+
+    if (!isNil && !isFunction(func)) {
+      throw new $T('method is not a function');
+    }
+
+    return func;
+  }
+
+  function isString(subject) {
+    return $TOSTRINGTAG(subject) === '[object String]';
+  }
+
+  function isArrayLike(subject) {
+    return !isNil(subject) && !isFunction(subject) && isLength(subject.length);
+  }
+
+  function isArray(subject, relaxed) {
+    var isA;
+
+    if (relaxed) {
+      isA = isArrayLike(subject) && !isString(subject);
+    } else {
+      isA = $ISARRAY(subject);
+    }
+
+    return isA;
+  }
+
   function isLength(subject) {
     return $ToSafeInteger(subject) === subject && subject >= 0;
   }
@@ -134,7 +169,7 @@
       code1,
       code2;
 
-    if (char1 && char2) {
+    if (char1 && char2 && isString(char1) && isString(char2)) {
       code1 = char1.charCodeAt();
       if (code1 >= 0xD800 && code1 <= 0xDBFF) {
         code2 = char2.charCodeAt();
@@ -147,16 +182,12 @@
     return result;
   }
 
-  function isFunction(subject) {
-    return typeof subject === 'function';
-  }
-
-  function isString(subject) {
-    return $TOSTRINGTAG(subject) === '[object String]';
-  }
-
-  function isArrayLike(subject) {
-    return !isNil(subject) && !isFunction(subject) && isLength(subject.length);
+  function set(object, key, value, mapFn, thisArg) {
+    if (mapFn) {
+      object[key] = mapFn.call(thisArg, value, key);
+    } else {
+      object[key] = value;
+    }
   }
 
   setProperty($EXPORTS, 'entriesKey', function (item) {
@@ -363,18 +394,6 @@
 
   setProperty($EXPORTS, 'enumerate', enumerate);
 
-  function isArray(subject, relaxed) {
-    var isA;
-
-    if (relaxed) {
-      isA = isArrayLike(subject) && !isString(subject);
-    } else {
-      isA = $ISARRAY(subject);
-    }
-
-    return isA;
-  }
-
   setProperty($AP, 'flatten', function* (relaxed) {
     var object = $ToObject(this),
       stack,
@@ -417,25 +436,6 @@
       }
     }
   });
-
-  function $GetMethod(object, property) {
-    var func = object[property],
-      result;
-
-    if (!isNil && !isFunction(func)) {
-      throw new $T('method is not a function');
-    }
-
-    return func
-  }
-
-  function set(object, key, value, mapFn, thisArg) {
-    if (mapFn) {
-      object[key] = mapFn.call(thisArg, value, key);
-    } else {
-      object[key] = value;
-    }
-  }
 
   setProperty($A, 'from', function (items) {
     var object = $ToObject(items),
