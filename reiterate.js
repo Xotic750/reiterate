@@ -62,6 +62,7 @@
     $MIN_SAFE_INTEGER = $N.MIN_SAFE_INTEGER,
     $MAX_SAFE_INTEGER = $N.MAX_SAFE_INTEGER,
     $DEFINEPROPERTY = $O.defineProperty,
+    $DEFINEPROPERTIES = $O.defineProperties,
     $ISNAN = $N.isNaN,
     $ISFINITE = $N.isFinite,
     $FROMCODEPOINT = $S.fromCodePoint,
@@ -86,6 +87,10 @@
 
     return value;
   }
+
+  setProperty($E, 'Array', {});
+  setProperty($E, 'String', {});
+  setProperty($E, 'Object', {});
 
   function isNil(subject) {
     return subject == null;
@@ -251,140 +256,370 @@
 
   setProperty($E, 'entriesValue', entriesValue);
 
-  function* countUp(start, end) {
-    var from = $ToSafeInteger(start),
-      to = $ToSafeInteger(end);
-
-    while (from <= to) {
-      yield from;
-      from += 1;
+  function counter(start, end) {
+    if (!(this instanceof counter)) {
+      return new counter(start, end);
     }
-  }
 
-  setProperty($E, 'countUp', countUp);
+    start = $ToSafeInteger(start);
+    end = $ToSafeInteger(end);
 
-  function* countDown(start, end) {
-    var from = $ToSafeInteger(start),
-      to = $ToSafeInteger(end);
+    var from = $MIN(start, end),
+      to = $MAX(start, end),
+      started = false,
+      reversed = false,
+      iterator;
 
-    while (from >= to) {
-      yield from;
-      from -= 1;
-    }
-  }
-
-  countDown = setProperty($E, 'countDown', countDown);
-
-  setProperty($AP, 'values', function* () {
-    var object = $ToObject(this),
-      key;
-
-    for (key of countUp(0, object.length - 1)) {
-      yield object[key];
-    }
-  });
-
-  function* reverseArrayKeys() {
-    var object = $ToObject(this),
-      key;
-
-    for (key of countDown(object.length - 1, 0)) {
-      yield key;
-    }
-  }
-
-  setProperty($AP, 'reverseKeys', reverseArrayKeys);
-
-  setProperty($AP, 'reverseValues', function* () {
-    var object = $ToObject(this),
-      key;
-
-    for (key of reverseArrayKeys.call(object)) {
-      yield object[key];
-    }
-  });
-
-  setProperty($AP, 'reverseEntries', function* () {
-    var object = $ToObject(this),
-      key;
-
-    for (key of reverseArrayKeys.call(object)) {
-      yield [key, object[key]];
-    }
-  });
-
-  function* stringKeys() {
-    var string = $OnlyCoercibleToString(this),
-      next = true,
-      key;
-
-    for (key of countUp(0, string.length - 1)) {
-      if (next) {
-        next = !isSurrogatePair(string[key], string[key + 1]);
-        yield key;
+    $METHODDESCRIPTOR.value = function* CountIterator() {
+      if (!reversed) {
+        started = true;
+        while (from <= to) {
+          yield from;
+          from += 1;
+        }
       } else {
-        next = !next;
+        while (to >= from) {
+          yield to;
+          to -= 1;
+        }
       }
-    }
+    };
+
+    iterator = $DEFINEPROPERTY(this, $SI, $METHODDESCRIPTOR)[$SI]();
+
+    $METHODDESCRIPTOR.value = function () {
+      if (started) {
+        throw new TypeError('Iterator is not reversable.');
+      }
+
+      reversed = true;
+      delete iterator.reverse;
+
+      return iterator;
+    };
+
+    $DEFINEPROPERTY(iterator, 'reverse', $METHODDESCRIPTOR);
+
+    return iterator;
   }
 
-  setProperty($SP, 'keys', stringKeys);
+  setProperty($E, 'counter', counter);
 
-  setProperty($SP, 'values', function* () {
-    var string = $OnlyCoercibleToString(this),
-      key;
-
-    for (key of stringKeys.call(string)) {
-      yield $FROMCODEPOINT(string.codePointAt(key));
+  function arrayKeys(subject) {
+    if (!(this instanceof arrayKeys)) {
+      return new arrayKeys(subject);
     }
-  });
 
-  setProperty($SP, 'entries', function* () {
-    var string = $OnlyCoercibleToString(this),
-      key;
+    var object = $ToObject(subject),
+      started = false,
+      reversed = false,
+      iterator;
 
-    for (key of stringKeys.call(string)) {
-      yield [key, $FROMCODEPOINT(string.codePointAt(key))];
-    }
-  });
+    $METHODDESCRIPTOR.value = function* ArrayIterator() {
+      var countIt = counter(0, object.length - 1),
+        key;
 
-  function* reverseStringKeys() {
-    var string = $OnlyCoercibleToString(this),
-      next = true,
-      key;
-
-    for (key of countDown(string.length - 1, 0)) {
-      if (next) {
-        next = !isSurrogatePair(string[key - 1], string[key]);
-        if (next) {
+      if (!reversed) {
+        started = true;
+        for (key of countIt) {
           yield key;
         }
       } else {
-        next = !next;
-        yield key;
+        for (key of countIt.reverse()) {
+          yield key;
+        }
       }
-    }
+    };
+
+    iterator = $DEFINEPROPERTY(this, $SI, $METHODDESCRIPTOR)[$SI]();
+
+    $METHODDESCRIPTOR.value = function () {
+      if (started) {
+        throw new TypeError('Iterator is not reversable.');
+      }
+
+      reversed = true;
+      delete iterator.reverse;
+
+      return iterator;
+    };
+
+    $DEFINEPROPERTY(iterator, 'reverse', $METHODDESCRIPTOR);
+
+    return iterator;
   }
 
-  setProperty($SP, 'reverseKeys', reverseStringKeys);
+  setProperty($E.Array, 'keys', arrayKeys);
 
-  setProperty($SP, 'reverseValues', function* () {
-    var string = $OnlyCoercibleToString(this),
-      key;
-
-    for (key of reverseStringKeys.call(string)) {
-      yield $FROMCODEPOINT(string.codePointAt(key));
+  function arrayValues(subject) {
+    if (!(this instanceof arrayValues)) {
+      return new arrayValues(subject);
     }
-  });
 
-  setProperty($SP, 'reverseEntries', function* () {
-    var string = $OnlyCoercibleToString(this),
-      key;
+    var object = $ToObject(subject),
+      started = false,
+      reversed = false,
+      iterator;
 
-    for (key of reverseStringKeys.call(string)) {
-      yield [key, $FROMCODEPOINT(string.codePointAt(key))];
+    $METHODDESCRIPTOR.value = function* ArrayIterator() {
+      var countIt = counter(0, object.length - 1),
+        key;
+
+      if (!reversed) {
+        for (key of countIt) {
+          yield object[key];
+        }
+      } else {
+        for (key of countIt.reverse()) {
+          yield object[key];
+        }
+      }
+    };
+
+    iterator = $DEFINEPROPERTY(this, $SI, $METHODDESCRIPTOR)[$SI]();
+
+    $METHODDESCRIPTOR.value = function () {
+      if (started) {
+        throw new TypeError('Iterator is not reversable.');
+      }
+
+      reversed = true;
+      delete iterator.reverse;
+
+      return iterator;
+    };
+
+    $DEFINEPROPERTY(iterator, 'reverse', $METHODDESCRIPTOR);
+
+    return iterator;
+  }
+
+  setProperty($E.Array, 'values', arrayValues);
+
+  function arrayEntries(subject) {
+    if (!(this instanceof arrayEntries)) {
+      return new arrayEntries(subject);
     }
-  });
+
+    var object = $ToObject(subject),
+      started = false,
+      reversed = false,
+      iterator;
+
+    $METHODDESCRIPTOR.value = function* ArrayIterator() {
+      var countIt = counter(0, object.length - 1),
+        key;
+
+      if (!reversed) {
+        for (key of countIt) {
+          yield [key, object[key]];
+        }
+      } else {
+        for (key of countIt.reverse()) {
+          yield [key, object[key]];
+        }
+      }
+    };
+
+    iterator = $DEFINEPROPERTY(this, $SI, $METHODDESCRIPTOR)[$SI]();
+
+    $METHODDESCRIPTOR.value = function () {
+      if (started) {
+        throw new TypeError('Iterator is not reversable.');
+      }
+
+      reversed = true;
+      delete iterator.reverse;
+
+      return iterator;
+    };
+
+    $DEFINEPROPERTY(iterator, 'reverse', $METHODDESCRIPTOR);
+
+    return iterator;
+  }
+
+  setProperty($E.Array, 'entries', arrayEntries);
+
+  function stringKeys(subject) {
+    if (!(this instanceof stringKeys)) {
+      return new stringKeys(subject);
+    }
+
+    var string = $OnlyCoercibleToString(subject),
+      started = false,
+      reversed = false,
+      iterator;
+
+    $METHODDESCRIPTOR.value = function* StringIterator() {
+      var countIt = counter(0, string.length - 1),
+        next = true,
+        key;
+
+      if (!reversed) {
+        started = true;
+        for (key of countIt) {
+          if (next) {
+            next = !isSurrogatePair(string[key], string[key + 1]);
+            yield key;
+          } else {
+            next = !next;
+          }
+        }
+      } else {
+        for (key of countIt.reverse()) {
+          if (next) {
+            next = !isSurrogatePair(string[key - 1], string[key]);
+            if (next) {
+              yield key;
+            }
+          } else {
+            next = !next;
+            yield key;
+          }
+        }
+      }
+    };
+
+    iterator = $DEFINEPROPERTY(this, $SI, $METHODDESCRIPTOR)[$SI]();
+
+    $METHODDESCRIPTOR.value = function () {
+      if (started) {
+        throw new TypeError('Iterator is not reversable.');
+      }
+
+      reversed = true;
+      delete iterator.reverse;
+
+      return iterator;
+    };
+
+    $DEFINEPROPERTY(iterator, 'reverse', $METHODDESCRIPTOR);
+
+    return iterator;
+  }
+
+  setProperty($E.String, 'keys', stringKeys);
+
+  function stringValues(subject) {
+    if (!(this instanceof stringValues)) {
+      return new stringValues(subject);
+    }
+
+    var string = $OnlyCoercibleToString(subject),
+      started = false,
+      reversed = false,
+      iterator;
+
+    $METHODDESCRIPTOR.value = function* StringIterator() {
+      var countIt = counter(0, string.length - 1),
+        next = true,
+        key;
+
+      if (!reversed) {
+        started = true;
+        for (key of countIt) {
+          if (next) {
+            next = !isSurrogatePair(string[key], string[key + 1]);
+            yield $FROMCODEPOINT(string.codePointAt(key));;
+          } else {
+            next = !next;
+          }
+        }
+      } else {
+        for (key of countIt.reverse()) {
+          if (next) {
+            next = !isSurrogatePair(string[key - 1], string[key]);
+            if (next) {
+              yield $FROMCODEPOINT(string.codePointAt(key));;
+            }
+          } else {
+            next = !next;
+            yield key;
+          }
+        }
+      }
+    };
+
+    iterator = $DEFINEPROPERTY(this, $SI, $METHODDESCRIPTOR)[$SI]();
+
+    $METHODDESCRIPTOR.value = function () {
+      if (started) {
+        throw new TypeError('Iterator is not reversable.');
+      }
+
+      reversed = true;
+      delete iterator.reverse;
+
+      return iterator;
+    };
+
+    $DEFINEPROPERTY(iterator, 'reverse', $METHODDESCRIPTOR);
+
+    return iterator;
+  }
+
+  setProperty($E.String, 'values', stringValues);
+
+  function stringEntries(subject) {
+    if (!(this instanceof stringEntries)) {
+      return new stringEntries(subject);
+    }
+
+    var string = $OnlyCoercibleToString(subject),
+      started = false,
+      reversed = false,
+      iterator;
+
+    $METHODDESCRIPTOR.value = function* StringIterator() {
+      var countIt = counter(0, string.length - 1),
+        next = true,
+        key;
+
+      if (!reversed) {
+        started = true;
+        for (key of countIt) {
+          if (next) {
+            next = !isSurrogatePair(string[key], string[key + 1]);
+            yield [key, $FROMCODEPOINT(string.codePointAt(key))];
+          } else {
+            next = !next;
+          }
+        }
+      } else {
+        for (key of countIt.reverse()) {
+          if (next) {
+            next = !isSurrogatePair(string[key - 1], string[key]);
+            if (next) {
+              yield [key, $FROMCODEPOINT(string.codePointAt(key))];
+            }
+          } else {
+            next = !next;
+            yield key;
+          }
+        }
+      }
+    };
+
+    iterator = $DEFINEPROPERTY(this, $SI, $METHODDESCRIPTOR)[$SI]();
+
+    $METHODDESCRIPTOR.value = function () {
+      if (started) {
+        throw new TypeError('Iterator is not reversable.');
+      }
+
+      reversed = true;
+      delete iterator.reverse;
+
+      return iterator;
+    };
+
+    $DEFINEPROPERTY(iterator, 'reverse', $METHODDESCRIPTOR);
+
+    return iterator;
+  }
+
+  setProperty($E.String, 'entries', stringEntries);
 
   setProperty($E, 'unique', function* (subject) {
     var object = $ToObject(subject),
