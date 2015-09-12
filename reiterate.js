@@ -21,12 +21,12 @@
 
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
-    define([], Function.prototype.call.bind(factory, root));
+    define([], factory);
   } else if (typeof module === 'object' && module.exports) {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like environments that support module.exports,
     // like Node.
-    module.exports = factory(root);
+    module.exports = factory();
   } else {
     // Browser globals (root is window)
     if (root.hasOwnProperty('reiterate')) {
@@ -37,10 +37,10 @@
       enumerable: false,
       writable: true,
       configurable: true,
-      value: factory(root)
+      value: factory()
     });
   }
-}(this, function (root) {
+}(this, function () {
   'use strict';
 
   /*
@@ -144,6 +144,7 @@
 
   function $RequireObjectCoercible(subject) {
     if (isNil(subject)) {
+      /*jshint newcap:false */
       throw new $TE('Cannot convert undefined or null to object');
     }
 
@@ -193,6 +194,7 @@
     var func = object[property];
 
     if (!isNil && !isFunction(func)) {
+      /*jshint newcap:false */
       throw new $TE('method is not a function');
     }
 
@@ -313,12 +315,20 @@
   setProperty($E, 'entriesValue', entriesValue);
   */
 
+  function checkcallback(callback) {
+    if (!isFunction(callback)) {
+      /*jshint newcap:false */
+      throw new $TE('callback must be a function');
+    }
+  }
+
   /*
    * define iterators
    */
 
   function iterartorNotReversable() {
-    return new TypeError('Iterator is not reversable.');
+    /*jshint newcap:false */
+    return new $TE('Iterator is not reversable.');
   }
 
   function defineIterator(object) {
@@ -378,10 +388,10 @@
    * counter
    */
 
-  function counter(start, end) {
+  function Counter(start, end) {
     /*jshint validthis:true */
-    if (!(this instanceof counter)) {
-      return new counter(start, end);
+    if (!(this instanceof Counter)) {
+      return new Counter(start, end);
     }
 
     start = $ToSafeInteger(start);
@@ -413,16 +423,16 @@
     return defineReverseOnly(this, flags);
   }
 
-  setProperty($E, 'counter', counter);
+  setProperty($E, 'counter', Counter);
 
   /*
    * arrayEntries
    */
 
-  function arrayEntries(subject) {
+  function ArrayEntries(subject) {
     /*jshint validthis:true */
-    if (!(this instanceof arrayEntries)) {
-      return new arrayEntries(subject);
+    if (!(this instanceof ArrayEntries)) {
+      return new ArrayEntries(subject);
     }
 
     var object = $ToObject(subject),
@@ -434,7 +444,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ArrayIterator() {
-      var countIt = counter(lastIndex(object)),
+      var countIt = new Counter(lastIndex(object)),
         value,
         key;
 
@@ -461,16 +471,16 @@
     return defineAll(this, flags);
   }
 
-  setProperty($E.Array, 'entries', arrayEntries);
+  setProperty($E.Array, 'entries', ArrayEntries);
 
   /*
    * stringEntries
    */
 
-  function stringEntries(subject) {
+  function StringEntries(subject) {
     /*jshint validthis:true */
-    if (!(this instanceof stringEntries)) {
-      return new stringEntries(subject);
+    if (!(this instanceof StringEntries)) {
+      return new StringEntries(subject);
     }
 
     var string = $OnlyCoercibleToString(subject),
@@ -482,7 +492,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* StringIterator() {
-      var countIt = counter(lastIndex(string)),
+      var countIt = new Counter(lastIndex(string)),
         next = true,
         value,
         key;
@@ -515,16 +525,16 @@
     return defineAll(this, flags);
   }
 
-  setProperty($E.String, 'entries', stringEntries);
+  setProperty($E.String, 'entries', StringEntries);
 
   /*
    * enumerate
    */
 
-  function enumerate(subject) {
+  function Enumerate(subject) {
     /*jshint validthis:true */
-    if (!(this instanceof enumerate)) {
-      return new enumerate(subject);
+    if (!(this instanceof Enumerate)) {
+      return new Enumerate(subject);
     }
 
     var object = $OnlyCoercibleToString(subject),
@@ -556,16 +566,16 @@
     return defineAll(this, flags);
   }
 
-  setProperty($E.Object, 'enumerate', enumerate);
+  setProperty($E.Object, 'enumerate', Enumerate);
 
   /*
    * objectKeys
    */
 
-  function objectKeys(subject) {
+  function ObjectKeys(subject) {
     /*jshint validthis:true */
-    if (!(this instanceof objectKeys)) {
-      return new objectKeys(subject);
+    if (!(this instanceof ObjectKeys)) {
+      return new ObjectKeys(subject);
     }
 
     var object = $ToObject(subject),
@@ -575,7 +585,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var keysIt = arrayEntries($OBJECTKEYS(object));
+      var keysIt = new ArrayEntries($OBJECTKEYS(object));
 
       if (flags.reversed) {
         keysIt = keysIt.reverse();
@@ -589,16 +599,16 @@
     return defineReverseOnly(this, flags);
   }
 
-  setProperty($E.Object, 'keys', objectKeys);
+  setProperty($E.Object, 'keys', ObjectKeys);
 
   /*
    * getOwnPropertyNames
    */
 
-  function getOwnPropertyNames(subject) {
+  function GetOwnPropertyNames(subject) {
     /*jshint validthis:true */
-    if (!(this instanceof getOwnPropertyNames)) {
-      return new getOwnPropertyNames(subject);
+    if (!(this instanceof GetOwnPropertyNames)) {
+      return new GetOwnPropertyNames(subject);
     }
 
     var object = $ToObject(subject),
@@ -608,7 +618,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var namesIt = arrayEntries($GOPN(object));
+      var namesIt = new ArrayEntries($GOPN(object));
 
       if (flags.reversed) {
         namesIt = namesIt.reverse();
@@ -622,16 +632,16 @@
     return defineReverseOnly(this, flags);
   }
 
-  setProperty($E.Object, 'getOwnPropertyNames', getOwnPropertyNames);
+  setProperty($E.Object, 'getOwnPropertyNames', GetOwnPropertyNames);
 
   /*
    * getOwnPropertySymbols
    */
 
-  function getOwnPropertySymbols(subject) {
+  function GetOwnPropertySymbols(subject) {
     /*jshint validthis:true */
-    if (!(this instanceof getOwnPropertySymbols)) {
-      return new getOwnPropertySymbols(subject);
+    if (!(this instanceof GetOwnPropertySymbols)) {
+      return new GetOwnPropertySymbols(subject);
     }
 
     var object = $ToObject(subject),
@@ -641,7 +651,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var symbolsIt = arrayEntries($GOPS(object));
+      var symbolsIt = new ArrayEntries($GOPS(object));
 
       if (flags.reversed) {
         symbolsIt = symbolsIt.reverse();
@@ -655,16 +665,16 @@
     return defineReverseOnly(this, flags);
   }
 
-  setProperty($E.Object, 'getOwnPropertySymbols', getOwnPropertySymbols);
+  setProperty($E.Object, 'getOwnPropertySymbols', GetOwnPropertySymbols);
 
   /*
    * ownKeys
    */
 
-  function ownKeys(subject) {
+  function OwnKeys(subject) {
     /*jshint validthis:true */
-    if (!(this instanceof ownKeys)) {
-      return new ownKeys(subject);
+    if (!(this instanceof OwnKeys)) {
+      return new OwnKeys(subject);
     }
 
     var object = $ToObject(subject),
@@ -674,8 +684,8 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var namesIt = getOwnPropertyNames(object),
-        symbolsIt = getOwnPropertySymbols(object);
+      var namesIt = new GetOwnPropertyNames(object),
+        symbolsIt = new GetOwnPropertySymbols(object);
 
       if (flags.reversed) {
         namesIt = namesIt.reverse();
@@ -691,13 +701,13 @@
     return defineReverseOnly(this, flags);
   }
 
-  setProperty($E.Object, 'ownKeys', ownKeys);
+  setProperty($E.Object, 'ownKeys', OwnKeys);
 
   /*
    * unique
    */
 
-  setProperty($E, 'unique', function* (subject) {
+  function* unique(subject) {
     var object = $ToObject(subject),
       seen = new Set(),
       item,
@@ -710,15 +720,16 @@
         yield item;
       }
     }
-  });
+  }
+
+  setProperty($E.Object, 'unique', unique);
 
   /*
    * flatten
    */
 
-  setProperty($AP, 'flatten', function* (relaxed) {
-    /*jshint validthis:true */
-    var object = $ToObject(this),
+  function* flatten(subject, relaxed) {
+    var object = $ToObject(subject),
       stack,
       value,
       tail;
@@ -742,7 +753,8 @@
         value = object[tail.index];
         if (isArray(value, relaxed)) {
           if (stack.has(value)) {
-            throw new TypeError('Flattening circular array');
+            /*jshint newcap:false */
+            throw new $TE('Flattening circular array');
           }
 
           stack.set(value, {
@@ -758,7 +770,9 @@
         tail.index += 1;
       }
     }
-  });
+  }
+
+  setProperty($E.Array, 'flatten', flatten);
 
   /*
    * from
@@ -778,6 +792,7 @@
       if (arguments.length > 1) {
         mapFn = arguments[1];
         if (!isFunction(mapFn)) {
+          /*jshint newcap:false */
           throw new $TE('If provided, the second argument must be a function');
         }
 
@@ -818,15 +833,12 @@
    * map
    */
 
-  setProperty($E, 'map', function* (subject, callback, thisArg) {
+  setProperty($E.Object, 'map', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
 
-    if (!isFunction(callback)) {
-      throw new $TE('callback must be a function');
-    }
-
+    checkcallback(callback);
     index = 0;
     for (element of object) {
       yield callback.call(thisArg, element, index, object);
@@ -838,15 +850,12 @@
    * filter
    */
 
-  setProperty($E, 'filter', function* (subject, callback, thisArg) {
+  setProperty($E.Object, 'filter', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
 
-    if (!isFunction(callback)) {
-      throw new $TE('callback must be a function');
-    }
-
+    checkcallback(callback);
     index = 0;
     for (element of object) {
       if (callback.call(thisArg, element, index, object)) {
@@ -860,15 +869,12 @@
    * reduce
    */
 
-  setProperty($E, 'reduce', function (subject, callback, initialValue) {
+  setProperty($E.Object, 'reduce', function (subject, callback, initialValue) {
     var object = $ToObject(subject),
       element,
       index;
 
-    if (!isFunction(callback)) {
-      throw new $TE('callback must be a function');
-    }
-
+    checkcallback(callback);
     index = 0;
     for (element of object) {
       initialValue = callback(initialValue, element, index, object);
@@ -882,15 +888,12 @@
    * forEach
    */
 
-  setProperty($E, 'forEach', function (subject, callback, thisArg) {
+  setProperty($E.Object, 'forEach', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
 
-    if (!isFunction(callback)) {
-      throw new $TE('callback must be a function');
-    }
-
+    checkcallback(callback);
     index = 0;
     for (element of object) {
       callback.call(thisArg, element, index, object);
@@ -902,16 +905,13 @@
    * every
    */
 
-  setProperty($E, 'every', function (subject, callback, thisArg) {
+  setProperty($E.Object, 'every', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
       result,
       element,
       index;
 
-    if (!isFunction(callback)) {
-      throw new $TE('callback must be a function');
-    }
-
+    checkcallback(callback);
     result = true;
     index = 0;
     for (element of object) {
