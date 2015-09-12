@@ -1,6 +1,10 @@
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint esnext: true */
 
+/*global
+    define, module
+*/
+
 /*property
     MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, bind, call, charCodeAt,
     configurable, create, defineProperties, defineProperty, enumerable,
@@ -69,7 +73,7 @@
     $MIN_SAFE_INTEGER = $N.MIN_SAFE_INTEGER,
     $MAX_SAFE_INTEGER = $N.MAX_SAFE_INTEGER,
     $DEFINEPROPERTY = $O.defineProperty,
-    $DEFINEPROPERTIES = $O.defineProperties,
+    //$DEFINEPROPERTIES = $O.defineProperties,
     $CREATE = $O.create,
     $OBJECTKEYS = $O.keys,
     $GOPN = $O.getOwnPropertyNames,
@@ -134,6 +138,7 @@
   setProperty($E, 'Object', {});
 
   function isNil(subject) {
+    /*jshint eqnull:true */
     return subject == null;
   }
 
@@ -185,8 +190,7 @@
   }
 
   function $GetMethod(object, property) {
-    var func = object[property],
-      result;
+    var func = object[property];
 
     if (!isNil && !isFunction(func)) {
       throw new $TE('method is not a function');
@@ -249,9 +253,11 @@
     }
   }
 
+  /*
   function isObject(subject) {
     return $O(subject) === subject;
   }
+  */
 
   /*
   setProperty($E, 'enslave', function (subject, name, staticMethod, generator) {
@@ -373,6 +379,7 @@
    */
 
   function counter(start, end) {
+    /*jshint validthis:true */
     if (!(this instanceof counter)) {
       return new counter(start, end);
     }
@@ -402,6 +409,7 @@
       }
     };
 
+    /*jshint validthis:true */
     return defineReverseOnly(this, flags);
   }
 
@@ -412,6 +420,7 @@
    */
 
   function arrayEntries(subject) {
+    /*jshint validthis:true */
     if (!(this instanceof arrayEntries)) {
       return new arrayEntries(subject);
     }
@@ -425,7 +434,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ArrayIterator() {
-      var countIt = counter(lastIndex(string)),
+      var countIt = counter(lastIndex(object)),
         value,
         key;
 
@@ -448,6 +457,7 @@
       }
     };
 
+    /*jshint validthis:true */
     return defineAll(this, flags);
   }
 
@@ -458,6 +468,7 @@
    */
 
   function stringEntries(subject) {
+    /*jshint validthis:true */
     if (!(this instanceof stringEntries)) {
       return new stringEntries(subject);
     }
@@ -500,6 +511,7 @@
       }
     };
 
+    /*jshint validthis:true */
     return defineAll(this, flags);
   }
 
@@ -510,6 +522,7 @@
    */
 
   function enumerate(subject) {
+    /*jshint validthis:true */
     if (!(this instanceof enumerate)) {
       return new enumerate(subject);
     }
@@ -539,6 +552,7 @@
       }
     };
 
+    /*jshint validthis:true */
     return defineAll(this, flags);
   }
 
@@ -549,6 +563,7 @@
    */
 
   function objectKeys(subject) {
+    /*jshint validthis:true */
     if (!(this instanceof objectKeys)) {
       return new objectKeys(subject);
     }
@@ -560,7 +575,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var keysIt = arrayValues($OBJECTKEYS(object));
+      var keysIt = arrayEntries($OBJECTKEYS(object));
 
       if (flags.reversed) {
         keysIt = keysIt.reverse();
@@ -570,6 +585,7 @@
       yield * keysIt;
     };
 
+    /*jshint validthis:true */
     return defineReverseOnly(this, flags);
   }
 
@@ -580,6 +596,7 @@
    */
 
   function getOwnPropertyNames(subject) {
+    /*jshint validthis:true */
     if (!(this instanceof getOwnPropertyNames)) {
       return new getOwnPropertyNames(subject);
     }
@@ -591,7 +608,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var namesIt = arrayValues($GOPN(object));
+      var namesIt = arrayEntries($GOPN(object));
 
       if (flags.reversed) {
         namesIt = namesIt.reverse();
@@ -601,6 +618,7 @@
       yield * namesIt;
     };
 
+    /*jshint validthis:true */
     return defineReverseOnly(this, flags);
   }
 
@@ -611,6 +629,7 @@
    */
 
   function getOwnPropertySymbols(subject) {
+    /*jshint validthis:true */
     if (!(this instanceof getOwnPropertySymbols)) {
       return new getOwnPropertySymbols(subject);
     }
@@ -622,7 +641,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var symbolsIt = arrayValues($GOPS(object));
+      var symbolsIt = arrayEntries($GOPS(object));
 
       if (flags.reversed) {
         symbolsIt = symbolsIt.reverse();
@@ -632,6 +651,7 @@
       yield * symbolsIt;
     };
 
+    /*jshint validthis:true */
     return defineReverseOnly(this, flags);
   }
 
@@ -642,6 +662,7 @@
    */
 
   function ownKeys(subject) {
+    /*jshint validthis:true */
     if (!(this instanceof ownKeys)) {
       return new ownKeys(subject);
     }
@@ -656,7 +677,7 @@
       var namesIt = getOwnPropertyNames(object),
         symbolsIt = getOwnPropertySymbols(object);
 
-      if (flagsreversed) {
+      if (flags.reversed) {
         namesIt = namesIt.reverse();
         symbolsIt = symbolsIt.reverse();
       }
@@ -666,6 +687,7 @@
       yield * symbolsIt;
     };
 
+    /*jshint validthis:true */
     return defineReverseOnly(this, flags);
   }
 
@@ -695,6 +717,7 @@
    */
 
   setProperty($AP, 'flatten', function* (relaxed) {
+    /*jshint validthis:true */
     var object = $ToObject(this),
       stack,
       value,
@@ -766,6 +789,7 @@
       iterator = $GetMethod(object, $SI);
       index = 0;
       if (iterator && isFunction(iterator)) {
+        /*jshint validthis:true */
         result = isFunction(this) ? $O(new this()) : [];
         for (value of iterator()) {
           set(result, index, value, mapFn, thisArg);
@@ -773,6 +797,7 @@
         }
       } else {
         length = $ToLength(object.length);
+        /*jshint validthis:true */
         result = isFunction(this) ? $O(new this(length)) : new $A(length);
         while (index < length) {
           value = object[index];
@@ -879,6 +904,7 @@
 
   setProperty($E, 'every', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
+      result,
       element,
       index;
 
@@ -886,17 +912,18 @@
       throw new $TE('callback must be a function');
     }
 
+    result = true;
     index = 0;
     for (element of object) {
       if (!callback.call(thisArg, element, index, object)) {
-        return false;
+        result = false;
         break;
       }
 
       index += 1;
     }
 
-    return true;
+    return result;
   });
 
   return $E;
