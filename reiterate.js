@@ -1,3 +1,13 @@
+/**
+ * @file {@link https://github.com/Xotic750/ES6-reiterate reiterate}.
+ * A Javascript generator and iterator library.
+ * @version 0.1.0
+ * @author Graham Fairweather <xotic750@gmail.com>
+ * @copyright Copyright (c) 2013 Graham Fairweather
+ * @license {@link <http://www.gnu.org/licenses/gpl-3.0.html> GPL3}
+ * @module reiterate
+ */
+
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint esnext: true */
 
@@ -47,7 +57,8 @@
    * const
    */
 
-  var $SY = Symbol,
+  var $DEVELOPSTRICT = true,
+    $SY = Symbol,
     $SU = $SY.unscopables,
     $SI = $SY.iterator,
     $O = Object,
@@ -62,14 +73,17 @@
     $HOP = $CALL.bind($OP.hasOwnProperty),
     $TOSTRINGTAG = $CALL.bind($OP.toString),
     $STRINGTAG = $TOSTRINGTAG($SP),
+    $N = Number,
+    $NP = $N.prototype,
+    $NUMBERTAG = $TOSTRINGTAG($NP),
     $FUNCTIONTYPE = typeof $F,
+    $SYMBOLTYPE = typeof $SI,
     $M = Math,
     $FLOOR = $M.floor,
     $ABS = $M.abs,
     $MAX = $M.max,
     $MIN = $M.min,
     $SIGN = $M.sign,
-    $N = Number,
     $MIN_SAFE_INTEGER = $N.MIN_SAFE_INTEGER,
     $MAX_SAFE_INTEGER = $N.MAX_SAFE_INTEGER,
     $DEFINEPROPERTY = $O.defineProperty,
@@ -137,11 +151,29 @@
   setProperty($E, 'String', {});
   setProperty($E, 'Object', {});
 
+  /**
+   * Returns true if the operand inputArg is null or undefined.
+   *
+   * @private
+   * @param {*} subject
+   * @return {boolean}
+   */
   function isNil(subject) {
     /*jshint eqnull:true */
     return subject == null;
   }
 
+  /**
+   * The abstract operation throws an error if its argument is a value that
+   * cannot be  converted to an Object, otherwise returns the argument.
+   *
+   * @private
+   * @param {*} inputArg
+   * @throws {TypeError} If inputArg is null or undefined.
+   * @return {*}
+   * @see http://www.ecma-international.org/ecma-262/6.0/
+   *      #sec-requireobjectcoercible
+   */
   function $RequireObjectCoercible(subject) {
     if (isNil(subject)) {
       /*jshint newcap:false */
@@ -151,14 +183,42 @@
     return subject;
   }
 
+  /**
+   * The abstract operation converts its argument to a value of type Object.
+   *
+   * @private
+   * @param {*} subject
+   * @throws {TypeError} If subject is null or undefined.
+   * @return {Object}
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-toobject
+   */
   function $ToObject(subject) {
     return $O($RequireObjectCoercible(subject));
   }
 
+  /**
+   * Returns a string only if the arguments is coercible otherwise throws an
+   * error.
+   *
+   * @private
+   * @param {*} subject
+   * @throws {TypeError} If subject is null or undefined.
+   * @return {string}
+   */
   function $OnlyCoercibleToString(subject) {
     return $S($RequireObjectCoercible(subject));
   }
 
+  /**
+   * The function evaluates the passed value and converts it to an integer.
+   *
+   * @private
+   * @param {*} subject The object to be converted to an integer.
+   * @return {number} If the target value is NaN, null or undefined, 0 is
+   *                  returned. If the target value is false, 0 is returned and
+   *                  if true, 1 is returned.
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger
+   */
   function $ToInteger(subject) {
     var number = +subject,
       val = 0;
@@ -174,26 +234,106 @@
     return val;
   }
 
+  /**
+   * Returns true if the operand inputArg is a Number.
+   *
+   * @private
+   * @param {*} subject
+   * @return {boolean}
+   */
+  function isNumber(subject) {
+    return $TOSTRINGTAG(subject) === $NUMBERTAG;
+  }
+
+  /**
+   * Returns a number clamped to the range set by min and max.
+   *
+   * @private
+   * @param {number} number
+   * @param {number} min
+   * @param {number} max
+   * @throws {TypeError} If params are not of number type.
+   * @return {number}
+   */
   function clamp(number, min, max) {
+    if (!isNumber(number) || !isNumber(min) || !isNumber(max)) {
+      /*jshint newcap:false */
+      throw new $TE('argument is not of type number');
+    }
     return $MIN($MAX(number, min), max);
   }
 
+  /**
+   * The abstract operation ToLength converts its argument to an integer
+   * suitable for use as the length of an array-like object.
+   *
+   * @private
+   * @param {*} subject The object to be converted to a length.
+   * @return {number} If len <= +0 then +0 else if len is +INFINITY then 2^53-1
+   *                  else min(len, 2^53-1).
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
+   */
   function $ToLength(subject) {
     return clamp($ToInteger(subject), 0, $MAX_SAFE_INTEGER);
   }
 
+  /**
+   * The function evaluates the passed value and converts it to a safe integer.
+   *
+   * @private
+   * @param {*} subject
+   * @return {number}
+   */
   function $ToSafeInteger(subject) {
     return clamp($ToInteger(subject), $MIN_SAFE_INTEGER, $MAX_SAFE_INTEGER);
   }
 
+  /**
+   * Returns true if the operand subject is a Function
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if the object is a function,
+   *                   otherwise false.
+   */
   function isFunction(subject) {
     return typeof subject === $FUNCTIONTYPE;
   }
 
+  /**
+   * Returns true if the operand subject is a Symbol
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if the object is a Symbol,
+   *                   otherwise false.
+   */
+  function isSymbol(subject) {
+    return typeof subject === $SYMBOLTYPE;
+  }
+
+  /**
+   * The abstract operation GetMethod is used to get the value of a specific
+   * property of an object when the value of the property is expected to be a
+   * function.
+   *
+   * @private
+   * @param {object} object
+   * @param {string|symbol} property
+   * @throws {TypeError} If value of a specific property of an object is not a
+   *                     function.
+   * @return {function}
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
+   */
   function $GetMethod(object, property) {
+    if ($DEVELOPSTRICT && !isSymbol(property) && !isString(property)) {
+      /*jshint newcap:true */
+      throw new TypeError('property must be a string or symbol');
+    }
+
     var func = object[property];
 
-    if (!isNil && !isFunction(func)) {
+    if (!isNil(func) && !isFunction(func)) {
       /*jshint newcap:false */
       throw new $TE('method is not a function');
     }
@@ -201,14 +341,42 @@
     return func;
   }
 
+  /**
+   * Returns true if the operand inputArg is a String.
+   *
+   * @private
+   * @param {*} subject
+   * @return {boolean}
+   */
   function isString(subject) {
     return $TOSTRINGTAG(subject) === $STRINGTAG;
   }
 
+  /**
+   * Checks if `value` is array-like. A value is considered array-like if it's
+   * not a function and has a `value.length` that's an integer greater than or
+   * equal to `0` and less than or equal to `Number.MAX_SAFE_INTEGER`.
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @returns {boolean} Returns `true` if `subject` is array-like, else `false`.
+   */
   function isArrayLike(subject) {
     return !isNil(subject) && !isFunction(subject) && isLength(subject.length);
   }
 
+  /**
+   * If 'relaxed' is falsy The function tests the subject arguments and returns
+   * the Boolean value true if the argument is an object whose class internal
+   * property is "Array"; otherwise it returns false. if 'relaxed' is true then
+   * 'isArrayLike' is used for the test.
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @param {boolean} [relaxed] Use isArrayLike rather than isArray
+   * @return {boolean}
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-isarray
+   */
   function isArray(subject, relaxed) {
     var isA;
 
@@ -221,14 +389,39 @@
     return isA;
   }
 
+  /**
+   * Checks if `value` is a valid array-like length.
+   *
+   * @private
+   * @param {*} subject The value to check.
+   * @return {boolean} Returns `true` if `value` is a valid length,
+   *                   else `false`.
+   */
   function isLength(subject) {
     return $ToSafeInteger(subject) === subject && subject >= 0;
   }
 
+  /**
+   * Get the last index of an array-like object.
+   *
+   * @private
+   * @param {*} subject The object to get the last index of.
+   * @return {number} Returns the last index number of the array.like or 0.
+   */
   function lastIndex(subject) {
     return isArrayLike(subject) && $ToSafeInteger(subject.length - 1) || 0;
   }
 
+  /**
+   * Tests if the two character arguments combined are a valid UTF-16 surrogate
+   * pair.
+   *
+   * @private
+   * @param {*} char1 The first character of a suspected surrogate pair.
+   * @param {*} char2 The second character of a suspected surrogate pair.
+   * @return {number} Returns true if the two characters create a valid UTF-16
+   *                  surrogate pair; otherwise false.
+   */
   function isSurrogatePair(char1, char2) {
     var result = false,
       code1,
@@ -255,6 +448,13 @@
     }
   }
 
+  /**
+   * Returns true if the operand subject is an Object.
+   *
+   * @private
+   * @param {*} subject
+   * @return {boolean}
+   */
   /*
   function isObject(subject) {
     return $O(subject) === subject;
@@ -775,61 +975,6 @@
   setProperty($E.Array, 'flatten', flatten);
 
   /*
-   * from
-   */
-
-  if (!$ARRAYFROM) {
-    $ARRAYFROM = function (items) {
-      var object = $ToObject(items),
-        mapFn,
-        iterator,
-        thisArg,
-        length,
-        result,
-        index,
-        value;
-
-      if (arguments.length > 1) {
-        mapFn = arguments[1];
-        if (!isFunction(mapFn)) {
-          /*jshint newcap:false */
-          throw new $TE('If provided, the second argument must be a function');
-        }
-
-        if (arguments.length > 2) {
-          thisArg = arguments[2];
-        }
-      }
-
-      iterator = $GetMethod(object, $SI);
-      index = 0;
-      if (iterator && isFunction(iterator)) {
-        /*jshint validthis:true */
-        result = isFunction(this) ? $O(new this()) : [];
-        for (value of iterator()) {
-          set(result, index, value, mapFn, thisArg);
-          index += 1;
-        }
-      } else {
-        length = $ToLength(object.length);
-        /*jshint validthis:true */
-        result = isFunction(this) ? $O(new this(length)) : new $A(length);
-        while (index < length) {
-          value = object[index];
-          set(result, index, value, mapFn, thisArg);
-          index += 1;
-        }
-
-        result.length = length;
-      }
-
-      return result;
-    };
-  }
-
-  setProperty($E.Array, 'from', $ARRAYFROM);
-
-  /*
    * map
    */
 
@@ -925,6 +1070,61 @@
 
     return result;
   });
+
+  /*
+   * from
+   */
+
+  if (!$ARRAYFROM) {
+    $ARRAYFROM = function (items) {
+      var object = $ToObject(items),
+        mapFn,
+        generator,
+        thisArg,
+        length,
+        result,
+        index,
+        value;
+
+      if (arguments.length > 1) {
+        mapFn = arguments[1];
+        if (!isFunction(mapFn)) {
+          /*jshint newcap:false */
+          throw new $TE('If provided, the second argument must be a function');
+        }
+
+        if (arguments.length > 2) {
+          thisArg = arguments[2];
+        }
+      }
+
+      generator = $GetMethod(object, $SI);
+      index = 0;
+      if (generator && isFunction(generator)) {
+        /*jshint validthis:true */
+        result = isFunction(this) ? $O(new this()) : [];
+        for (value of generator()) {
+          set(result, index, value, mapFn, thisArg);
+          index += 1;
+        }
+      } else {
+        length = $ToLength(object.length);
+        /*jshint validthis:true */
+        result = isFunction(this) ? $O(new this(length)) : new $A(length);
+        while (index < length) {
+          value = object[index];
+          set(result, index, value, mapFn, thisArg);
+          index += 1;
+        }
+
+        result.length = length;
+      }
+
+      return result;
+    };
+  }
+
+  setProperty($E.Array, 'from', $ARRAYFROM);
 
   return $E;
 }));
