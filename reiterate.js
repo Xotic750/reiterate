@@ -697,26 +697,55 @@
         value,
         key;
 
+      flags.started = true;
       if (flags.reversed) {
         countIt = countIt.reverse();
-      }
-
-      flags.started = true;
-      for (key of countIt) {
-        if (next) {
-          next = !isSurrogatePair(string[key], string[key + 1]);
-          if (flags.keys) {
-            yield key;
+        for (key of countIt) {
+          if (next) {
+            next = !isSurrogatePair(string[key - 1], string[key]);
+            if (next) {
+              if (flags.keys) {
+                yield key;
+              } else {
+                value = $FROMCODEPOINT(string.codePointAt(key));
+                if (flags.values) {
+                  yield value;
+                } else {
+                  yield [key, value];
+                }
+              }
+            }
           } else {
-            value = $FROMCODEPOINT(string.codePointAt(key));
-            if (flags.values) {
-              yield value;
+            next = !next;
+            if (flags.keys) {
+              yield key;
             } else {
-              yield [key, value];
+              value = $FROMCODEPOINT(string.codePointAt(key));
+              if (flags.values) {
+                yield value;
+              } else {
+                yield [key, value];
+              }
             }
           }
-        } else {
-          next = !next;
+        }
+      } else {
+        for (key of countIt) {
+          if (next) {
+            next = !isSurrogatePair(string[key], string[key + 1]);
+            if (flags.keys) {
+              yield key;
+            } else {
+              value = $FROMCODEPOINT(string.codePointAt(key));
+              if (flags.values) {
+                yield value;
+              } else {
+                yield [key, value];
+              }
+            }
+          } else {
+            next = !next;
+          }
         }
       }
     };
