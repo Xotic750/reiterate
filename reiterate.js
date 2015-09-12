@@ -1,12 +1,13 @@
 /*jslint maxlen:80, es6:true, this:true */
+/*jshint esnext: true */
 
 /*property
     MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, bind, call, charCodeAt,
-    configurable, defineProperties, defineProperty, enumerable, exports, floor,
-    fromCodePoint, getOwnPropertyNames, getOwnPropertySymbols, hasOwnProperty,
-    isArray, isFinite, isNaN, iterator, keys, length, max, min, prototype,
-    reverse, reversed, sign, started, toString, unscopables, value, values,
-    writable
+    configurable, create, defineProperties, defineProperty, enumerable,
+    exports, floor, from, fromCodePoint, getOwnPropertyNames,
+    getOwnPropertySymbols, hasOwnProperty, isArray, isFinite, isNaN, iterator,
+    keys, length, max, min, prototype, reverse, reversed, sign, started,
+    toString, unscopables, value, values, writable
 */
 
 // UMD (Universal Module Definition)
@@ -38,6 +39,10 @@
 }(this, function (root) {
   'use strict';
 
+  /*
+   * const
+   */
+
   var $SY = Symbol,
     $SU = $SY.unscopables,
     $SI = $SY.iterator,
@@ -49,8 +54,9 @@
     $S = String,
     $SP = $S.prototype,
     $F = Function,
-    $HOP = $F.call.bind($OP.hasOwnProperty),
-    $TOSTRINGTAG = $F.call.bind($OP.toString),
+    $CALL = $F.call,
+    $HOP = $CALL.bind($OP.hasOwnProperty),
+    $TOSTRINGTAG = $CALL.bind($OP.toString),
     $STRINGTAG = $TOSTRINGTAG($SP),
     $FUNCTIONTYPE = typeof $F,
     $M = Math,
@@ -64,6 +70,7 @@
     $MAX_SAFE_INTEGER = $N.MAX_SAFE_INTEGER,
     $DEFINEPROPERTY = $O.defineProperty,
     $DEFINEPROPERTIES = $O.defineProperties,
+    $CREATE = $O.create,
     $OBJECTKEYS = $O.keys,
     $GOPN = $O.getOwnPropertyNames,
     $GOPS = $O.getOwnPropertySymbols,
@@ -71,14 +78,44 @@
     $ISFINITE = $N.isFinite,
     $FROMCODEPOINT = $S.fromCodePoint,
     $ISARRAY = $A.isArray,
-    $METHODDESCRIPTOR = {
-      enumerable: false,
-      writable: true,
-      configurable: true,
-      value: undefined
-    },
+    $METHODDESCRIPTOR = $CREATE(null, {
+      enumerable: {
+        enumerable: true,
+        writable: false,
+        configurable: false,
+        value: false
+      },
+      writable: {
+        enumerable: true,
+        writable: false,
+        configurable: false,
+        value: true
+      },
+      configurable: {
+        enumerable: true,
+        writable: false,
+        configurable: false,
+        value: true
+      },
+      value: {
+        enumerable: true,
+        writable: true,
+        configurable: false,
+        value: undefined
+      }
+    }),
     $TE = TypeError,
     $E = {};
+
+  /*
+   * let
+   */
+
+  var $ARRAYFROM = $A.from;
+
+  /*
+   * utils
+   */
 
   function setProperty(object, property, value) {
     if (!$HOP(object, property)) {
@@ -270,12 +307,16 @@
   setProperty($E, 'entriesValue', entriesValue);
   */
 
+  /*
+   * define iterators
+   */
+
   function iterartorNotReversable() {
     return new TypeError('Iterator is not reversable.');
   }
 
   function defineIterator(object) {
-    return $DEFINEPROPERTY(object, $SI, $METHODDESCRIPTOR)[$SI]();
+    return $GetMethod($DEFINEPROPERTY(object, $SI, $METHODDESCRIPTOR), $SI)();
   }
 
   function defineReverse(iterator, flags) {
@@ -465,25 +506,6 @@
   setProperty($E.String, 'entries', stringEntries);
 
   /*
-   * unique
-   */
-
-  setProperty($E, 'unique', function* (subject) {
-    var object = $ToObject(subject),
-      seen = new Set(),
-      item,
-      value;
-
-    for (item of object) {
-      value = item;
-      if (!seen.has(value)) {
-        seen.add(value, true);
-        yield item;
-      }
-    }
-  });
-
-  /*
    * enumerate
    */
 
@@ -522,6 +544,10 @@
 
   setProperty($E.Object, 'enumerate', enumerate);
 
+  /*
+   * objectKeys
+   */
+
   function objectKeys(subject) {
     if (!(this instanceof objectKeys)) {
       return new objectKeys(subject);
@@ -548,6 +574,10 @@
   }
 
   setProperty($E.Object, 'keys', objectKeys);
+
+  /*
+   * getOwnPropertyNames
+   */
 
   function getOwnPropertyNames(subject) {
     if (!(this instanceof getOwnPropertyNames)) {
@@ -576,6 +606,10 @@
 
   setProperty($E.Object, 'getOwnPropertyNames', getOwnPropertyNames);
 
+  /*
+   * getOwnPropertySymbols
+   */
+
   function getOwnPropertySymbols(subject) {
     if (!(this instanceof getOwnPropertySymbols)) {
       return new getOwnPropertySymbols(subject);
@@ -602,6 +636,10 @@
   }
 
   setProperty($E.Object, 'getOwnPropertySymbols', getOwnPropertySymbols);
+
+  /*
+   * ownKeys
+   */
 
   function ownKeys(subject) {
     if (!(this instanceof ownKeys)) {
@@ -632,6 +670,25 @@
   }
 
   setProperty($E.Object, 'ownKeys', ownKeys);
+
+  /*
+   * unique
+   */
+
+  setProperty($E, 'unique', function* (subject) {
+    var object = $ToObject(subject),
+      seen = new Set(),
+      item,
+      value;
+
+    for (item of object) {
+      value = item;
+      if (!seen.has(value)) {
+        seen.add(value, true);
+        yield item;
+      }
+    }
+  });
 
   /*
    * flatten
@@ -680,49 +737,61 @@
     }
   });
 
-  setProperty($A, 'from', function (items) {
-    var object = $ToObject(items),
-      mapFn,
-      iterator,
-      thisArg,
-      length,
-      result,
-      index,
-      value;
+  /*
+   * from
+   */
 
-    if (arguments.length > 1) {
-      mapFn = arguments[1];
-      if (!isFunction(mapFn)) {
-        throw new $TE('When provided, the second argument must be a function');
+  if (!$ARRAYFROM) {
+    $ARRAYFROM = function (items) {
+      var object = $ToObject(items),
+        mapFn,
+        iterator,
+        thisArg,
+        length,
+        result,
+        index,
+        value;
+
+      if (arguments.length > 1) {
+        mapFn = arguments[1];
+        if (!isFunction(mapFn)) {
+          throw new $TE('If provided, the second argument must be a function');
+        }
+
+        if (arguments.length > 2) {
+          thisArg = arguments[2];
+        }
       }
 
-      if (arguments.length > 2) {
-        thisArg = arguments[2];
-      }
-    }
+      iterator = $GetMethod(object, $SI);
+      index = 0;
+      if (iterator && isFunction(iterator)) {
+        result = isFunction(this) ? $O(new this()) : [];
+        for (value of iterator()) {
+          set(result, index, value, mapFn, thisArg);
+          index += 1;
+        }
+      } else {
+        length = $ToLength(object.length);
+        result = isFunction(this) ? $O(new this(length)) : new $A(length);
+        while (index < length) {
+          value = object[index];
+          set(result, index, value, mapFn, thisArg);
+          index += 1;
+        }
 
-    iterator = $GetMethod(object, $SI);
-    index = 0;
-    if (iterator) {
-      result = isFunction(this) ? $O(new this()) : [];
-      for (value of object[$SI]()) {
-        set(result, index, value, mapFn, thisArg);
-        index += 1;
-      }
-    } else {
-      length = $ToLength(object.length);
-      result = isFunction(this) ? $O(new this(length)) : new $A(length);
-      while (index < length) {
-        value = object[index];
-        set(result, index, value, mapFn, thisArg);
-        index += 1;
+        result.length = length;
       }
 
-      result.length = length;
-    }
+      return result;
+    };
+  }
 
-    return result;
-  });
+  setProperty($E.Array, 'from', $ARRAYFROM);
+
+  /*
+   * map
+   */
 
   setProperty($E, 'map', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
@@ -739,6 +808,10 @@
       index += 1;
     }
   });
+
+  /*
+   * filter
+   */
 
   setProperty($E, 'filter', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
@@ -758,6 +831,10 @@
     }
   });
 
+  /*
+   * reduce
+   */
+
   setProperty($E, 'reduce', function (subject, callback, initialValue) {
     var object = $ToObject(subject),
       element,
@@ -776,6 +853,10 @@
     return initialValue;
   });
 
+  /*
+   * forEach
+   */
+
   setProperty($E, 'forEach', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
@@ -791,6 +872,10 @@
       index += 1;
     }
   });
+
+  /*
+   * every
+   */
 
   setProperty($E, 'every', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
