@@ -359,7 +359,7 @@
    *
    * @private
    * @param {*} subject The object to be tested.
-   * @returns {boolean} Returns `true` if `subject` is array-like, else `false`.
+   * @return {boolean} Returns `true` if `subject` is array-like, else `false`.
    */
   function isArrayLike(subject) {
     return !isNil(subject) && !isFunction(subject) && isLength(subject.length);
@@ -677,6 +677,24 @@
    * stringEntries
    */
 
+  function getStringEntriesYield(string, key, flags) {
+    var value,
+      result;
+
+    if (flags.keys) {
+      result = key;
+    } else {
+      value = $FROMCODEPOINT(string.codePointAt(key));
+      if (flags.values) {
+        result = value;
+      } else {
+        result = [key, value];
+      }
+    }
+
+    return result;
+  }
+
   function StringEntries(subject) {
     /*jshint validthis:true */
     if (!(this instanceof StringEntries)) {
@@ -694,55 +712,26 @@
     $METHODDESCRIPTOR.value = function* StringIterator() {
       var countIt = new Counter(lastIndex(string)),
         next = true,
-        value,
         key;
 
       flags.started = true;
       if (flags.reversed) {
-        countIt = countIt.reverse();
-        for (key of countIt) {
+        for (key of countIt.reverse()) {
           if (next) {
             next = !isSurrogatePair(string[key - 1], string[key]);
             if (next) {
-              if (flags.keys) {
-                yield key;
-              } else {
-                value = $FROMCODEPOINT(string.codePointAt(key));
-                if (flags.values) {
-                  yield value;
-                } else {
-                  yield [key, value];
-                }
-              }
+              yield getStringEntriesYield(string, key, flags);
             }
           } else {
             next = !next;
-            if (flags.keys) {
-              yield key;
-            } else {
-              value = $FROMCODEPOINT(string.codePointAt(key));
-              if (flags.values) {
-                yield value;
-              } else {
-                yield [key, value];
-              }
-            }
+            yield getStringEntriesYield(string, key, flags);
           }
         }
       } else {
         for (key of countIt) {
           if (next) {
             next = !isSurrogatePair(string[key], string[key + 1]);
-            if (flags.keys) {
-              yield key;
-            } else {
-              value = $FROMCODEPOINT(string.codePointAt(key));
-              if (flags.values) {
-                yield value;
-              } else {
-                yield [key, value];
-              }
-            }
+            yield getStringEntriesYield(string, key, flags);
           } else {
             next = !next;
           }
