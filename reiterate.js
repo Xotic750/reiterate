@@ -785,7 +785,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var keysIt = new ArrayEntries($OBJECTKEYS(object));
+      var keysIt = new ArrayEntries($OBJECTKEYS(object)).values();
 
       if (flags.reversed) {
         keysIt = keysIt.reverse();
@@ -818,7 +818,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var namesIt = new ArrayEntries($GOPN(object));
+      var namesIt = new ArrayEntries($GOPN(object)).values();
 
       if (flags.reversed) {
         namesIt = namesIt.reverse();
@@ -851,7 +851,7 @@
       };
 
     $METHODDESCRIPTOR.value = function* ObjectIterator() {
-      var symbolsIt = new ArrayEntries($GOPS(object));
+      var symbolsIt = new ArrayEntries($GOPS(object)).values();
 
       if (flags.reversed) {
         symbolsIt = symbolsIt.reverse();
