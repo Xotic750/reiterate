@@ -1118,10 +1118,10 @@
 
       generator = $GetMethod(object, $SI);
       index = 0;
-      if (generator && isFunction(generator)) {
+      if (isFunction(generator)) {
         /*jshint validthis:true */
         result = isFunction(this) ? $O(new this()) : [];
-        for (value of generator()) {
+        for (value of object) {
           set(result, index, value, mapFn, thisArg);
           index += 1;
         }
