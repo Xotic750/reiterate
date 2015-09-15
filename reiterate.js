@@ -163,21 +163,32 @@
    * utils
    */
 
-  function setProperty(object, property, value) {
+  function setProperty(object, property, descriptor) {
+    $DEFINEPROPERTY(object, property, descriptor);
+  }
+
+  function setMethod(object, property, method) {
     if (!$HOP(object, property)) {
-      $METHODDESCRIPTOR.value = value;
-      $DEFINEPROPERTY(object, property, $METHODDESCRIPTOR);
+      $METHODDESCRIPTOR.value = method;
+      setProperty(object, property, $METHODDESCRIPTOR);
       if ($APU && object === $AP) {
         $APU[property] = true;
       }
     }
 
+    return method;
+  }
+
+  function setVariable(object, property, value) {
+    $VARIABLEDESCRIPTOR.value = value;
+    setProperty(object, property, $VARIABLEDESCRIPTOR);
+
     return value;
   }
 
-  setProperty($E, 'Array', {});
-  setProperty($E, 'String', {});
-  setProperty($E, 'Object', {});
+  setMethod($E, 'Array', {});
+  setMethod($E, 'String', {});
+  setMethod($E, 'Object', {});
 
   /**
    * Returns true if the operand inputArg is null or undefined.
@@ -496,11 +507,6 @@
     return result;
   }
 
-  function defineToArray(prototype) {
-    $METHODDESCRIPTOR.value = toArray;
-    $DEFINEPROPERTY(prototype, 'toArray', $METHODDESCRIPTOR);
-  }
-
   /*
    * stringify
    */
@@ -573,12 +579,7 @@
     }
   }
 
-  defineToArray(flatten.prototype);
-
-  function defineFlatten(prototype) {
-    $METHODDESCRIPTOR.value = flatten;
-    $DEFINEPROPERTY(prototype, 'flatten', $METHODDESCRIPTOR);
-  }
+  setMethod(flatten.prototype, 'toArray', toArray);
 
   /*
    * walkOwn
@@ -635,12 +636,7 @@
     }
   }
 
-  defineToArray(walkOwn.prototype);
-
-  function defineWalkOwn(prototype) {
-    $METHODDESCRIPTOR.value = walkOwn;
-    $DEFINEPROPERTY(prototype, 'walkOwn', $METHODDESCRIPTOR);
-  }
+  setMethod(walkOwn.prototype, 'toArray', toArray);
 
   function canNotBeChanged(thisObject, name) {
     /*jshint newcap:false */
@@ -660,8 +656,7 @@
 
   function hideMethod(thisObject, name) {
     if (thisObject[name]) {
-      $METHODDESCRIPTOR.value = undefined;
-      $DEFINEPROPERTY(thisObject, name, $METHODDESCRIPTOR);
+      setVariable(thisObject, name, undefined);
     }
   }
 
@@ -678,11 +673,6 @@
     return this;
   }
 
-  function defineReverse(prototype) {
-    $METHODDESCRIPTOR.value = reverse;
-    $DEFINEPROPERTY(prototype, 'reverse', $METHODDESCRIPTOR);
-  }
-
   function entries() {
     /*jshint validthis:true */
     canNotBeChanged(this, 'entries');
@@ -692,7 +682,6 @@
     this[$ENTRIES] = true;
     this[$KEYS] = false;
     this[$VALUES] = false;
-
 
     return this;
   }
@@ -783,6 +772,17 @@
     return result;
   }
 
+  function then(Generator) {
+    /*jshint validthis:true */
+    var iterator = new Generator(this);
+
+    setMethod(iterator, 'then', then);
+    setMethod(iterator, 'walkOwn', walkOwn);
+    setMethod(iterator, 'toArray', toArray);
+
+    return iterator;
+  }
+
   /*
    * counter
    */
@@ -871,65 +871,48 @@
     }
   }
 
-  $METHODDESCRIPTOR.value = from;
-  $DEFINEPROPERTY(CountIterator.prototype, 'from', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = to;
-  $DEFINEPROPERTY(CountIterator.prototype, 'to', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = by;
-  $DEFINEPROPERTY(CountIterator.prototype, 'by', $METHODDESCRIPTOR);
-  defineReverse(CountIterator.prototype);
-  defineToArray(CountIterator.prototype);
+  setMethod(CountIterator.prototype, 'from', from);
+  setMethod(CountIterator.prototype, 'to', to);
+  setMethod(CountIterator.prototype, 'by', by);
+  setMethod(CountIterator.prototype, 'reverse', reverse);
+  setMethod(CountIterator.prototype, 'toArray', toArray);
+  setMethod(CountIterator.prototype, 'then', then);
 
   function counter() {
     var iterator = new CountIterator();
 
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $STARTED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $REVERSED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = 0;
-    $DEFINEPROPERTY(iterator, $FROM, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = $MAX_SAFE_INTEGER;
-    $DEFINEPROPERTY(iterator, $TO, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = 1;
-    $DEFINEPROPERTY(iterator, $BY, $VARIABLEDESCRIPTOR);
+    setVariable(iterator, $FROM, 0);
+    setVariable(iterator, $TO, $MAX_SAFE_INTEGER);
+    setVariable(iterator, $BY, 1);
+    setVariable(iterator, $REVERSED, false);
+    setVariable(iterator, $STARTED, false);
 
     return iterator;
   }
 
-  setProperty($E, 'counter', counter);
+  setMethod($E, 'counter', counter);
 
-  function setCommonVariables(iterator) {
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $STARTED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $REVERSED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $VALUES, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $KEYS, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = true;
-    $DEFINEPROPERTY(iterator, $ENTRIES, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $UNIQUE, $VARIABLEDESCRIPTOR);
+  function defineCommonVariables(iterator) {
+    setVariable(iterator, $VALUES, false);
+    setVariable(iterator, $KEYS, false);
+    setVariable(iterator, $ENTRIES, true);
+    setVariable(iterator, $UNIQUE, false);
+    setVariable(iterator, $REVERSED, false);
+    setVariable(iterator, $STARTED, false);
 
     return iterator;
   }
 
-  function setCommonMethods(prototype) {
-    $METHODDESCRIPTOR.value = entries;
-    $DEFINEPROPERTY(prototype, 'entries', $METHODDESCRIPTOR);
-    $METHODDESCRIPTOR.value = keys;
-    $DEFINEPROPERTY(prototype, 'keys', $METHODDESCRIPTOR);
-    $METHODDESCRIPTOR.value = values;
-    $DEFINEPROPERTY(prototype, 'values', $METHODDESCRIPTOR);
-    $METHODDESCRIPTOR.value = unique;
-    $DEFINEPROPERTY(prototype, 'unique', $METHODDESCRIPTOR);
-    defineReverse(prototype);
-    defineToArray(prototype);
+  function defineCommonMethods(prototype) {
+    setMethod(prototype, 'entries', entries);
+    setMethod(prototype, 'keys', keys);
+    setMethod(prototype, 'values', values);
+    setMethod(prototype, 'unique', unique);
+    setMethod(prototype, 'toArray', toArray);
+    setMethod(prototype, 'then', then);
   }
 
-  function setReverse(thisObject, iterator) {
+  function setReversed(thisObject, iterator) {
     if (thisObject[$REVERSED]) {
       iterator.reverse();
     }
@@ -953,7 +936,7 @@
 
   function* ArrayIterator(subject) {
     var object = $ToObject(subject),
-      countIt = setReverse(this, counter().to(lastIndex(object))),
+      countIt = setReversed(this, counter().to(lastIndex(object))),
       seen = setSeen(this),
       result,
       key;
@@ -967,15 +950,20 @@
     }
   }
 
-  setCommonMethods(ArrayIterator.prototype);
-  defineFlatten(ArrayIterator.prototype);
-  defineWalkOwn(ArrayIterator.prototype);
+  defineCommonMethods(ArrayIterator.prototype);
+  setMethod(ArrayIterator.prototype, 'reverse', reverse);
+  setMethod(ArrayIterator.prototype, 'flatten', flatten);
+  setMethod(ArrayIterator.prototype, 'walkOwn', walkOwn);
 
   function arrayEntries(subject) {
-    return setCommonVariables(new ArrayIterator(subject));
+    var iterator = new ArrayIterator(subject);
+
+    setVariable(iterator, $REVERSED, false);
+
+    return defineCommonVariables(iterator);
   }
 
-  setProperty($E.Array, 'entries', arrayEntries);
+  setMethod($E.Array, 'entries', arrayEntries);
 
   /*
    * stringEntries
@@ -983,7 +971,7 @@
 
   function* StringIterator(subject) {
     var string = $OnlyCoercibleToString(subject),
-      countIt = setReverse(this, counter().to(lastIndex(string))),
+      countIt = setReversed(this, counter().to(lastIndex(string))),
       seen = setSeen(this),
       next = true,
       doYield,
@@ -1019,15 +1007,19 @@
     }
   }
 
-  setCommonMethods(StringIterator.prototype);
-  $METHODDESCRIPTOR.value = stringify;
-  $DEFINEPROPERTY(StringIterator.prototype, 'stringify', $METHODDESCRIPTOR);
+  defineCommonMethods(StringIterator.prototype);
+  setMethod(StringIterator.prototype, 'reverse', reverse);
+  setMethod(StringIterator.prototype, 'stringify', stringify);
 
   function stringEntries(subject) {
-    return setCommonVariables(new StringIterator(subject));
+    var iterator = new StringIterator(subject);
+
+    setVariable(iterator, $REVERSED, false);
+
+    return defineCommonVariables(iterator);
   }
 
-  setProperty($E.String, 'entries', stringEntries);
+  setMethod($E.String, 'entries', stringEntries);
 
   /*
    * enumerate
@@ -1049,15 +1041,15 @@
     }
   }
 
-  setCommonMethods(ObjectEnumerator.prototype);
-  defineFlatten(ObjectEnumerator.prototype);
-  defineWalkOwn(ObjectEnumerator.prototype);
+  defineCommonMethods(ObjectEnumerator.prototype);
+  setMethod(ObjectEnumerator.prototype, 'flatten', flatten);
+  setMethod(ObjectEnumerator.prototype, 'walkOwn', walkOwn);
 
   function enumerate(subject) {
-    return setCommonVariables(new ObjectEnumerator(subject));
+    return defineCommonVariables(new ObjectEnumerator(subject));
   }
 
-  setProperty($E.Object, 'enumerate', enumerate);
+  setMethod($E.Object, 'enumerate', enumerate);
 
   /*
    * enumerateOwn
@@ -1080,21 +1072,21 @@
     }
   }
 
-  setCommonMethods(ObjectEnumeratorOwn.prototype);
-  defineFlatten(ObjectEnumeratorOwn.prototype);
-  defineWalkOwn(ObjectEnumeratorOwn.prototype);
+  defineCommonMethods(ObjectEnumeratorOwn.prototype);
+  setMethod(ObjectEnumeratorOwn.prototype, 'flatten', flatten);
+  setMethod(ObjectEnumeratorOwn.prototype, 'walkOwn', walkOwn);
 
   function enumerateOwn(subject) {
-    return setCommonVariables(new ObjectEnumeratorOwn(subject));
+    return defineCommonVariables(new ObjectEnumeratorOwn(subject));
   }
 
-  setProperty($E.Object, 'enumerateOwn', enumerateOwn);
+  setMethod($E.Object, 'enumerateOwn', enumerateOwn);
 
   /*
    * map
    */
 
-  setProperty($E.Object, 'map', function* (subject, callback, thisArg) {
+  setMethod($E.Object, 'map', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
@@ -1111,7 +1103,7 @@
    * filter
    */
 
-  setProperty($E.Object, 'filter', function* (subject, callback, thisArg) {
+  setMethod($E.Object, 'filter', function* (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
@@ -1130,7 +1122,7 @@
    * reduce
    */
 
-  setProperty($E.Object, 'reduce', function (subject, callback, initialValue) {
+  setMethod($E.Object, 'reduce', function (subject, callback, initialValue) {
     var object = $ToObject(subject),
       element,
       index;
@@ -1149,7 +1141,7 @@
    * forEach
    */
 
-  setProperty($E.Object, 'forEach', function (subject, callback, thisArg) {
+  setMethod($E.Object, 'forEach', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
       element,
       index;
@@ -1166,7 +1158,7 @@
    * every
    */
 
-  setProperty($E.Object, 'every', function (subject, callback, thisArg) {
+  setMethod($E.Object, 'every', function (subject, callback, thisArg) {
     var object = $ToObject(subject),
       result,
       element,
