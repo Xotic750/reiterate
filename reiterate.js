@@ -24,7 +24,7 @@
 
 // UMD (Universal Module Definition)
 // see https://github.com/umdjs/umd/blob/master/returnExports.js
-(function (root, factory) {
+;(function (root, factory) {
   'use strict';
 
   if (typeof define === 'function' && define.amd) {
@@ -57,7 +57,6 @@
 
   var $SY = Symbol,
     $SU = $SY.unscopables,
-    //$SI = $SY.iterator,
     $SF = $SY.for,
     $O = Object,
     $OP = $O.prototype,
@@ -76,7 +75,6 @@
     $NP = $N.prototype,
     $NUMBERTAG = $TOSTRINGTAG($NP),
     $FUNCTIONTYPE = typeof $F,
-    //$SYMBOLTYPE = typeof $SI,
     $UNDEFINEDTYPE = typeof undefined,
     $M = Math,
     $FLOOR = $M.floor,
@@ -87,7 +85,6 @@
     $MIN_SAFE_INTEGER = $N.MIN_SAFE_INTEGER,
     $MAX_SAFE_INTEGER = $N.MAX_SAFE_INTEGER,
     $DEFINEPROPERTY = $O.defineProperty,
-    //$DEFINEPROPERTIES = $O.defineProperties,
     $CREATE = $O.create,
     $ISNAN = $N.isNaN,
     $ISFINITE = $N.isFinite,
@@ -151,9 +148,6 @@
     $VALUES = $SF('values'),
     $STARTED = $SF('started'),
     $REVERSED = $SF('reversed'),
-    //$OBJECT = $SF('object'),
-    //$ITERATOR = $SF('iterator'),
-    $UNIQUE = $SF('unique'),
     $FROM = $SF('from'),
     $TO = $SF('to'),
     $BY = $SF('by'),
@@ -530,6 +524,27 @@
   }
 
   /*
+   * unique
+   */
+
+  function* unique() {
+    /*jshint validthis:true */
+    var seen = new Set(),
+      item,
+      value;
+
+    for (item of this) {
+      value = item;
+      if (!seen.has(value)) {
+        seen.add(value, true);
+        yield item;
+      }
+    }
+  }
+
+  setMethod(unique.prototype, 'toArray', toArray);
+
+  /*
    * flatten
    */
 
@@ -752,33 +767,26 @@
     return result;
   }
 
-  function shouldYield(thisObject, seen, value) {
-    var result = {
-      value: undefined,
-      yield: false
-    };
-
-    if (thisObject[$UNIQUE]) {
-      if (!seen.has(value)) {
-        seen.add(value, true);
-        result.value = value;
-        result.yield = true;
-      }
-    } else {
-      result.value = value;
-      result.yield = true;
-    }
-
-    return result;
-  }
-
   function then(Generator) {
     /*jshint validthis:true */
-    var iterator = new Generator(this);
+    var iterator;
 
-    setMethod(iterator, 'then', then);
+    if (!isFunction(Generator)) {
+      if (!isUndefined(Generator)) {
+        /*jshint newcap:false */
+        throw new $TE('If not undefined, the argument must be a function');
+      }
+
+      iterator = this;
+    } else {
+      iterator = new Generator(this);
+      setMethod(iterator, 'then', then);
+    }
+
     setMethod(iterator, 'walkOwn', walkOwn);
     setMethod(iterator, 'toArray', toArray);
+    setMethod(iterator, 'unique', unique);
+    setMethod(iterator, 'flatten', flatten);
 
     return iterator;
   }
@@ -829,14 +837,15 @@
     return this;
   }
 
+  /*
   function unique() {
-    /*jshint validthis:true */
     canNotBeChanged(this, 'unique');
     hideMethod(this, 'unique');
     this[$UNIQUE] = true;
 
     return this;
   }
+  */
 
   function* CountIterator() {
     var count;
@@ -896,7 +905,6 @@
     setVariable(iterator, $VALUES, false);
     setVariable(iterator, $KEYS, false);
     setVariable(iterator, $ENTRIES, true);
-    setVariable(iterator, $UNIQUE, false);
     setVariable(iterator, $REVERSED, false);
     setVariable(iterator, $STARTED, false);
 
@@ -907,7 +915,7 @@
     setMethod(prototype, 'entries', entries);
     setMethod(prototype, 'keys', keys);
     setMethod(prototype, 'values', values);
-    setMethod(prototype, 'unique', unique);
+
     setMethod(prototype, 'toArray', toArray);
     setMethod(prototype, 'then', then);
   }
@@ -920,16 +928,6 @@
     return iterator;
   }
 
-  function setSeen(thisObject) {
-    var seen;
-
-    if (thisObject[$UNIQUE]) {
-      seen = new Set();
-    }
-
-    return seen;
-  }
-
   /*
    * arrayEntries
    */
@@ -937,23 +935,20 @@
   function* ArrayIterator(subject) {
     var object = $ToObject(subject),
       countIt = setReversed(this, counter().to(lastIndex(object))),
-      seen = setSeen(this),
-      result,
       key;
 
     this[$STARTED] = true;
     for (key of countIt) {
-      result = shouldYield(this, seen, getYieldValue(this, object, key));
-      if (result.yield) {
-        yield result.value;
-      }
+      yield getYieldValue(this, object, key);
     }
   }
 
   defineCommonMethods(ArrayIterator.prototype);
   setMethod(ArrayIterator.prototype, 'reverse', reverse);
+  /*
   setMethod(ArrayIterator.prototype, 'flatten', flatten);
   setMethod(ArrayIterator.prototype, 'walkOwn', walkOwn);
+  */
 
   function arrayEntries(subject) {
     var iterator = new ArrayIterator(subject);
@@ -972,10 +967,9 @@
   function* StringIterator(subject) {
     var string = $OnlyCoercibleToString(subject),
       countIt = setReversed(this, counter().to(lastIndex(string))),
-      seen = setSeen(this),
+      //seen = setSeen(this),
       next = true,
       doYield,
-      res,
       key;
 
     this[$STARTED] = true;
@@ -999,10 +993,7 @@
       }
 
       if (doYield) {
-        res = shouldYield(this, seen, getStringYieldValue(this, string, key));
-        if (res.yield) {
-          yield res.value;
-        }
+        yield getStringYieldValue(this, string, key);
       }
     }
   }
@@ -1027,23 +1018,20 @@
 
   function* ObjectEnumerator(subject) {
     var object = $ToObject(subject),
-      seen = setSeen(this),
-      result,
       key;
 
     this[$STARTED] = true;
     for (key in object) {
       /*jshint forin:false */
-      result = shouldYield(this, seen, getYieldValue(this, object, key));
-      if (result.yield) {
-        yield result.value;
-      }
+      yield getYieldValue(this, object, key);
     }
   }
 
   defineCommonMethods(ObjectEnumerator.prototype);
+  /*
   setMethod(ObjectEnumerator.prototype, 'flatten', flatten);
   setMethod(ObjectEnumerator.prototype, 'walkOwn', walkOwn);
+  */
 
   function enumerate(subject) {
     return defineCommonVariables(new ObjectEnumerator(subject));
@@ -1057,24 +1045,21 @@
 
   function* ObjectEnumeratorOwn(subject) {
     var object = $ToObject(subject),
-      seen = setSeen(this),
-      result,
       key;
 
     this[$STARTED] = true;
     for (key in object) {
       if ($HOP(object, key)) {
-        result = shouldYield(this, seen, getYieldValue(this, object, key));
-        if (result.yield) {
-          yield result.value;
-        }
+        yield getYieldValue(this, object, key);
       }
     }
   }
 
   defineCommonMethods(ObjectEnumeratorOwn.prototype);
+  /*
   setMethod(ObjectEnumeratorOwn.prototype, 'flatten', flatten);
   setMethod(ObjectEnumeratorOwn.prototype, 'walkOwn', walkOwn);
+  */
 
   function enumerateOwn(subject) {
     return defineCommonVariables(new ObjectEnumeratorOwn(subject));
