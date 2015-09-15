@@ -18,8 +18,8 @@
 /*property
     MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, bind, call, charCodeAt,
     configurable, create, defineProperty, enumerable, exports, floor, for,
-    fromCodePoint, hasOwnProperty, isArray, isFinite, isNaN, length, max, min,
-    prototype, sign, toString, unscopables, value, writable
+    fromCodePoint, hasOwnProperty, isArray, isFinite, isNaN, keys, length, max,
+    min, prototype, sign, toString, unscopables, value, writable
 */
 
 // UMD (Universal Module Definition)
@@ -61,6 +61,7 @@
     $SF = $SY.for,
     $O = Object,
     $OP = $O.prototype,
+    $OK = $O.keys,
     $A = Array,
     $AP = $A.prototype,
     $APU = $AP[$SU],
@@ -152,6 +153,7 @@
     $REVERSED = $SF('reversed'),
     //$OBJECT = $SF('object'),
     //$ITERATOR = $SF('iterator'),
+    $UNIQUE = $SF('unique'),
     $FROM = $SF('from'),
     $TO = $SF('to'),
     $BY = $SF('by'),
@@ -457,11 +459,9 @@
    * @param {*} subject
    * @return {boolean}
    */
-  /*
   function isObject(subject) {
     return $O(subject) === subject;
   }
-  */
 
   function checkcallback(callback) {
     if (!isFunction(callback)) {
@@ -496,6 +496,11 @@
     return result;
   }
 
+  function defineToArray(prototype) {
+    $METHODDESCRIPTOR.value = toArray;
+    $DEFINEPROPERTY(prototype, 'toArray', $METHODDESCRIPTOR);
+  }
+
   /*
    * stringify
    */
@@ -517,28 +522,6 @@
 
     return result;
   }
-
-  /*
-   * unique
-   */
-
-  function* unique() {
-    var seen = new Set(),
-      item,
-      value;
-
-    /*jshint validthis:true */
-    for (item of this) {
-      value = item;
-      if (!seen.has(value)) {
-        seen.add(value, true);
-        yield item;
-      }
-    }
-  }
-
-  $METHODDESCRIPTOR.value = toArray;
-  $DEFINEPROPERTY(unique.prototype, 'toArray', $METHODDESCRIPTOR);
 
   /*
    * flatten
@@ -590,12 +573,80 @@
     }
   }
 
-  $METHODDESCRIPTOR.value = toArray;
-  $DEFINEPROPERTY(flatten.prototype, 'toArray', $METHODDESCRIPTOR);
+  defineToArray(flatten.prototype);
 
-  function iterartorNotReversable() {
+  function defineFlatten(prototype) {
+    $METHODDESCRIPTOR.value = flatten;
+    $DEFINEPROPERTY(prototype, 'flatten', $METHODDESCRIPTOR);
+  }
+
+  /*
+   * walkOwn
+   */
+
+  function* walkOwn() {
+    /*jshint validthis:true */
+    var stack,
+      object,
+      value,
+      tail,
+      key;
+
+    stack = new Map();
+    for (object of this) {
+      if (isObject(object)) {
+        stack.set(object, {
+          keys: $OK(object),
+          index: 0,
+          prev: null
+        });
+      } else {
+        yield object;
+      }
+
+      while (stack.size) {
+        tail = stack.get(object);
+        if (tail.index >= tail.keys.length) {
+          stack.delete(object);
+          object = tail.prev;
+        } else {
+          key = tail.keys[tail.index];
+          value = object[key];
+          if (isObject(value)) {
+            if (stack.has(this) || stack.has(value)) {
+              /*jshint newcap:false */
+              throw new $TE('Walking circular object');
+            }
+
+            stack.set(value, {
+              keys: $OK(value),
+              index: 0,
+              prev: object
+            });
+
+            object = value;
+          } else {
+            yield value;
+          }
+
+          tail.index += 1;
+        }
+      }
+    }
+  }
+
+  defineToArray(walkOwn.prototype);
+
+  function defineWalkOwn(prototype) {
+    $METHODDESCRIPTOR.value = walkOwn;
+    $DEFINEPROPERTY(prototype, 'walkOwn', $METHODDESCRIPTOR);
+  }
+
+  function canNotBeChanged(thisObject, name) {
     /*jshint newcap:false */
-    return new $TE('Iterator is not reversable.');
+    if (thisObject[$STARTED]) {
+      return new $TE(name + ' can not be changed.');
+    }
   }
 
   /*
@@ -607,70 +658,67 @@
   }
   */
 
+  function hideMethod(thisObject, name) {
+    if (thisObject[name]) {
+      $METHODDESCRIPTOR.value = undefined;
+      $DEFINEPROPERTY(thisObject, name, $METHODDESCRIPTOR);
+    }
+  }
+
   function reverse() {
     /*jshint validthis:true */
     if (this[$STARTED]) {
-      throw iterartorNotReversable();
+      /*jshint newcap:false */
+      throw new $TE('Iterator is not reversable.');
     }
 
-    this[$REVERSED] = !this[$REVERSED];
+    hideMethod(this, 'reverse');
+    this[$REVERSED] = true;
 
     return this;
   }
 
+  function defineReverse(prototype) {
+    $METHODDESCRIPTOR.value = reverse;
+    $DEFINEPROPERTY(prototype, 'reverse', $METHODDESCRIPTOR);
+  }
+
   function entries() {
     /*jshint validthis:true */
-    if (!this[$STARTED]) {
-      if (!this[$ENTRIES]) {
-        this[$ENTRIES] = true;
-      }
+    canNotBeChanged(this, 'entries');
+    hideMethod(this, 'entries');
+    hideMethod(this, 'values');
+    hideMethod(this, 'keys');
+    this[$ENTRIES] = true;
+    this[$KEYS] = false;
+    this[$VALUES] = false;
 
-      if (this[$KEYS]) {
-        this[$KEYS] = false;
-      }
-
-      if (this[$VALUES]) {
-        this[$VALUES] = false;
-      }
-    }
 
     return this;
   }
 
   function values() {
     /*jshint validthis:true */
-    if (!this[$STARTED]) {
-      if (this[$ENTRIES]) {
-        this[$ENTRIES] = false;
-      }
-
-      if (this[$KEYS]) {
-        this[$KEYS] = false;
-      }
-
-      if (!this[$VALUES]) {
-        this[$VALUES] = true;
-      }
-    }
+    canNotBeChanged(this, 'values');
+    hideMethod(this, 'entries');
+    hideMethod(this, 'values');
+    hideMethod(this, 'keys');
+    this[$ENTRIES] = false;
+    this[$KEYS] = false;
+    this[$VALUES] = true;
 
     return this;
   }
 
   function keys() {
     /*jshint validthis:true */
-    if (!this[$STARTED]) {
-      if (this[$ENTRIES]) {
-        this[$ENTRIES] = false;
-      }
-
-      if (!this[$KEYS]) {
-        this[$KEYS] = true;
-      }
-
-      if (this[$VALUES]) {
-        this[$VALUES] = false;
-      }
-    }
+    canNotBeChanged(this, 'values');
+    hideMethod(this, 'entries');
+    hideMethod(this, 'values');
+    hideMethod(this, 'keys');
+    this[$ENTRIES] = false;
+    this[$KEYS] = true;
+    this[$VALUES] = false;
 
     return this;
   }
@@ -678,19 +726,6 @@
   /*
    * iterator execution
    */
-
-  /*
-  function makeIterator(Constructor, subject, flags) {
-    var iterator = new Constructor(subject);
-
-    flags.started = true;
-    if (flags.reversed) {
-      iterator = iterator.reverse();
-    }
-
-    return iterator;
-  }
-  */
 
   function getYieldValue(thisObject, object, key) {
     var result,
@@ -728,6 +763,26 @@
     return result;
   }
 
+  function shouldYield(thisObject, seen, value) {
+    var result = {
+      value: undefined,
+      yield: false
+    };
+
+    if (thisObject[$UNIQUE]) {
+      if (!seen.has(value)) {
+        seen.add(value, true);
+        result.value = value;
+        result.yield = true;
+      }
+    } else {
+      result.value = value;
+      result.yield = true;
+    }
+
+    return result;
+  }
+
   /*
    * counter
    */
@@ -745,11 +800,8 @@
 
   function from(number) {
     /*jshint validthis:true */
-    if (this[$STARTED]) {
-      /*jshint newcap:false */
-      throw new $TE('from cannot be changed');
-    }
-
+    canNotBeChanged(this, 'from');
+    hideMethod(this, 'from');
     this[$FROM] = toValidCount(number);
 
     return this;
@@ -757,11 +809,8 @@
 
   function to(number) {
     /*jshint validthis:true */
-    if (this[$STARTED]) {
-      /*jshint newcap:false */
-      throw new $TE('to cannot be changed');
-    }
-
+    canNotBeChanged(this, 'to');
+    hideMethod(this, 'to');
     this[$TO] = toValidCount(number);
 
     return this;
@@ -769,16 +818,22 @@
 
   function by(number) {
     /*jshint validthis:true */
-    if (this[$STARTED]) {
-      /*jshint newcap:false */
-      throw new $TE('by cannot be changed');
-    }
-
+    canNotBeChanged(this, 'by');
+    hideMethod(this, 'by');
     this[$BY] = $ABS(toValidCount(number));
     if (!this[$BY]) {
       /*jshint newcap:false */
       throw new $TE('can not count by zero');
     }
+
+    return this;
+  }
+
+  function unique() {
+    /*jshint validthis:true */
+    canNotBeChanged(this, 'unique');
+    hideMethod(this, 'unique');
+    this[$UNIQUE] = true;
 
     return this;
   }
@@ -816,16 +871,14 @@
     }
   }
 
-  $METHODDESCRIPTOR.value = reverse;
-  $DEFINEPROPERTY(CountIterator.prototype, 'reverse', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = toArray;
-  $DEFINEPROPERTY(CountIterator.prototype, 'toArray', $METHODDESCRIPTOR);
   $METHODDESCRIPTOR.value = from;
   $DEFINEPROPERTY(CountIterator.prototype, 'from', $METHODDESCRIPTOR);
   $METHODDESCRIPTOR.value = to;
   $DEFINEPROPERTY(CountIterator.prototype, 'to', $METHODDESCRIPTOR);
   $METHODDESCRIPTOR.value = by;
   $DEFINEPROPERTY(CountIterator.prototype, 'by', $METHODDESCRIPTOR);
+  defineReverse(CountIterator.prototype);
+  defineToArray(CountIterator.prototype);
 
   function counter() {
     var iterator = new CountIterator();
@@ -846,43 +899,7 @@
 
   setProperty($E, 'counter', counter);
 
-  /*
-   * arrayEntries
-   */
-
-  function* ArrayIterator(subject) {
-    var object = $ToObject(subject),
-      countIt = counter().to(lastIndex(object)),
-      key;
-
-    this[$STARTED] = true;
-    if (this[$REVERSED]) {
-      countIt.reverse();
-    }
-
-    for (key of countIt) {
-      yield getYieldValue(this, object, key);
-    }
-  }
-
-  $METHODDESCRIPTOR.value = entries;
-  $DEFINEPROPERTY(ArrayIterator.prototype, 'entries', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = keys;
-  $DEFINEPROPERTY(ArrayIterator.prototype, 'keys', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = values;
-  $DEFINEPROPERTY(ArrayIterator.prototype, 'values', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = reverse;
-  $DEFINEPROPERTY(ArrayIterator.prototype, 'reverse', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = unique;
-  $DEFINEPROPERTY(ArrayIterator.prototype, 'unique', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = flatten;
-  $DEFINEPROPERTY(ArrayIterator.prototype, 'flatten', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = toArray;
-  $DEFINEPROPERTY(ArrayIterator.prototype, 'toArray', $METHODDESCRIPTOR);
-
-  function arrayEntries(subject) {
-    var iterator = new ArrayIterator(subject);
-
+  function setCommonVariables(iterator) {
     $VARIABLEDESCRIPTOR.value = false;
     $DEFINEPROPERTY(iterator, $STARTED, $VARIABLEDESCRIPTOR);
     $VARIABLEDESCRIPTOR.value = false;
@@ -893,12 +910,72 @@
     $DEFINEPROPERTY(iterator, $KEYS, $VARIABLEDESCRIPTOR);
     $VARIABLEDESCRIPTOR.value = true;
     $DEFINEPROPERTY(iterator, $ENTRIES, $VARIABLEDESCRIPTOR);
+    $VARIABLEDESCRIPTOR.value = false;
+    $DEFINEPROPERTY(iterator, $UNIQUE, $VARIABLEDESCRIPTOR);
 
     return iterator;
   }
 
-  setProperty($E.Array, 'entries', arrayEntries);
+  function setCommonMethods(prototype) {
+    $METHODDESCRIPTOR.value = entries;
+    $DEFINEPROPERTY(prototype, 'entries', $METHODDESCRIPTOR);
+    $METHODDESCRIPTOR.value = keys;
+    $DEFINEPROPERTY(prototype, 'keys', $METHODDESCRIPTOR);
+    $METHODDESCRIPTOR.value = values;
+    $DEFINEPROPERTY(prototype, 'values', $METHODDESCRIPTOR);
+    $METHODDESCRIPTOR.value = unique;
+    $DEFINEPROPERTY(prototype, 'unique', $METHODDESCRIPTOR);
+    defineReverse(prototype);
+    defineToArray(prototype);
+  }
 
+  function setReverse(thisObject, iterator) {
+    if (thisObject[$REVERSED]) {
+      iterator.reverse();
+    }
+
+    return iterator;
+  }
+
+  function setSeen(thisObject) {
+    var seen;
+
+    if (thisObject[$UNIQUE]) {
+      seen = new Set();
+    }
+
+    return seen;
+  }
+
+  /*
+   * arrayEntries
+   */
+
+  function* ArrayIterator(subject) {
+    var object = $ToObject(subject),
+      countIt = setReverse(this, counter().to(lastIndex(object))),
+      seen = setSeen(this),
+      result,
+      key;
+
+    this[$STARTED] = true;
+    for (key of countIt) {
+      result = shouldYield(this, seen, getYieldValue(this, object, key));
+      if (result.yield) {
+        yield result.value;
+      }
+    }
+  }
+
+  setCommonMethods(ArrayIterator.prototype);
+  defineFlatten(ArrayIterator.prototype);
+  defineWalkOwn(ArrayIterator.prototype);
+
+  function arrayEntries(subject) {
+    return setCommonVariables(new ArrayIterator(subject));
+  }
+
+  setProperty($E.Array, 'entries', arrayEntries);
 
   /*
    * stringEntries
@@ -906,67 +983,48 @@
 
   function* StringIterator(subject) {
     var string = $OnlyCoercibleToString(subject),
-      countIt = counter().to(lastIndex(string)),
+      countIt = setReverse(this, counter().to(lastIndex(string))),
+      seen = setSeen(this),
       next = true,
+      doYield,
+      res,
       key;
 
     this[$STARTED] = true;
-    if (this[$REVERSED]) {
-      countIt.reverse();
-    }
-
     for (key of countIt) {
+      doYield = false;
       if (next) {
         if (this[$REVERSED]) {
           next = !isSurrogatePair(string[key - 1], string[key]);
           if (next) {
-            yield getStringYieldValue(this, string, key);
+            doYield = true;
           }
         } else {
           next = !isSurrogatePair(string[key], string[key + 1]);
-          yield getStringYieldValue(this, string, key);
+          doYield = true;
         }
       } else {
         next = !next;
         if (this[$REVERSED]) {
-          yield getStringYieldValue(this, string, key);
+          doYield = true;
+        }
+      }
+
+      if (doYield) {
+        res = shouldYield(this, seen, getStringYieldValue(this, string, key));
+        if (res.yield) {
+          yield res.value;
         }
       }
     }
   }
 
-  $METHODDESCRIPTOR.value = entries;
-  $DEFINEPROPERTY(StringIterator.prototype, 'entries', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = keys;
-  $DEFINEPROPERTY(StringIterator.prototype, 'keys', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = values;
-  $DEFINEPROPERTY(StringIterator.prototype, 'values', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = reverse;
-  $DEFINEPROPERTY(StringIterator.prototype, 'reverse', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = unique;
-  $DEFINEPROPERTY(StringIterator.prototype, 'unique', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = flatten;
-  $DEFINEPROPERTY(StringIterator.prototype, 'flatten', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = toArray;
-  $DEFINEPROPERTY(StringIterator.prototype, 'toArray', $METHODDESCRIPTOR);
+  setCommonMethods(StringIterator.prototype);
   $METHODDESCRIPTOR.value = stringify;
   $DEFINEPROPERTY(StringIterator.prototype, 'stringify', $METHODDESCRIPTOR);
 
   function stringEntries(subject) {
-    var iterator = new StringIterator(subject);
-
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $STARTED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $REVERSED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $VALUES, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $KEYS, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = true;
-    $DEFINEPROPERTY(iterator, $ENTRIES, $VARIABLEDESCRIPTOR);
-
-    return iterator;
+    return setCommonVariables(new StringIterator(subject));
   }
 
   setProperty($E.String, 'entries', stringEntries);
@@ -977,45 +1035,26 @@
 
   function* ObjectEnumerator(subject) {
     var object = $ToObject(subject),
+      seen = setSeen(this),
+      result,
       key;
 
     this[$STARTED] = true;
     for (key in object) {
       /*jshint forin:false */
-      yield getYieldValue(this, object, key);
+      result = shouldYield(this, seen, getYieldValue(this, object, key));
+      if (result.yield) {
+        yield result.value;
+      }
     }
   }
 
-  $METHODDESCRIPTOR.value = entries;
-  $DEFINEPROPERTY(ObjectEnumerator.prototype, 'entries', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = keys;
-  $DEFINEPROPERTY(ObjectEnumerator.prototype, 'keys', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = values;
-  $DEFINEPROPERTY(ObjectEnumerator.prototype, 'values', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = reverse;
-  $DEFINEPROPERTY(ObjectEnumerator.prototype, 'reverse', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = unique;
-  $DEFINEPROPERTY(ObjectEnumerator.prototype, 'unique', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = flatten;
-  $DEFINEPROPERTY(ObjectEnumerator.prototype, 'flatten', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = toArray;
-  $DEFINEPROPERTY(ObjectEnumerator.prototype, 'toArray', $METHODDESCRIPTOR);
+  setCommonMethods(ObjectEnumerator.prototype);
+  defineFlatten(ObjectEnumerator.prototype);
+  defineWalkOwn(ObjectEnumerator.prototype);
 
   function enumerate(subject) {
-    var iterator = new ObjectEnumerator(subject);
-
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $STARTED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $REVERSED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $VALUES, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $KEYS, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = true;
-    $DEFINEPROPERTY(iterator, $ENTRIES, $VARIABLEDESCRIPTOR);
-
-    return iterator;
+    return setCommonVariables(new ObjectEnumerator(subject));
   }
 
   setProperty($E.Object, 'enumerate', enumerate);
@@ -1026,50 +1065,30 @@
 
   function* ObjectEnumeratorOwn(subject) {
     var object = $ToObject(subject),
+      seen = setSeen(this),
+      result,
       key;
 
     this[$STARTED] = true;
     for (key in object) {
       if ($HOP(object, key)) {
-        yield getYieldValue(this, object, key);
+        result = shouldYield(this, seen, getYieldValue(this, object, key));
+        if (result.yield) {
+          yield result.value;
+        }
       }
     }
   }
 
-  $METHODDESCRIPTOR.value = entries;
-  $DEFINEPROPERTY(ObjectEnumeratorOwn.prototype, 'entries', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = keys;
-  $DEFINEPROPERTY(ObjectEnumeratorOwn.prototype, 'keys', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = values;
-  $DEFINEPROPERTY(ObjectEnumeratorOwn.prototype, 'values', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = reverse;
-  $DEFINEPROPERTY(ObjectEnumeratorOwn.prototype, 'reverse', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = unique;
-  $DEFINEPROPERTY(ObjectEnumeratorOwn.prototype, 'unique', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = flatten;
-  $DEFINEPROPERTY(ObjectEnumeratorOwn.prototype, 'flatten', $METHODDESCRIPTOR);
-  $METHODDESCRIPTOR.value = toArray;
-  $DEFINEPROPERTY(ObjectEnumeratorOwn.prototype, 'toArray', $METHODDESCRIPTOR);
+  setCommonMethods(ObjectEnumeratorOwn.prototype);
+  defineFlatten(ObjectEnumeratorOwn.prototype);
+  defineWalkOwn(ObjectEnumeratorOwn.prototype);
 
   function enumerateOwn(subject) {
-    var iterator = new ObjectEnumeratorOwn(subject);
-
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $STARTED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $REVERSED, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $VALUES, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = false;
-    $DEFINEPROPERTY(iterator, $KEYS, $VARIABLEDESCRIPTOR);
-    $VARIABLEDESCRIPTOR.value = true;
-    $DEFINEPROPERTY(iterator, $ENTRIES, $VARIABLEDESCRIPTOR);
-
-    return iterator;
+    return setCommonVariables(new ObjectEnumeratorOwn(subject));
   }
 
   setProperty($E.Object, 'enumerateOwn', enumerateOwn);
-
 
   /*
    * map
