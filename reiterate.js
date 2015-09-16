@@ -9,7 +9,9 @@
  */
 
 /*jslint maxlen:80, es6:true, this:true */
-/*jshint esnext: true */
+/*jshint
+    esnext:true, maxparams:3, maxdepth:4, maxstatements:20, maxcomplexity:6
+*/
 
 /*global
     define, module
@@ -24,7 +26,7 @@
 
 // UMD (Universal Module Definition)
 // see https://github.com/umdjs/umd/blob/master/returnExports.js
-;(function (root, factory) {
+(function (root, factory) {
   'use strict';
 
   if (typeof define === 'function' && define.amd) {
@@ -544,6 +546,13 @@
 
   setMethod(unique.prototype, 'toArray', toArray);
 
+  function isCircular(thisObject, stack, value) {
+    if (stack.has(thisObject) || stack.has(value)) {
+      /*jshint newcap:false */
+      throw new $TE('circular object');
+    }
+  }
+
   /*
    * flatten
    */
@@ -573,11 +582,7 @@
         } else {
           value = object[tail.index];
           if (isArray(value, relaxed)) {
-            if (stack.has(this) || stack.has(value)) {
-              /*jshint newcap:false */
-              throw new $TE('Flattening circular array');
-            }
-
+            isCircular(this, stack, value);
             stack.set(value, {
               index: 0,
               prev: object
@@ -602,13 +607,12 @@
 
   function* walkOwn() {
     /*jshint validthis:true */
-    var stack,
+    var stack = new Map(),
       object,
       value,
       tail,
       key;
 
-    stack = new Map();
     for (object of this) {
       if (isObject(object)) {
         stack.set(object, {
@@ -629,11 +633,7 @@
           key = tail.keys[tail.index];
           value = object[key];
           if (isObject(value)) {
-            if (stack.has(this) || stack.has(value)) {
-              /*jshint newcap:false */
-              throw new $TE('Walking circular object');
-            }
-
+            isCircular(this, stack, value);
             stack.set(value, {
               keys: $OK(value),
               index: 0,
@@ -749,14 +749,14 @@
     return result;
   }
 
-  function getStringYieldValue(thisObject, string, key) {
+  function getStringYieldValue(thisObject, character, key) {
     var value,
       result;
 
     if (thisObject[$KEYS]) {
       result = key;
     } else {
-      value = $FROMCODEPOINT(string.codePointAt(key));
+      value = $FROMCODEPOINT(character.codePointAt(0));
       if (thisObject[$VALUES]) {
         result = value;
       } else {
@@ -847,36 +847,44 @@
   }
   */
 
-  function* CountIterator() {
-    var count;
+  function* countReverse(thisObject) {
+    var count = thisObject[$TO];
 
-    this[$STARTED] = true;
-    if (this[$REVERSED]) {
-      count = this[$TO];
-      if (this[$TO] <= this[$FROM]) {
-        while (count <= this[$FROM]) {
-          yield count;
-          count += this[$BY];
-        }
-      } else {
-        while (count >= this[$FROM]) {
-          yield count;
-          count -= this[$BY];
-        }
+    if (thisObject[$TO] <= thisObject[$FROM]) {
+      while (count <= thisObject[$FROM]) {
+        yield count;
+        count += thisObject[$BY];
       }
     } else {
-      count = this[$FROM];
-      if (this[$FROM] <= this[$TO]) {
-        while (count <= this[$TO]) {
-          yield count;
-          count += this[$BY];
-        }
-      } else {
-        while (count >= this[$TO]) {
-          yield count;
-          count -= this[$BY];
-        }
+      while (count >= thisObject[$FROM]) {
+        yield count;
+        count -= thisObject[$BY];
       }
+    }
+  }
+
+  function* countForward(thisObject) {
+    var count = thisObject[$FROM];
+
+    if (thisObject[$FROM] <= thisObject[$TO]) {
+      while (count <= thisObject[$TO]) {
+        yield count;
+        count += thisObject[$BY];
+      }
+    } else {
+      while (count >= thisObject[$TO]) {
+        yield count;
+        count -= thisObject[$BY];
+      }
+    }
+  }
+
+  function* CountIterator() {
+    this[$STARTED] = true;
+    if (this[$REVERSED]) {
+      yield * countReverse(this);
+    } else {
+      yield * countForward(this);
     }
   }
 
@@ -967,33 +975,32 @@
   function* StringIterator(subject) {
     var string = $OnlyCoercibleToString(subject),
       countIt = setReversed(this, counter().to(lastIndex(string))),
-      //seen = setSeen(this),
       next = true,
-      doYield,
+      char1,
+      char2,
       key;
 
     this[$STARTED] = true;
     for (key of countIt) {
-      doYield = false;
       if (next) {
         if (this[$REVERSED]) {
-          next = !isSurrogatePair(string[key - 1], string[key]);
+          char1 = string[key - 1];
+          char2 = string[key];
+          next = !isSurrogatePair(char1, char2);
           if (next) {
-            doYield = true;
+            yield getStringYieldValue(this, char2, key);
           }
         } else {
-          next = !isSurrogatePair(string[key], string[key + 1]);
-          doYield = true;
+          char1 = string[key];
+          char2 = string[key + 1];
+          next = !isSurrogatePair(char1, char2);
+          yield getStringYieldValue(this, char1 + char2, key);
         }
       } else {
         next = !next;
         if (this[$REVERSED]) {
-          doYield = true;
+          yield getStringYieldValue(this, char1 + char2, key);
         }
-      }
-
-      if (doYield) {
-        yield getStringYieldValue(this, string, key);
       }
     }
   }
