@@ -182,9 +182,11 @@
     return value;
   }
 
-  setMethod($E, 'Array', {});
-  setMethod($E, 'String', {});
-  setMethod($E, 'Object', {});
+  (function () {
+    setMethod($E, 'Array', {});
+    setMethod($E, 'String', {});
+    setMethod($E, 'Object', {});
+  }());
 
   /**
    * Returns true if the operand inputArg is null or undefined.
@@ -229,19 +231,6 @@
    */
   function $ToObject(subject) {
     return $O($RequireObjectCoercible(subject));
-  }
-
-  /**
-   * Returns a string only if the arguments is coercible otherwise throws an
-   * error.
-   *
-   * @private
-   * @param {*} subject
-   * @throws {TypeError} If subject is null or undefined.
-   * @return {string}
-   */
-  function $OnlyCoercibleToString(subject) {
-    return $S($RequireObjectCoercible(subject));
   }
 
   /**
@@ -299,22 +288,6 @@
   }
 
   /**
-   * The abstract operation ToLength converts its argument to an integer
-   * suitable for use as the length of an array-like object.
-   *
-   * @private
-   * @param {*} subject The object to be converted to a length.
-   * @return {number} If len <= +0 then +0 else if len is +INFINITY then 2^53-1
-   *                  else min(len, 2^53-1).
-   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
-   */
-  /*
-  function $ToLength(subject) {
-    return clamp($ToInteger(subject), 0, $MAX_SAFE_INTEGER);
-  }
-  */
-
-  /**
    * The function evaluates the passed value and converts it to a safe integer.
    *
    * @private
@@ -348,19 +321,6 @@
   }
 
   /**
-   * Returns true if the operand subject is a Symbol
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} True if the object is a Symbol, otherwise false.
-   */
-  /*
-  function isSymbol(subject) {
-    return typeof subject === $SYMBOLTYPE;
-  }
-  */
-
-  /**
    * Returns true if the operand inputArg is a String.
    *
    * @private
@@ -369,6 +329,18 @@
    */
   function isString(subject) {
     return $TOSTRINGTAG(subject) === $STRINGTAG;
+  }
+
+  /**
+   * Checks if `value` is a valid array-like length.
+   *
+   * @private
+   * @param {*} subject The value to check.
+   * @return {boolean} Returns `true` if `value` is a valid length,
+   *                   else `false`.
+   */
+  function isLength(subject) {
+    return $ToSafeInteger(subject) === subject && subject >= 0;
   }
 
   /**
@@ -409,18 +381,6 @@
   }
 
   /**
-   * Checks if `value` is a valid array-like length.
-   *
-   * @private
-   * @param {*} subject The value to check.
-   * @return {boolean} Returns `true` if `value` is a valid length,
-   *                   else `false`.
-   */
-  function isLength(subject) {
-    return $ToSafeInteger(subject) === subject && subject >= 0;
-  }
-
-  /**
    * Get the last index of an array-like object.
    *
    * @private
@@ -429,52 +389,6 @@
    */
   function lastIndex(subject) {
     return isArrayLike(subject) && $ToSafeInteger(subject.length - 1) || 0;
-  }
-
-  /**
-   * Tests if the two character arguments combined are a valid UTF-16 surrogate
-   * pair.
-   *
-   * @private
-   * @param {*} char1 The first character of a suspected surrogate pair.
-   * @param {*} char2 The second character of a suspected surrogate pair.
-   * @return {number} Returns true if the two characters create a valid UTF-16
-   *                  surrogate pair; otherwise false.
-   */
-  function isSurrogatePair(char1, char2) {
-    var result = false,
-      code1,
-      code2;
-
-    if (char1 && char2 && isString(char1) && isString(char2)) {
-      code1 = char1.charCodeAt();
-      if (code1 >= 0xD800 && code1 <= 0xDBFF) {
-        code2 = char2.charCodeAt();
-        if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
-          result = true;
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Returns true if the operand subject is an Object.
-   *
-   * @private
-   * @param {*} subject
-   * @return {boolean}
-   */
-  function isObject(subject) {
-    return $O(subject) === subject;
-  }
-
-  function checkcallback(callback) {
-    if (!isFunction(callback)) {
-      /*jshint newcap:false */
-      throw new $TE('callback must be a function');
-    }
   }
 
   /*
@@ -504,47 +418,29 @@
   }
 
   /*
-   * stringify
-   */
-
-  function stringify(mapFn, thisArg) {
-    var result,
-      item;
-
-    if (!isUndefined(mapFn) && !isFunction(mapFn)) {
-      /*jshint newcap:false */
-      throw new $TE('If not undefined, the first argument must be a function');
-    }
-
-    result = '';
-    /*jshint validthis:true */
-    for (item of this) {
-      result += mapFn ? mapFn.call(thisArg, this, item) : item;
-    }
-
-    return result;
-  }
-
-  /*
    * unique
    */
 
-  function* unique() {
-    /*jshint validthis:true */
-    var seen = new Set(),
-      item,
-      value;
+  var unique = (function () {
+    function* Unique() {
+      /*jshint validthis:true */
+      var seen = new Set(),
+        item,
+        value;
 
-    for (item of this) {
-      value = item;
-      if (!seen.has(value)) {
-        seen.add(value, true);
-        yield item;
+      for (item of this) {
+        value = item;
+        if (!seen.has(value)) {
+          seen.add(value, true);
+          yield item;
+        }
       }
     }
-  }
 
-  setMethod(unique.prototype, 'toArray', toArray);
+    setMethod(Unique.prototype, 'toArray', toArray);
+
+    return Unique;
+  }());
 
   function isCircular(thisObject, stack, value) {
     if (stack.has(thisObject) || stack.has(value)) {
@@ -557,101 +453,120 @@
    * flatten
    */
 
-  function* flatten(relaxed) {
-    /*jshint validthis:true */
-    var stack = new Map(),
-      object,
-      value,
-      tail;
+  var flatten = (function () {
+    function* Flatten(relaxed) {
+      /*jshint validthis:true */
+      var stack = new Map(),
+        object,
+        value,
+        tail;
 
-    for (object of this) {
-      if (isArray(object, relaxed)) {
-        stack.set(object, {
-          index: 0,
-          prev: null
-        });
-      } else {
-        yield object;
-      }
-
-      while (stack.size) {
-        tail = stack.get(object);
-        if (tail.index >= object.length) {
-          stack.delete(object);
-          object = tail.prev;
+      for (object of this) {
+        if (isArray(object, relaxed)) {
+          stack.set(object, {
+            index: 0,
+            prev: null
+          });
         } else {
-          value = object[tail.index];
-          if (isArray(value, relaxed)) {
-            isCircular(this, stack, value);
-            stack.set(value, {
-              index: 0,
-              prev: object
-            });
+          yield object;
+        }
 
-            object = value;
+        while (stack.size) {
+          tail = stack.get(object);
+          if (tail.index >= object.length) {
+            stack.delete(object);
+            object = tail.prev;
           } else {
-            yield value;
-          }
+            value = object[tail.index];
+            if (isArray(value, relaxed)) {
+              isCircular(this, stack, value);
+              stack.set(value, {
+                index: 0,
+                prev: object
+              });
 
-          tail.index += 1;
+              object = value;
+            } else {
+              yield value;
+            }
+
+            tail.index += 1;
+          }
         }
       }
     }
-  }
 
-  setMethod(flatten.prototype, 'toArray', toArray);
+    setMethod(Flatten.prototype, 'toArray', toArray);
+
+    return Flatten;
+  }());
 
   /*
    * walkOwn
    */
 
-  function* walkOwn() {
-    /*jshint validthis:true */
-    var stack = new Map(),
-      object,
-      value,
-      tail,
-      key;
+  var walkOwn = (function () {
+    /**
+     * Returns true if the operand subject is an Object.
+     *
+     * @private
+     * @param {*} subject
+     * @return {boolean}
+     */
+    function isObject(subject) {
+      return $O(subject) === subject;
+    }
 
-    for (object of this) {
-      if (isObject(object)) {
-        stack.set(object, {
-          keys: $OK(object),
-          index: 0,
-          prev: null
-        });
-      } else {
-        yield object;
-      }
+    function* WalkOwn() {
+      /*jshint validthis:true */
+      var stack = new Map(),
+        object,
+        value,
+        tail,
+        key;
 
-      while (stack.size) {
-        tail = stack.get(object);
-        if (tail.index >= tail.keys.length) {
-          stack.delete(object);
-          object = tail.prev;
+      for (object of this) {
+        if (isObject(object)) {
+          stack.set(object, {
+            keys: $OK(object),
+            index: 0,
+            prev: null
+          });
         } else {
-          key = tail.keys[tail.index];
-          value = object[key];
-          if (isObject(value)) {
-            isCircular(this, stack, value);
-            stack.set(value, {
-              keys: $OK(value),
-              index: 0,
-              prev: object
-            });
+          yield object;
+        }
 
-            object = value;
+        while (stack.size) {
+          tail = stack.get(object);
+          if (tail.index >= tail.keys.length) {
+            stack.delete(object);
+            object = tail.prev;
           } else {
-            yield value;
-          }
+            key = tail.keys[tail.index];
+            value = object[key];
+            if (isObject(value)) {
+              isCircular(this, stack, value);
+              stack.set(value, {
+                keys: $OK(value),
+                index: 0,
+                prev: object
+              });
 
-          tail.index += 1;
+              object = value;
+            } else {
+              yield value;
+            }
+
+            tail.index += 1;
+          }
         }
       }
     }
-  }
 
-  setMethod(walkOwn.prototype, 'toArray', toArray);
+    setMethod(WalkOwn.prototype, 'toArray', toArray);
+
+    return WalkOwn;
+  }());
 
   function canNotBeChanged(thisObject, name) {
     /*jshint newcap:false */
@@ -659,15 +574,6 @@
       return new $TE(name + ' can not be changed.');
     }
   }
-
-  /*
-  function defineIterator(thisObject, Constructor) {
-    $METHODDESCRIPTOR.value = Constructor;
-    $DEFINEPROPERTY(thisObject, $SI, $METHODDESCRIPTOR);
-
-    return Constructor.call(thisObject);
-  }
-  */
 
   function hideMethod(thisObject, name) {
     if (thisObject[name]) {
@@ -749,24 +655,6 @@
     return result;
   }
 
-  function getStringYieldValue(thisObject, character, key) {
-    var value,
-      result;
-
-    if (thisObject[$KEYS]) {
-      result = key;
-    } else {
-      value = $FROMCODEPOINT(character.codePointAt(0));
-      if (thisObject[$VALUES]) {
-        result = value;
-      } else {
-        result = [key, value];
-      }
-    }
-
-    return result;
-  }
-
   function then(Generator) {
     /*jshint validthis:true */
     var iterator;
@@ -795,119 +683,113 @@
    * counter
    */
 
-  function toValidCount(subject) {
-    var number = +subject,
-      val = 0;
+  var counter = (function () {
+    function toValidCount(subject) {
+      var number = +subject,
+        val = 0;
 
-    if (!$ISNAN(number)) {
-      val = clamp(number, $MIN_SAFE_INTEGER, $MAX_SAFE_INTEGER);
-    }
-
-    return val;
-  }
-
-  function from(number) {
-    /*jshint validthis:true */
-    canNotBeChanged(this, 'from');
-    hideMethod(this, 'from');
-    this[$FROM] = toValidCount(number);
-
-    return this;
-  }
-
-  function to(number) {
-    /*jshint validthis:true */
-    canNotBeChanged(this, 'to');
-    hideMethod(this, 'to');
-    this[$TO] = toValidCount(number);
-
-    return this;
-  }
-
-  function by(number) {
-    /*jshint validthis:true */
-    canNotBeChanged(this, 'by');
-    hideMethod(this, 'by');
-    this[$BY] = $ABS(toValidCount(number));
-    if (!this[$BY]) {
-      /*jshint newcap:false */
-      throw new $TE('can not count by zero');
-    }
-
-    return this;
-  }
-
-  /*
-  function unique() {
-    canNotBeChanged(this, 'unique');
-    hideMethod(this, 'unique');
-    this[$UNIQUE] = true;
-
-    return this;
-  }
-  */
-
-  function* countReverse(thisObject) {
-    var count = thisObject[$TO];
-
-    if (thisObject[$TO] <= thisObject[$FROM]) {
-      while (count <= thisObject[$FROM]) {
-        yield count;
-        count += thisObject[$BY];
+      if (!$ISNAN(number)) {
+        val = clamp(number, $MIN_SAFE_INTEGER, $MAX_SAFE_INTEGER);
       }
-    } else {
-      while (count >= thisObject[$FROM]) {
-        yield count;
-        count -= thisObject[$BY];
+
+      return val;
+    }
+
+    function from(number) {
+      /*jshint validthis:true */
+      canNotBeChanged(this, 'from');
+      hideMethod(this, 'from');
+      this[$FROM] = toValidCount(number);
+
+      return this;
+    }
+
+    function to(number) {
+      /*jshint validthis:true */
+      canNotBeChanged(this, 'to');
+      hideMethod(this, 'to');
+      this[$TO] = toValidCount(number);
+
+      return this;
+    }
+
+    function by(number) {
+      /*jshint validthis:true */
+      canNotBeChanged(this, 'by');
+      hideMethod(this, 'by');
+      this[$BY] = $ABS(toValidCount(number));
+      if (!this[$BY]) {
+        /*jshint newcap:false */
+        throw new $TE('can not count by zero');
+      }
+
+      return this;
+    }
+
+    function* countReverse(thisObject) {
+      var count = thisObject[$TO];
+
+      if (thisObject[$TO] <= thisObject[$FROM]) {
+        while (count <= thisObject[$FROM]) {
+          yield count;
+          count += thisObject[$BY];
+        }
+      } else {
+        while (count >= thisObject[$FROM]) {
+          yield count;
+          count -= thisObject[$BY];
+        }
       }
     }
-  }
 
-  function* countForward(thisObject) {
-    var count = thisObject[$FROM];
+    function* countForward(thisObject) {
+      var count = thisObject[$FROM];
 
-    if (thisObject[$FROM] <= thisObject[$TO]) {
-      while (count <= thisObject[$TO]) {
-        yield count;
-        count += thisObject[$BY];
-      }
-    } else {
-      while (count >= thisObject[$TO]) {
-        yield count;
-        count -= thisObject[$BY];
+      if (thisObject[$FROM] <= thisObject[$TO]) {
+        while (count <= thisObject[$TO]) {
+          yield count;
+          count += thisObject[$BY];
+        }
+      } else {
+        while (count >= thisObject[$TO]) {
+          yield count;
+          count -= thisObject[$BY];
+        }
       }
     }
-  }
 
-  function* CountIterator() {
-    this[$STARTED] = true;
-    if (this[$REVERSED]) {
-      yield * countReverse(this);
-    } else {
-      yield * countForward(this);
+    function* CountIterator() {
+      this[$STARTED] = true;
+      if (this[$REVERSED]) {
+        yield * countReverse(this);
+      } else {
+        yield * countForward(this);
+      }
     }
-  }
 
-  setMethod(CountIterator.prototype, 'from', from);
-  setMethod(CountIterator.prototype, 'to', to);
-  setMethod(CountIterator.prototype, 'by', by);
-  setMethod(CountIterator.prototype, 'reverse', reverse);
-  setMethod(CountIterator.prototype, 'toArray', toArray);
-  setMethod(CountIterator.prototype, 'then', then);
+    setMethod(CountIterator.prototype, 'from', from);
+    setMethod(CountIterator.prototype, 'to', to);
+    setMethod(CountIterator.prototype, 'by', by);
+    setMethod(CountIterator.prototype, 'reverse', reverse);
+    setMethod(CountIterator.prototype, 'toArray', toArray);
+    setMethod(CountIterator.prototype, 'then', then);
 
-  function counter() {
-    var iterator = new CountIterator();
+    function Counter() {
+      var iterator = new CountIterator();
 
-    setVariable(iterator, $FROM, 0);
-    setVariable(iterator, $TO, $MAX_SAFE_INTEGER);
-    setVariable(iterator, $BY, 1);
-    setVariable(iterator, $REVERSED, false);
-    setVariable(iterator, $STARTED, false);
+      setVariable(iterator, $FROM, 0);
+      setVariable(iterator, $TO, $MAX_SAFE_INTEGER);
+      setVariable(iterator, $BY, 1);
+      setVariable(iterator, $REVERSED, false);
+      setVariable(iterator, $STARTED, false);
 
-    return iterator;
-  }
+      return iterator;
+    }
 
-  setMethod($E, 'counter', counter);
+    setMethod($E, 'counter', Counter);
+
+    return Counter;
+  }());
 
   function defineCommonVariables(iterator) {
     setVariable(iterator, $VALUES, false);
@@ -940,236 +822,330 @@
    * arrayEntries
    */
 
-  function* ArrayIterator(subject) {
-    var object = $ToObject(subject),
-      countIt = setReversed(this, counter().to(lastIndex(object))),
-      key;
+  (function () {
+    function* ArrayIterator(subject) {
+      var object = $ToObject(subject),
+        countIt = setReversed(this, counter().to(lastIndex(object))),
+        key;
 
-    this[$STARTED] = true;
-    for (key of countIt) {
-      yield getYieldValue(this, object, key);
+      this[$STARTED] = true;
+      for (key of countIt) {
+        yield getYieldValue(this, object, key);
+      }
     }
-  }
 
-  defineCommonMethods(ArrayIterator.prototype);
-  setMethod(ArrayIterator.prototype, 'reverse', reverse);
-  /*
-  setMethod(ArrayIterator.prototype, 'flatten', flatten);
-  setMethod(ArrayIterator.prototype, 'walkOwn', walkOwn);
-  */
+    defineCommonMethods(ArrayIterator.prototype);
+    setMethod(ArrayIterator.prototype, 'reverse', reverse);
+    /*
+    setMethod(ArrayIterator.prototype, 'flatten', flatten);
+    setMethod(ArrayIterator.prototype, 'walkOwn', walkOwn);
+    */
 
-  function arrayEntries(subject) {
-    var iterator = new ArrayIterator(subject);
+    function arrayEntries(subject) {
+      var iterator = new ArrayIterator(subject);
 
-    setVariable(iterator, $REVERSED, false);
+      setVariable(iterator, $REVERSED, false);
 
-    return defineCommonVariables(iterator);
-  }
+      return defineCommonVariables(iterator);
+    }
 
-  setMethod($E.Array, 'entries', arrayEntries);
+    setMethod($E.Array, 'entries', arrayEntries);
+  }());
 
   /*
    * stringEntries
    */
 
-  function* StringIterator(subject) {
-    var string = $OnlyCoercibleToString(subject),
-      countIt = setReversed(this, counter().to(lastIndex(string))),
-      next = true,
-      char1,
-      char2,
-      key;
+  (function () {
+    /**
+     * Tests if the two character arguments combined are a valid UTF-16
+     * surrogate pair.
+     *
+     * @private
+     * @param {*} char1 The first character of a suspected surrogate pair.
+     * @param {*} char2 The second character of a suspected surrogate pair.
+     * @return {number} Returns true if the two characters create a valid UTF-16
+     *                  surrogate pair; otherwise false.
+     */
+    function isSurrogatePair(char1, char2) {
+      var result = false,
+        code1,
+        code2;
 
-    this[$STARTED] = true;
-    for (key of countIt) {
-      if (next) {
-        if (this[$REVERSED]) {
-          char1 = string[key - 1];
-          char2 = string[key];
-          next = !isSurrogatePair(char1, char2);
-          if (next) {
-            yield getStringYieldValue(this, char2, key);
+      if (char1 && char2 && isString(char1) && isString(char2)) {
+        code1 = char1.charCodeAt();
+        if (code1 >= 0xD800 && code1 <= 0xDBFF) {
+          code2 = char2.charCodeAt();
+          if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
+            result = true;
+          }
+        }
+      }
+
+      return result;
+    }
+
+    function stringify(mapFn, thisArg) {
+      var result,
+        item;
+
+      if (!isUndefined(mapFn) && !isFunction(mapFn)) {
+        /*jshint newcap:false */
+        throw new $TE('If not undefined, the 1st argument must be a function');
+      }
+
+      result = '';
+      /*jshint validthis:true */
+      for (item of this) {
+        result += mapFn ? mapFn.call(thisArg, this, item) : item;
+      }
+
+      return result;
+    }
+
+    function getStringYieldValue(thisObject, character, key) {
+      var value,
+        result;
+
+      if (thisObject[$KEYS]) {
+        result = key;
+      } else {
+        value = $FROMCODEPOINT(character.codePointAt(0));
+        if (thisObject[$VALUES]) {
+          result = value;
+        } else {
+          result = [key, value];
+        }
+      }
+
+      return result;
+    }
+
+    /**
+     * Returns a string only if the arguments is coercible otherwise throws an
+     * error.
+     *
+     * @private
+     * @param {*} subject
+     * @throws {TypeError} If subject is null or undefined.
+     * @return {string}
+     */
+    function $OnlyCoercibleToString(subject) {
+      return $S($RequireObjectCoercible(subject));
+    }
+
+    function* StringIterator(subject) {
+      var string = $OnlyCoercibleToString(subject),
+        countIt = setReversed(this, counter().to(lastIndex(string))),
+        next = true,
+        char1,
+        char2,
+        key;
+
+      this[$STARTED] = true;
+      for (key of countIt) {
+        if (next) {
+          if (this[$REVERSED]) {
+            char1 = string[key - 1];
+            char2 = string[key];
+            next = !isSurrogatePair(char1, char2);
+            if (next) {
+              yield getStringYieldValue(this, char2, key);
+            }
+          } else {
+            char1 = string[key];
+            char2 = string[key + 1];
+            next = !isSurrogatePair(char1, char2);
+            yield getStringYieldValue(this, char1 + char2, key);
           }
         } else {
-          char1 = string[key];
-          char2 = string[key + 1];
-          next = !isSurrogatePair(char1, char2);
-          yield getStringYieldValue(this, char1 + char2, key);
-        }
-      } else {
-        next = !next;
-        if (this[$REVERSED]) {
-          yield getStringYieldValue(this, char1 + char2, key);
+          next = !next;
+          if (this[$REVERSED]) {
+            yield getStringYieldValue(this, char1 + char2, key);
+          }
         }
       }
     }
-  }
 
-  defineCommonMethods(StringIterator.prototype);
-  setMethod(StringIterator.prototype, 'reverse', reverse);
-  setMethod(StringIterator.prototype, 'stringify', stringify);
+    defineCommonMethods(StringIterator.prototype);
+    setMethod(StringIterator.prototype, 'reverse', reverse);
+    setMethod(StringIterator.prototype, 'stringify', stringify);
 
-  function stringEntries(subject) {
-    var iterator = new StringIterator(subject);
+    function stringEntries(subject) {
+      var iterator = new StringIterator(subject);
 
-    setVariable(iterator, $REVERSED, false);
+      setVariable(iterator, $REVERSED, false);
 
-    return defineCommonVariables(iterator);
-  }
+      return defineCommonVariables(iterator);
+    }
 
-  setMethod($E.String, 'entries', stringEntries);
+    setMethod($E.String, 'entries', stringEntries);
+  }());
 
   /*
    * enumerate
    */
 
-  function* ObjectEnumerator(subject) {
-    var object = $ToObject(subject),
-      key;
+  (function () {
+    function* ObjectEnumerator(subject) {
+      var object = $ToObject(subject),
+        key;
 
-    this[$STARTED] = true;
-    for (key in object) {
-      /*jshint forin:false */
-      yield getYieldValue(this, object, key);
+      this[$STARTED] = true;
+      for (key in object) {
+        /*jshint forin:false */
+        yield getYieldValue(this, object, key);
+      }
     }
-  }
 
-  defineCommonMethods(ObjectEnumerator.prototype);
-  /*
-  setMethod(ObjectEnumerator.prototype, 'flatten', flatten);
-  setMethod(ObjectEnumerator.prototype, 'walkOwn', walkOwn);
-  */
+    defineCommonMethods(ObjectEnumerator.prototype);
+    /*
+    setMethod(ObjectEnumerator.prototype, 'flatten', flatten);
+    setMethod(ObjectEnumerator.prototype, 'walkOwn', walkOwn);
+    */
 
-  function enumerate(subject) {
-    return defineCommonVariables(new ObjectEnumerator(subject));
-  }
+    function enumerate(subject) {
+      return defineCommonVariables(new ObjectEnumerator(subject));
+    }
 
-  setMethod($E.Object, 'enumerate', enumerate);
+    setMethod($E.Object, 'enumerate', enumerate);
+  }());
 
   /*
    * enumerateOwn
    */
 
-  function* ObjectEnumeratorOwn(subject) {
-    var object = $ToObject(subject),
-      key;
+  (function () {
+    function* ObjectEnumeratorOwn(subject) {
+      var object = $ToObject(subject),
+        key;
 
-    this[$STARTED] = true;
-    for (key in object) {
-      if ($HOP(object, key)) {
-        yield getYieldValue(this, object, key);
+      this[$STARTED] = true;
+      for (key in object) {
+        if ($HOP(object, key)) {
+          yield getYieldValue(this, object, key);
+        }
       }
     }
-  }
 
-  defineCommonMethods(ObjectEnumeratorOwn.prototype);
-  /*
-  setMethod(ObjectEnumeratorOwn.prototype, 'flatten', flatten);
-  setMethod(ObjectEnumeratorOwn.prototype, 'walkOwn', walkOwn);
-  */
+    defineCommonMethods(ObjectEnumeratorOwn.prototype);
+    /*
+    setMethod(ObjectEnumeratorOwn.prototype, 'flatten', flatten);
+    setMethod(ObjectEnumeratorOwn.prototype, 'walkOwn', walkOwn);
+    */
 
-  function enumerateOwn(subject) {
-    return defineCommonVariables(new ObjectEnumeratorOwn(subject));
-  }
+    function enumerateOwn(subject) {
+      return defineCommonVariables(new ObjectEnumeratorOwn(subject));
+    }
 
-  setMethod($E.Object, 'enumerateOwn', enumerateOwn);
+    setMethod($E.Object, 'enumerateOwn', enumerateOwn);
+  }());
 
   /*
    * map
    */
 
-  setMethod($E.Object, 'map', function* (subject, callback, thisArg) {
-    var object = $ToObject(subject),
-      element,
-      index;
-
-    checkcallback(callback);
-    index = 0;
-    for (element of object) {
-      yield callback.call(thisArg, element, index, object);
-      index += 1;
+  (function () {
+    function checkcallback(callback) {
+      if (!isFunction(callback)) {
+        /*jshint newcap:false */
+        throw new $TE('callback must be a function');
+      }
     }
-  });
 
-  /*
-   * filter
-   */
+    setMethod($E.Object, 'map', function* (subject, callback, thisArg) {
+      var object = $ToObject(subject),
+        element,
+        index;
 
-  setMethod($E.Object, 'filter', function* (subject, callback, thisArg) {
-    var object = $ToObject(subject),
-      element,
-      index;
-
-    checkcallback(callback);
-    index = 0;
-    for (element of object) {
-      if (callback.call(thisArg, element, index, object)) {
-        yield element;
+      checkcallback(callback);
+      index = 0;
+      for (element of object) {
+        yield callback.call(thisArg, element, index, object);
         index += 1;
       }
-    }
-  });
+    });
 
-  /*
-   * reduce
-   */
+    /*
+     * filter
+     */
 
-  setMethod($E.Object, 'reduce', function (subject, callback, initialValue) {
-    var object = $ToObject(subject),
-      element,
-      index;
+    setMethod($E.Object, 'filter', function* (subject, callback, thisArg) {
+      var object = $ToObject(subject),
+        element,
+        index;
 
-    checkcallback(callback);
-    index = 0;
-    for (element of object) {
-      initialValue = callback(initialValue, element, index, object);
-      index += 1;
-    }
+      checkcallback(callback);
+      index = 0;
+      for (element of object) {
+        if (callback.call(thisArg, element, index, object)) {
+          yield element;
+          index += 1;
+        }
+      }
+    });
 
-    return initialValue;
-  });
+    /*
+     * reduce
+     */
 
-  /*
-   * forEach
-   */
+    setMethod($E.Object, 'reduce', function (subject, callback, initialValue) {
+      var object = $ToObject(subject),
+        element,
+        index;
 
-  setMethod($E.Object, 'forEach', function (subject, callback, thisArg) {
-    var object = $ToObject(subject),
-      element,
-      index;
-
-    checkcallback(callback);
-    index = 0;
-    for (element of object) {
-      callback.call(thisArg, element, index, object);
-      index += 1;
-    }
-  });
-
-  /*
-   * every
-   */
-
-  setMethod($E.Object, 'every', function (subject, callback, thisArg) {
-    var object = $ToObject(subject),
-      result,
-      element,
-      index;
-
-    checkcallback(callback);
-    result = true;
-    index = 0;
-    for (element of object) {
-      if (!callback.call(thisArg, element, index, object)) {
-        result = false;
-        break;
+      checkcallback(callback);
+      index = 0;
+      for (element of object) {
+        initialValue = callback(initialValue, element, index, object);
+        index += 1;
       }
 
-      index += 1;
-    }
+      return initialValue;
+    });
 
-    return result;
-  });
+    /*
+     * forEach
+     */
+
+    setMethod($E.Object, 'forEach', function (subject, callback, thisArg) {
+      var object = $ToObject(subject),
+        element,
+        index;
+
+      checkcallback(callback);
+      index = 0;
+      for (element of object) {
+        callback.call(thisArg, element, index, object);
+        index += 1;
+      }
+    });
+
+    /*
+     * every
+     */
+
+    setMethod($E.Object, 'every', function (subject, callback, thisArg) {
+      var object = $ToObject(subject),
+        result,
+        element,
+        index;
+
+      checkcallback(callback);
+      result = true;
+      index = 0;
+      for (element of object) {
+        if (!callback.call(thisArg, element, index, object)) {
+          result = false;
+          break;
+        }
+
+        index += 1;
+      }
+
+      return result;
+    });
+  }());
 
   return $E;
 }));
