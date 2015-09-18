@@ -10,7 +10,11 @@
 
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
-    esnext:true, maxparams:3, maxdepth:4, maxstatements:20, maxcomplexity:6
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:20,
+    maxcomplexity:6
 */
 
 /*global
@@ -18,10 +22,17 @@
 */
 
 /*property
-    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, abs, amd, bind, call, charCodeAt,
-    configurable, create, defineProperty, enumerable, exports, floor, for,
-    fromCodePoint, hasOwnProperty, isArray, isFinite, isNaN, keys, length, max,
-    min, prototype, sign, toString, unscopables, value, writable
+    ARRAY, BY, ENTRIES, FROM, FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER,
+    METHODDESCRIPTOR, MIN_SAFE_INTEGER, NUMBER, OWN, Object, REVERSED, SET,
+    STARTED, STRING, STRINGTAG, SYMBOL, TO, TYPE, UNDEFINED, VALUES,
+    VARIABLEDESCRIPTOR, abs, amd, bind, call, canNotBeChanged, charCodeAt,
+    checkcallback, clamp, configurable, defineProperty, enumerable, exports,
+    floor, for, has, hasOwn, hasOwnProperty, hideMethod, isArray, isArrayLike,
+    isCircular, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
+    isObject, isString, isSurrogatePair, isUndefined, lastIndex, length, max,
+    min, onlyCoercibleToString, prototype, requireObjectCoercible, setMethod,
+    setProperty, setVariable, sign, toInteger, toSafeInteger, toString,
+    toStringTag, toValidCount, unscopables, value, writable
 */
 
 // UMD (Universal Module Definition)
@@ -57,339 +68,378 @@
    * const
    */
 
-  var $SY = Symbol,
-    $SU = $SY.unscopables,
-    $SF = $SY.for,
-    $O = Object,
-    $OP = $O.prototype,
-    $OK = $O.keys,
-    $A = Array,
-    $AP = $A.prototype,
-    $APU = $AP[$SU],
-    $S = String,
-    $SP = $S.prototype,
-    $F = Function,
-    $CALL = $F.call,
-    $HOP = $CALL.bind($OP.hasOwnProperty),
-    $TOSTRINGTAG = $CALL.bind($OP.toString),
-    $STRINGTAG = $TOSTRINGTAG($SP),
-    $N = Number,
-    $NP = $N.prototype,
-    $NUMBERTAG = $TOSTRINGTAG($NP),
-    $FUNCTIONTYPE = typeof $F,
-    $UNDEFINEDTYPE = typeof undefined,
-    $M = Math,
-    $FLOOR = $M.floor,
-    $ABS = $M.abs,
-    $MAX = $M.max,
-    $MIN = $M.min,
-    $SIGN = $M.sign,
-    $MIN_SAFE_INTEGER = $N.MIN_SAFE_INTEGER,
-    $MAX_SAFE_INTEGER = $N.MAX_SAFE_INTEGER,
-    $DEFINEPROPERTY = $O.defineProperty,
-    $CREATE = $O.create,
-    $ISNAN = $N.isNaN,
-    $ISFINITE = $N.isFinite,
-    $FROMCODEPOINT = $S.fromCodePoint,
-    $ISARRAY = $A.isArray,
-    $METHODDESCRIPTOR = $CREATE(null, {
-      enumerable: {
-        enumerable: true,
-        writable: false,
-        configurable: false,
-        value: false
+  var $ = {
+      STRINGTAG: {
+        ARRAY: Object.prototype.toString.call(Array.prototype),
+        MAP: Object.prototype.toString.call(Map.prototype),
+        SET: Object.prototype.toString.call(Set.prototype),
+        STRING: Object.prototype.toString.call(String.prototype),
+        NUMBER: Object.prototype.toString.call(Number.prototype)
       },
-      writable: {
-        enumerable: true,
-        writable: false,
-        configurable: false,
-        value: true
+      TYPE: {
+        FUNCTION: typeof Function,
+        UNDEFINED: typeof undefined
       },
-      configurable: {
-        enumerable: true,
-        writable: false,
-        configurable: false,
-        value: false
-      },
-      value: {
-        enumerable: true,
+      METHODDESCRIPTOR: {
+        enumerable: false,
         writable: true,
         configurable: false,
         value: undefined
-      }
-    }),
-    $VARIABLEDESCRIPTOR = $CREATE(null, {
-      enumerable: {
-        enumerable: true,
-        writable: false,
-        configurable: false,
-        value: false
       },
-      writable: {
-        enumerable: true,
-        writable: false,
-        configurable: false,
-        value: true
-      },
-      configurable: {
-        enumerable: true,
-        writable: false,
-        configurable: false,
-        value: false
-      },
-      value: {
-        enumerable: true,
+      VARIABLEDESCRIPTOR: {
+        enumerable: false,
         writable: true,
         configurable: false,
         value: undefined
+      },
+      SYMBOL: {
+        ENTRIES: Symbol.for('entries'),
+        KEYS: Symbol.for('keys'),
+        VALUES: Symbol.for('values'),
+        STARTED: Symbol.for('started'),
+        REVERSED: Symbol.for('reversed'),
+        OWN: Symbol.for('own'),
+        FROM: Symbol.for('from'),
+        TO: Symbol.for('to'),
+        BY: Symbol.for('by')
       }
-    }),
-    $TE = TypeError,
-    $ENTRIES = $SF('entries'),
-    $KEYS = $SF('keys'),
-    $VALUES = $SF('values'),
-    $STARTED = $SF('started'),
-    $REVERSED = $SF('reversed'),
-    $FROM = $SF('from'),
-    $TO = $SF('to'),
-    $BY = $SF('by'),
-    $E = {};
+    },
+    _ = {
+      hasOwn: Function.call.bind(Object.prototype.hasOwnProperty),
 
-  /*
-   * utils
-   */
+      toStringTag: Function.call.bind(Object.prototype.toString),
 
-  function setProperty(object, property, descriptor) {
-    $DEFINEPROPERTY(object, property, descriptor);
-  }
+      Object: Object,
 
-  function setMethod(object, property, method) {
-    if (!$HOP(object, property)) {
-      $METHODDESCRIPTOR.value = method;
-      setProperty(object, property, $METHODDESCRIPTOR);
-      if ($APU && object === $AP) {
-        $APU[property] = true;
+      setProperty: function (object, property, descriptor) {
+        Object.defineProperty(object, property, descriptor);
+      },
+
+      setMethod: function (object, property, method) {
+        if (!_.hasOwn(object, property)) {
+          $.METHODDESCRIPTOR.value = method;
+          _.setProperty(object, property, $.METHODDESCRIPTOR);
+          if (Array.prototype[Symbol.unscopables]) {
+            if (object === Array.prototype) {
+              /*jshint freeze:false */
+              Array.prototype[Symbol.unscopables][property] = true;
+            }
+          }
+        }
+
+        return method;
+      },
+
+      setVariable: function (object, property, value) {
+        $.VARIABLEDESCRIPTOR.value = value;
+        _.setProperty(object, property, $.VARIABLEDESCRIPTOR);
+
+        return value;
+      },
+
+      /**
+       * Returns true if the operand inputArg is null or undefined.
+       *
+       * @private
+       * @param {*} subject
+       * @return {boolean}
+       */
+      isNil: function (subject) {
+        /*jshint eqnull:true */
+        return subject == null;
+      },
+
+      /**
+       * The abstract operation throws an error if its argument is a value that
+       * cannot be  converted to an Object, otherwise returns the argument.
+       *
+       * @private
+       * @param {*} inputArg
+       * @throws {TypeError} If inputArg is null or undefined.
+       * @return {*}
+       * @see http://www.ecma-international.org/ecma-262/6.0/
+       *      #sec-requireobjectcoercible
+       */
+      requireObjectCoercible: function (subject) {
+        if (_.isNil(subject)) {
+          throw new TypeError('Cannot convert undefined or null to object');
+        }
+
+        return subject;
+      },
+
+      /**
+       * The abstract operation converts its argument to a value of type Object.
+       *
+       * @private
+       * @param {*} subject
+       * @throws {TypeError} If subject is null or undefined.
+       * @return {Object}
+       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-toobject
+       */
+      /*
+      toObject: function (subject) {
+        return _.Object(_.requireObjectCoercible(subject));
+      },
+      */
+
+      /**
+       * The function evaluates the passed value and converts it to an integer.
+       *
+       * @private
+       * @param {*} subject The object to be converted to an integer.
+       * @return {number} If the target value is NaN, null or undefined, 0 is
+       *                  returned. If the target value is false, 0 is returned
+       *                  and if true, 1 is returned.
+       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger
+       */
+      toInteger: function (subject) {
+        var number = +subject,
+          val = 0;
+
+        if (!Number.isNaN(number)) {
+          if (!number || !Number.isFinite(number)) {
+            val = number;
+          } else {
+            val = Math.sign(number) * Math.floor(Math.abs(number));
+          }
+        }
+
+        return val;
+      },
+
+      /**
+       * Returns true if the operand inputArg is a Number.
+       *
+       * @private
+       * @param {*} subject
+       * @return {boolean}
+       */
+      isNumber: function (subject) {
+        return _.toStringTag(subject) === $.STRINGTAG.NUMBER;
+      },
+
+      /**
+       * Returns a number clamped to the range set by min and max.
+       *
+       * @private
+       * @param {number} number
+       * @param {number} min
+       * @param {number} max
+       * @throws {TypeError} If params are not of number type.
+       * @return {number}
+       */
+      clamp: function (number, min, max) {
+        if (!_.isNumber(number) || !_.isNumber(min) || !_.isNumber(max)) {
+          throw new TypeError('argument is not of type number');
+        }
+        return Math.min(Math.max(number, min), max);
+      },
+
+      /**
+       * The function evaluates the passed value and converts it to a safe
+       * integer.
+       *
+       * @private
+       * @param {*} subject
+       * @return {number}
+       */
+      toSafeInteger: function (subject) {
+        return _.clamp(
+          _.toInteger(subject),
+          Number.MIN_SAFE_INTEGER,
+          Number.MAX_SAFE_INTEGER
+        );
+      },
+
+      /**
+       * Returns true if the operand subject is undefined
+       *
+       * @private
+       * @param {*} subject The object to be tested.
+       * @return {boolean} True if the object is undefined, otherwise false.
+       */
+      isUndefined: function (subject) {
+        return typeof subject === $.TYPE.UNDEFINED;
+      },
+
+      /**
+       * Returns true if the operand subject is a Function
+       *
+       * @private
+       * @param {*} subject The object to be tested.
+       * @return {boolean} True if the object is a function, otherwise false.
+       */
+      isFunction: function (subject) {
+        return typeof subject === $.TYPE.FUNCTION;
+      },
+
+      /**
+       * Returns true if the operand inputArg is a String.
+       *
+       * @private
+       * @param {*} subject
+       * @return {boolean}
+       */
+      isString: function (subject) {
+        return _.toStringTag(subject) === $.STRINGTAG.STRING;
+      },
+
+      /**
+       * Checks if `value` is a valid array-like length.
+       *
+       * @private
+       * @param {*} subject The value to check.
+       * @return {boolean} Returns `true` if `value` is a valid length,
+       *                   else `false`.
+       */
+      isLength: function (subject) {
+        return _.toSafeInteger(subject) === subject && subject >= 0;
+      },
+
+      /**
+       * Checks if `value` is array-like. A value is considered array-like if
+       * it's  not a function and has a `value.length` that's an integer greater
+       * than or equal to `0` and less than or equal to
+       * `Number.MAX_SAFE_INTEGER`.
+       *
+       * @private
+       * @param {*} subject The object to be tested.
+       * @return {boolean} Returns `true` if `subject` is array-like,
+       *                   else `false`.
+       */
+      isArrayLike: function (subject) {
+        return !_.isNil(subject) &&
+          !_.isFunction(subject) &&
+          _.isLength(subject.length);
+      },
+
+      /**
+       * If 'relaxed' is falsy The function tests the subject arguments and
+       * returns the Boolean value true if the argument is an object whose
+       * class internal property is "Array"; otherwise it returns false. if
+       * 'relaxed' is true then 'isArrayLike' is used for the test.
+       *
+       * @private
+       * @param {*} subject The object to be tested.
+       * @param {boolean} [relaxed] Use isArrayLike rather than isArray
+       * @return {boolean}
+       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-isarray
+       */
+      isArray: function (subject, relaxed) {
+        var isA;
+
+        if (relaxed) {
+          isA = _.isArrayLike(subject) && !_.isString(subject);
+        } else {
+          isA = Array.isArray(subject);
+        }
+
+        return isA;
+      },
+
+      /**
+       * Get the last index of an array-like object.
+       *
+       * @private
+       * @param {*} subject The object to get the last index of.
+       * @return {number} Returns the last index number of the array.like or 0.
+       */
+      lastIndex: function (subject) {
+        return _.isArrayLike(subject) &&
+          _.toSafeInteger(subject.length - 1) ||
+          0;
+      },
+
+      /**
+       * Returns true if the operand subject is an Object.
+       *
+       * @private
+       * @param {*} subject
+       * @return {boolean}
+       */
+      isObject: function (subject) {
+        return _.Object(subject) === subject;
+      },
+
+      /**
+       * Returns a string only if the arguments is coercible otherwise throws an
+       * error.
+       *
+       * @private
+       * @param {*} subject
+       * @throws {TypeError} If subject is null or undefined.
+       * @return {string}
+       */
+      onlyCoercibleToString: function (subject) {
+        return String(_.requireObjectCoercible(subject));
+      },
+
+      /**
+       * Tests if the two character arguments combined are a valid UTF-16
+       * surrogate pair.
+       *
+       * @private
+       * @param {*} char1 The first character of a suspected surrogate pair.
+       * @param {*} char2 The second character of a suspected surrogate pair.
+       * @return {number} Returns true if the two characters create a valid
+       *                  UTF-16 surrogate pair; otherwise false.
+       */
+      isSurrogatePair: function (char1, char2) {
+        var result = false,
+          code1,
+          code2;
+
+        if (char1 && char2 && _.isString(char1) && _.isString(char2)) {
+          code1 = char1.charCodeAt();
+          if (code1 >= 0xD800 && code1 <= 0xDBFF) {
+            code2 = char2.charCodeAt();
+            if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
+              result = true;
+            }
+          }
+        }
+
+        return result;
+      },
+
+      checkcallback: function (callback) {
+        if (!_.isFunction(callback)) {
+          throw new TypeError('callback must be a function');
+        }
+      },
+
+      canNotBeChanged: function (thisArg, name) {
+        if (thisArg[$.SYMBOL.STARTED]) {
+          return new TypeError(name + ' can not be changed.');
+        }
+      },
+
+      toValidCount: function (subject) {
+        var num = +subject,
+          val = 0;
+
+        if (!Number.isNaN(num)) {
+          val = _.clamp(num, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+        }
+
+        return val;
+      },
+
+      hideMethod: function (thisArg, name) {
+        if (thisArg[name]) {
+          _.setVariable(thisArg, name, undefined);
+        }
+      },
+
+      isCircular: function (thisArg, stack, value) {
+        if (stack.has(thisArg) || stack.has(value)) {
+          throw new TypeError('circular object');
+        }
+
+        return false;
       }
-    }
-
-    return method;
-  }
-
-  function setVariable(object, property, value) {
-    $VARIABLEDESCRIPTOR.value = value;
-    setProperty(object, property, $VARIABLEDESCRIPTOR);
-
-    return value;
-  }
-
-  (function () {
-    setMethod($E, 'Array', {});
-    setMethod($E, 'String', {});
-    setMethod($E, 'Object', {});
-  }());
-
-  /**
-   * Returns true if the operand inputArg is null or undefined.
-   *
-   * @private
-   * @param {*} subject
-   * @return {boolean}
-   */
-  function isNil(subject) {
-    /*jshint eqnull:true */
-    return subject == null;
-  }
-
-  /**
-   * The abstract operation throws an error if its argument is a value that
-   * cannot be  converted to an Object, otherwise returns the argument.
-   *
-   * @private
-   * @param {*} inputArg
-   * @throws {TypeError} If inputArg is null or undefined.
-   * @return {*}
-   * @see http://www.ecma-international.org/ecma-262/6.0/
-   *      #sec-requireobjectcoercible
-   */
-  function $RequireObjectCoercible(subject) {
-    if (isNil(subject)) {
-      /*jshint newcap:false */
-      throw new $TE('Cannot convert undefined or null to object');
-    }
-
-    return subject;
-  }
-
-  /**
-   * The abstract operation converts its argument to a value of type Object.
-   *
-   * @private
-   * @param {*} subject
-   * @throws {TypeError} If subject is null or undefined.
-   * @return {Object}
-   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-toobject
-   */
-  function $ToObject(subject) {
-    return $O($RequireObjectCoercible(subject));
-  }
-
-  /**
-   * The function evaluates the passed value and converts it to an integer.
-   *
-   * @private
-   * @param {*} subject The object to be converted to an integer.
-   * @return {number} If the target value is NaN, null or undefined, 0 is
-   *                  returned. If the target value is false, 0 is returned and
-   *                  if true, 1 is returned.
-   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger
-   */
-  function $ToInteger(subject) {
-    var number = +subject,
-      val = 0;
-
-    if (!$ISNAN(number)) {
-      if (!number || !$ISFINITE(number)) {
-        val = number;
-      } else {
-        val = $SIGN(number) * $FLOOR($ABS(number));
-      }
-    }
-
-    return val;
-  }
-
-  /**
-   * Returns true if the operand inputArg is a Number.
-   *
-   * @private
-   * @param {*} subject
-   * @return {boolean}
-   */
-  function isNumber(subject) {
-    return $TOSTRINGTAG(subject) === $NUMBERTAG;
-  }
-
-  /**
-   * Returns a number clamped to the range set by min and max.
-   *
-   * @private
-   * @param {number} number
-   * @param {number} min
-   * @param {number} max
-   * @throws {TypeError} If params are not of number type.
-   * @return {number}
-   */
-  function clamp(number, min, max) {
-    if (!isNumber(number) || !isNumber(min) || !isNumber(max)) {
-      /*jshint newcap:false */
-      throw new $TE('argument is not of type number');
-    }
-    return $MIN($MAX(number, min), max);
-  }
-
-  /**
-   * The function evaluates the passed value and converts it to a safe integer.
-   *
-   * @private
-   * @param {*} subject
-   * @return {number}
-   */
-  function $ToSafeInteger(subject) {
-    return clamp($ToInteger(subject), $MIN_SAFE_INTEGER, $MAX_SAFE_INTEGER);
-  }
-
-  /**
-   * Returns true if the operand subject is undefined
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} True if the object is undefined, otherwise false.
-   */
-  function isUndefined(subject) {
-    return typeof subject === $UNDEFINEDTYPE;
-  }
-
-  /**
-   * Returns true if the operand subject is a Function
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} True if the object is a function, otherwise false.
-   */
-  function isFunction(subject) {
-    return typeof subject === $FUNCTIONTYPE;
-  }
-
-  /**
-   * Returns true if the operand inputArg is a String.
-   *
-   * @private
-   * @param {*} subject
-   * @return {boolean}
-   */
-  function isString(subject) {
-    return $TOSTRINGTAG(subject) === $STRINGTAG;
-  }
-
-  /**
-   * Checks if `value` is a valid array-like length.
-   *
-   * @private
-   * @param {*} subject The value to check.
-   * @return {boolean} Returns `true` if `value` is a valid length,
-   *                   else `false`.
-   */
-  function isLength(subject) {
-    return $ToSafeInteger(subject) === subject && subject >= 0;
-  }
-
-  /**
-   * Checks if `value` is array-like. A value is considered array-like if it's
-   * not a function and has a `value.length` that's an integer greater than or
-   * equal to `0` and less than or equal to `Number.MAX_SAFE_INTEGER`.
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} Returns `true` if `subject` is array-like, else `false`.
-   */
-  function isArrayLike(subject) {
-    return !isNil(subject) && !isFunction(subject) && isLength(subject.length);
-  }
-
-  /**
-   * If 'relaxed' is falsy The function tests the subject arguments and returns
-   * the Boolean value true if the argument is an object whose class internal
-   * property is "Array"; otherwise it returns false. if 'relaxed' is true then
-   * 'isArrayLike' is used for the test.
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @param {boolean} [relaxed] Use isArrayLike rather than isArray
-   * @return {boolean}
-   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-isarray
-   */
-  function isArray(subject, relaxed) {
-    var isA;
-
-    if (relaxed) {
-      isA = isArrayLike(subject) && !isString(subject);
-    } else {
-      isA = $ISARRAY(subject);
-    }
-
-    return isA;
-  }
-
-  /**
-   * Get the last index of an array-like object.
-   *
-   * @private
-   * @param {*} subject The object to get the last index of.
-   * @return {number} Returns the last index number of the array.like or 0.
-   */
-  function lastIndex(subject) {
-    return isArrayLike(subject) && $ToSafeInteger(subject.length - 1) || 0;
-  }
+    };
 
   /*
    * define iterators
@@ -403,9 +453,8 @@
     var result,
       item;
 
-    if (!isUndefined(mapFn) && !isFunction(mapFn)) {
-      /*jshint newcap:false */
-      throw new $TE('If not undefined, the first argument must be a function');
+    if (!_.isUndefined(mapFn) && !_.isFunction(mapFn)) {
+      throw new TypeError('If not undefined, mapFn must be a function');
     }
 
     result = [];
@@ -421,214 +470,163 @@
    * unique
    */
 
-  var unique = (function () {
-    function* Unique() {
-      /*jshint validthis:true */
-      var seen = new Set(),
-        item,
-        value;
+  function* UniqueGenerator(thisArg) {
+    var seen = new Set(),
+      item,
+      value;
 
-      for (item of this) {
-        value = item;
-        if (!seen.has(value)) {
-          seen.add(value, true);
-          yield item;
-        }
+    for (item of thisArg) {
+      value = item;
+      if (!seen.has(value)) {
+        seen.add(value, true);
+        yield item;
       }
     }
+  }
 
-    setMethod(Unique.prototype, 'toArray', toArray);
-
-    return Unique;
-  }());
-
-  function isCircular(thisObject, stack, value) {
-    if (stack.has(thisObject) || stack.has(value)) {
-      /*jshint newcap:false */
-      throw new $TE('circular object');
-    }
+  function unique() {
+    /*jshint validthis:true */
+    return new UniqueGenerator(this);
   }
 
   /*
    * flatten
    */
 
-  var flatten = (function () {
-    function* Flatten(relaxed) {
-      /*jshint validthis:true */
-      var stack = new Map(),
-        object,
-        value,
-        tail;
+  function* FlattenGenerator(relaxed) {
+    var stack = new Map(),
+      object,
+      value,
+      tail;
 
-      for (object of this) {
-        if (isArray(object, relaxed)) {
-          stack.set(object, {
-            index: 0,
-            prev: null
-          });
+    for (object of this) {
+      if (_.isArray(object, relaxed)) {
+        stack.set(object, {
+          index: 0,
+          prev: null
+        });
+      } else {
+        yield object;
+      }
+
+      while (stack.size) {
+        tail = stack.get(object);
+        if (tail.index >= object.length) {
+          stack.delete(object);
+          object = tail.prev;
         } else {
-          yield object;
-        }
+          value = object[tail.index];
+          if (_.isArray(value, relaxed)) {
+            _.isCircular(this, stack, value);
+            stack.set(value, {
+              index: 0,
+              prev: object
+            });
 
-        while (stack.size) {
-          tail = stack.get(object);
-          if (tail.index >= object.length) {
-            stack.delete(object);
-            object = tail.prev;
+            object = value;
           } else {
-            value = object[tail.index];
-            if (isArray(value, relaxed)) {
-              isCircular(this, stack, value);
-              stack.set(value, {
-                index: 0,
-                prev: object
-              });
-
-              object = value;
-            } else {
-              yield value;
-            }
-
-            tail.index += 1;
+            yield value;
           }
+
+          tail.index += 1;
         }
       }
     }
-
-    setMethod(Flatten.prototype, 'toArray', toArray);
-
-    return Flatten;
-  }());
+  }
 
   /*
    * walkOwn
    */
 
-  var walkOwn = (function () {
-    /**
-     * Returns true if the operand subject is an Object.
-     *
-     * @private
-     * @param {*} subject
-     * @return {boolean}
-     */
-    function isObject(subject) {
-      return $O(subject) === subject;
-    }
+  function* WalkOwnGenerator() {
+    var stack = new Map(),
+      object,
+      value,
+      tail,
+      key;
 
-    function* WalkOwn() {
-      /*jshint validthis:true */
-      var stack = new Map(),
-        object,
-        value,
-        tail,
-        key;
+    for (object of this) {
+      if (_.isObject(object)) {
+        stack.set(object, {
+          keys: Object.keys(object),
+          index: 0,
+          prev: null
+        });
+      } else {
+        yield object;
+      }
 
-      for (object of this) {
-        if (isObject(object)) {
-          stack.set(object, {
-            keys: $OK(object),
-            index: 0,
-            prev: null
-          });
+      while (stack.size) {
+        tail = stack.get(object);
+        if (tail.index >= tail.keys.length) {
+          stack.delete(object);
+          object = tail.prev;
         } else {
-          yield object;
-        }
+          key = tail.keys[tail.index];
+          value = object[key];
+          if (_.isObject(value)) {
+            _.isCircular(this, stack, value);
+            stack.set(value, {
+              keys: Object.keys(value),
+              index: 0,
+              prev: object
+            });
 
-        while (stack.size) {
-          tail = stack.get(object);
-          if (tail.index >= tail.keys.length) {
-            stack.delete(object);
-            object = tail.prev;
+            object = value;
           } else {
-            key = tail.keys[tail.index];
-            value = object[key];
-            if (isObject(value)) {
-              isCircular(this, stack, value);
-              stack.set(value, {
-                keys: $OK(value),
-                index: 0,
-                prev: object
-              });
-
-              object = value;
-            } else {
-              yield value;
-            }
-
-            tail.index += 1;
+            yield value;
           }
+
+          tail.index += 1;
         }
       }
-    }
-
-    setMethod(WalkOwn.prototype, 'toArray', toArray);
-
-    return WalkOwn;
-  }());
-
-  function canNotBeChanged(thisObject, name) {
-    /*jshint newcap:false */
-    if (thisObject[$STARTED]) {
-      return new $TE(name + ' can not be changed.');
-    }
-  }
-
-  function hideMethod(thisObject, name) {
-    if (thisObject[name]) {
-      setVariable(thisObject, name, undefined);
     }
   }
 
   function reverse() {
     /*jshint validthis:true */
-    if (this[$STARTED]) {
-      /*jshint newcap:false */
-      throw new $TE('Iterator is not reversable.');
-    }
-
-    hideMethod(this, 'reverse');
-    this[$REVERSED] = true;
+    _.canNotBeChanged(this, 'reverse');
+    _.hideMethod(this, 'reverse');
+    _.setVariable(this, $.SYMBOL.REVERSED, true);
 
     return this;
   }
 
   function entries() {
     /*jshint validthis:true */
-    canNotBeChanged(this, 'entries');
-    hideMethod(this, 'entries');
-    hideMethod(this, 'values');
-    hideMethod(this, 'keys');
-    this[$ENTRIES] = true;
-    this[$KEYS] = false;
-    this[$VALUES] = false;
+    _.canNotBeChanged(this, 'entries');
+    _.hideMethod(this, 'entries');
+    _.hideMethod(this, 'values');
+    _.hideMethod(this, 'keys');
+    this[$.SYMBOL.ENTRIES] = true;
+    this[$.SYMBOL.KEYS] = false;
+    this[$.SYMBOL.VALUES] = false;
 
     return this;
   }
 
   function values() {
     /*jshint validthis:true */
-    canNotBeChanged(this, 'values');
-    hideMethod(this, 'entries');
-    hideMethod(this, 'values');
-    hideMethod(this, 'keys');
-    this[$ENTRIES] = false;
-    this[$KEYS] = false;
-    this[$VALUES] = true;
+    _.canNotBeChanged(this, 'values');
+    _.hideMethod(this, 'entries');
+    _.hideMethod(this, 'values');
+    _.hideMethod(this, 'keys');
+    this[$.SYMBOL.ENTRIES] = false;
+    this[$.SYMBOL.KEYS] = false;
+    this[$.SYMBOL.VALUES] = true;
 
     return this;
   }
 
   function keys() {
     /*jshint validthis:true */
-    canNotBeChanged(this, 'values');
-    hideMethod(this, 'entries');
-    hideMethod(this, 'values');
-    hideMethod(this, 'keys');
-    this[$ENTRIES] = false;
-    this[$KEYS] = true;
-    this[$VALUES] = false;
+    _.canNotBeChanged(this, 'values');
+    _.hideMethod(this, 'entries');
+    _.hideMethod(this, 'values');
+    _.hideMethod(this, 'keys');
+    this[$.SYMBOL.ENTRIES] = false;
+    this[$.SYMBOL.KEYS] = true;
+    this[$.SYMBOL.VALUES] = false;
 
     return this;
   }
@@ -637,15 +635,15 @@
    * iterator execution
    */
 
-  function getYieldValue(thisObject, object, key) {
+  function getYieldValue(thisArg, object, key) {
     var result,
       value;
 
-    if (thisObject[$KEYS]) {
+    if (thisArg[$.SYMBOL.KEYS]) {
       result = key;
     } else {
       value = object[key];
-      if (thisObject[$VALUES]) {
+      if (thisArg[$.SYMBOL.VALUES]) {
         result = value;
       } else {
         result = [key, value];
@@ -655,26 +653,50 @@
     return result;
   }
 
+  function* MapGenerator(subject, callback, thisArg) {
+    for (var element of subject) {
+      yield callback.call(thisArg, element, subject);
+    }
+  }
+
+  function map(callback, thisArg) {
+    /*jshint validthis:true */
+    _.checkcallback(callback);
+    return new MapGenerator(this, callback, thisArg);
+  }
+
+  /*
+   * filter
+   */
+
+  function* FilterGenerator(subject, callback, thisArg) {
+    for (var element of subject) {
+      if (callback.call(thisArg, element, subject)) {
+        yield element;
+      }
+    }
+  }
+
+  function filter(callback, thisArg) {
+    /*jshint validthis:true */
+    _.checkcallback(callback);
+
+    return new FilterGenerator(this, callback, thisArg);
+  }
+
   function then(Generator) {
     /*jshint validthis:true */
     var iterator;
 
-    if (!isFunction(Generator)) {
-      if (!isUndefined(Generator)) {
-        /*jshint newcap:false */
-        throw new $TE('If not undefined, the argument must be a function');
+    if (!_.isFunction(Generator)) {
+      if (!_.isUndefined(Generator)) {
+        throw new TypeError('If not undefined, Generator must be a function');
       }
 
       iterator = this;
     } else {
       iterator = new Generator(this);
-      setMethod(iterator, 'then', then);
     }
-
-    setMethod(iterator, 'walkOwn', walkOwn);
-    setMethod(iterator, 'toArray', toArray);
-    setMethod(iterator, 'unique', unique);
-    setMethod(iterator, 'flatten', flatten);
 
     return iterator;
   }
@@ -683,135 +705,104 @@
    * counter
    */
 
-  var counter = (function () {
-    function toValidCount(subject) {
-      var number = +subject,
-        val = 0;
+  function setFrom(number) {
+    /*jshint validthis:true */
+    _.canNotBeChanged(this, 'from');
+    _.hideMethod(this, 'from');
+    _.setVariable(this, $.SYMBOL.FROM, _.toValidCount(number));
 
-      if (!$ISNAN(number)) {
-        val = clamp(number, $MIN_SAFE_INTEGER, $MAX_SAFE_INTEGER);
-      }
-
-      return val;
-    }
-
-    function from(number) {
-      /*jshint validthis:true */
-      canNotBeChanged(this, 'from');
-      hideMethod(this, 'from');
-      this[$FROM] = toValidCount(number);
-
-      return this;
-    }
-
-    function to(number) {
-      /*jshint validthis:true */
-      canNotBeChanged(this, 'to');
-      hideMethod(this, 'to');
-      this[$TO] = toValidCount(number);
-
-      return this;
-    }
-
-    function by(number) {
-      /*jshint validthis:true */
-      canNotBeChanged(this, 'by');
-      hideMethod(this, 'by');
-      this[$BY] = $ABS(toValidCount(number));
-      if (!this[$BY]) {
-        /*jshint newcap:false */
-        throw new $TE('can not count by zero');
-      }
-
-      return this;
-    }
-
-    function* countReverse(thisObject) {
-      var count = thisObject[$TO];
-
-      if (thisObject[$TO] <= thisObject[$FROM]) {
-        while (count <= thisObject[$FROM]) {
-          yield count;
-          count += thisObject[$BY];
-        }
-      } else {
-        while (count >= thisObject[$FROM]) {
-          yield count;
-          count -= thisObject[$BY];
-        }
-      }
-    }
-
-    function* countForward(thisObject) {
-      var count = thisObject[$FROM];
-
-      if (thisObject[$FROM] <= thisObject[$TO]) {
-        while (count <= thisObject[$TO]) {
-          yield count;
-          count += thisObject[$BY];
-        }
-      } else {
-        while (count >= thisObject[$TO]) {
-          yield count;
-          count -= thisObject[$BY];
-        }
-      }
-    }
-
-    function* CountIterator() {
-      this[$STARTED] = true;
-      if (this[$REVERSED]) {
-        yield * countReverse(this);
-      } else {
-        yield * countForward(this);
-      }
-    }
-
-    setMethod(CountIterator.prototype, 'from', from);
-    setMethod(CountIterator.prototype, 'to', to);
-    setMethod(CountIterator.prototype, 'by', by);
-    setMethod(CountIterator.prototype, 'reverse', reverse);
-    setMethod(CountIterator.prototype, 'toArray', toArray);
-    setMethod(CountIterator.prototype, 'then', then);
-
-    function Counter() {
-      var iterator = new CountIterator();
-
-      setVariable(iterator, $FROM, 0);
-      setVariable(iterator, $TO, $MAX_SAFE_INTEGER);
-      setVariable(iterator, $BY, 1);
-      setVariable(iterator, $REVERSED, false);
-      setVariable(iterator, $STARTED, false);
-
-      return iterator;
-    }
-
-    setMethod($E, 'counter', Counter);
-
-    return Counter;
-  }());
-
-  function defineCommonVariables(iterator) {
-    setVariable(iterator, $VALUES, false);
-    setVariable(iterator, $KEYS, false);
-    setVariable(iterator, $ENTRIES, true);
-    setVariable(iterator, $REVERSED, false);
-    setVariable(iterator, $STARTED, false);
-
-    return iterator;
+    return this;
   }
 
-  function defineCommonMethods(prototype) {
-    setMethod(prototype, 'entries', entries);
-    setMethod(prototype, 'keys', keys);
-    setMethod(prototype, 'values', values);
+  function setTo(number) {
+    /*jshint validthis:true */
+    _.canNotBeChanged(this, 'to');
+    _.hideMethod(this, 'to');
+    _.setVariable(this, $.SYMBOL.TO, _.toValidCount(number));
 
-    setMethod(prototype, 'toArray', toArray);
-    setMethod(prototype, 'then', then);
+    return this;
   }
 
-  function setReversed(thisObject, iterator) {
-    if (thisObject[$REVERSED]) {
+  function setBy(number) {
+    /*jshint validthis:true */
+    _.canNotBeChanged(this, 'by');
+    _.hideMethod(this, 'by');
+    _.setVariable(this, $.SYMBOL.BY, Math.abs(_.toValidCount(number)));
+    if (!this[$.SYMBOL.BY]) {
+      throw new TypeError('can not count by zero');
+    }
+
+    return this;
+  }
+
+  function* CountReverseGenerator(thisArg) {
+    var count = thisArg[$.SYMBOL.TO];
+
+    if (thisArg[$.SYMBOL.TO] <= thisArg[$.SYMBOL.FROM]) {
+      while (count <= thisArg[$.SYMBOL.FROM]) {
+        yield count;
+        count += thisArg[$.SYMBOL.BY];
+      }
+    } else {
+      while (count >= thisArg[$.SYMBOL.FROM]) {
+        yield count;
+        count -= thisArg[$.SYMBOL.BY];
+      }
+    }
+  }
+
+  function* CountForwardGenerator(thisArg) {
+    var count = thisArg[$.SYMBOL.FROM];
+
+    if (thisArg[$.SYMBOL.FROM] <= thisArg[$.SYMBOL.TO]) {
+      while (count <= thisArg[$.SYMBOL.TO]) {
+        yield count;
+        count += thisArg[$.SYMBOL.BY];
+      }
+    } else {
+      while (count >= thisArg[$.SYMBOL.TO]) {
+        yield count;
+        count -= thisArg[$.SYMBOL.BY];
+      }
+    }
+  }
+
+  function* CountGenerator() {
+    var from,
+      to,
+      by;
+
+    _.setVariable(this, $.SYMBOL.STARTED, true);
+    if (_.isUndefined(this[$.SYMBOL.FROM])) {
+      from = 0;
+    } else {
+      from = this[$.SYMBOL.FROM];
+    }
+
+    _.setVariable(this, $.SYMBOL.FROM, from);
+    if (_.isUndefined(this[$.SYMBOL.TO])) {
+      to = Number.MAX_SAFE_INTEGER;
+    } else {
+      to = this[$.SYMBOL.TO];
+    }
+
+    _.setVariable(this, $.SYMBOL.TO, to);
+    if (_.isUndefined(this[$.SYMBOL.BY])) {
+      by = 1;
+    } else {
+      by = this[$.SYMBOL.BY];
+    }
+
+    _.setVariable(this, $.SYMBOL.BY, by);
+    if (this[$.SYMBOL.REVERSED]) {
+      yield * new CountReverseGenerator(this);
+    } else {
+      yield * new CountForwardGenerator(this);
+    }
+  }
+
+  function setReversed(thisArg, iterator) {
+    if (thisArg[$.SYMBOL.REVERSED]) {
       iterator.reverse();
     }
 
@@ -822,330 +813,412 @@
    * arrayEntries
    */
 
-  (function () {
-    function* ArrayIterator(subject) {
-      var object = $ToObject(subject),
-        countIt = setReversed(this, counter().to(lastIndex(object))),
-        key;
+  function* ArrayGenerator(subject, thisArg) {
+    thisArg = thisArg || this;
+    var object = _.requireObjectCoercible(subject),
+      counter = new CountGenerator(),
+      countIt = setReversed(thisArg, counter.to(_.lastIndex(object))),
+      key;
 
-      this[$STARTED] = true;
-      for (key of countIt) {
-        yield getYieldValue(this, object, key);
-      }
+    thisArg[$.SYMBOL.STARTED] = true;
+    for (key of countIt) {
+      yield getYieldValue(thisArg, object, key);
     }
-
-    defineCommonMethods(ArrayIterator.prototype);
-    setMethod(ArrayIterator.prototype, 'reverse', reverse);
-    /*
-    setMethod(ArrayIterator.prototype, 'flatten', flatten);
-    setMethod(ArrayIterator.prototype, 'walkOwn', walkOwn);
-    */
-
-    function arrayEntries(subject) {
-      var iterator = new ArrayIterator(subject);
-
-      setVariable(iterator, $REVERSED, false);
-
-      return defineCommonVariables(iterator);
-    }
-
-    setMethod($E.Array, 'entries', arrayEntries);
-  }());
+  }
 
   /*
    * stringEntries
    */
 
-  (function () {
-    /**
-     * Tests if the two character arguments combined are a valid UTF-16
-     * surrogate pair.
-     *
-     * @private
-     * @param {*} char1 The first character of a suspected surrogate pair.
-     * @param {*} char2 The second character of a suspected surrogate pair.
-     * @return {number} Returns true if the two characters create a valid UTF-16
-     *                  surrogate pair; otherwise false.
-     */
-    function isSurrogatePair(char1, char2) {
-      var result = false,
-        code1,
-        code2;
+  function stringify(mapFn, thisArg) {
+    var result,
+      item;
 
-      if (char1 && char2 && isString(char1) && isString(char2)) {
-        code1 = char1.charCodeAt();
-        if (code1 >= 0xD800 && code1 <= 0xDBFF) {
-          code2 = char2.charCodeAt();
-          if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
-            result = true;
-          }
-        }
-      }
-
-      return result;
+    if (!_.isUndefined(mapFn) && !_.isFunction(mapFn)) {
+      throw new TypeError('If not undefined, mapFn must be a function');
     }
 
-    function stringify(mapFn, thisArg) {
-      var result,
-        item;
-
-      if (!isUndefined(mapFn) && !isFunction(mapFn)) {
-        /*jshint newcap:false */
-        throw new $TE('If not undefined, the 1st argument must be a function');
-      }
-
-      result = '';
-      /*jshint validthis:true */
-      for (item of this) {
-        result += mapFn ? mapFn.call(thisArg, this, item) : item;
-      }
-
-      return result;
+    result = '';
+    /*jshint validthis:true */
+    for (item of this) {
+      result += mapFn ? mapFn.call(thisArg, this, item) : item;
     }
 
-    function getStringYieldValue(thisObject, character, key) {
-      var value,
-        result;
+    return result;
+  }
 
-      if (thisObject[$KEYS]) {
-        result = key;
+  function getStringYieldValue(thisArg, character, key) {
+    var value,
+      result;
+
+    if (thisArg[$.SYMBOL.KEYS]) {
+      result = key;
+    } else {
+      value = String.fromCodePoint(character.codePointAt(0));
+      if (thisArg[$.SYMBOL.VALUES]) {
+        result = value;
       } else {
-        value = $FROMCODEPOINT(character.codePointAt(0));
-        if (thisObject[$VALUES]) {
-          result = value;
-        } else {
-          result = [key, value];
-        }
-      }
-
-      return result;
-    }
-
-    /**
-     * Returns a string only if the arguments is coercible otherwise throws an
-     * error.
-     *
-     * @private
-     * @param {*} subject
-     * @throws {TypeError} If subject is null or undefined.
-     * @return {string}
-     */
-    function $OnlyCoercibleToString(subject) {
-      return $S($RequireObjectCoercible(subject));
-    }
-
-    function* StringIterator(subject) {
-      var string = $OnlyCoercibleToString(subject),
-        countIt = setReversed(this, counter().to(lastIndex(string))),
-        next = true,
-        char1,
-        char2,
-        key;
-
-      this[$STARTED] = true;
-      for (key of countIt) {
-        if (next) {
-          if (this[$REVERSED]) {
-            char1 = string[key - 1];
-            char2 = string[key];
-            next = !isSurrogatePair(char1, char2);
-            if (next) {
-              yield getStringYieldValue(this, char2, key);
-            }
-          } else {
-            char1 = string[key];
-            char2 = string[key + 1];
-            next = !isSurrogatePair(char1, char2);
-            yield getStringYieldValue(this, char1 + char2, key);
-          }
-        } else {
-          next = !next;
-          if (this[$REVERSED]) {
-            yield getStringYieldValue(this, char1 + char2, key);
-          }
-        }
+        result = [key, value];
       }
     }
 
-    defineCommonMethods(StringIterator.prototype);
-    setMethod(StringIterator.prototype, 'reverse', reverse);
-    setMethod(StringIterator.prototype, 'stringify', stringify);
+    return result;
+  }
 
-    function stringEntries(subject) {
-      var iterator = new StringIterator(subject);
+  function* StringGenerator(subject, thisArg) {
+    thisArg = thisArg || this;
+    var string = _.onlyCoercibleToString(subject),
+      counter = new CountGenerator(),
+      countIt = setReversed(thisArg, counter.to(_.lastIndex(string))),
+      next = true,
+      char1,
+      char2,
+      key;
 
-      setVariable(iterator, $REVERSED, false);
-
-      return defineCommonVariables(iterator);
+    thisArg[$.SYMBOL.STARTED] = true;
+    for (key of countIt) {
+      if (next) {
+        if (thisArg[$.SYMBOL.REVERSED]) {
+          char1 = string[key - 1];
+          char2 = string[key];
+          next = !_.isSurrogatePair(char1, char2);
+          if (next) {
+            yield getStringYieldValue(thisArg, char2, key);
+          }
+        } else {
+          char1 = string[key];
+          char2 = string[key + 1];
+          next = !_.isSurrogatePair(char1, char2);
+          yield getStringYieldValue(thisArg, char1 + char2, key);
+        }
+      } else {
+        next = !next;
+        if (thisArg[$.SYMBOL.REVERSED]) {
+          yield getStringYieldValue(thisArg, char1 + char2, key);
+        }
+      }
     }
-
-    setMethod($E.String, 'entries', stringEntries);
-  }());
+  }
 
   /*
    * enumerate
    */
 
-  (function () {
-    function* ObjectEnumerator(subject) {
-      var object = $ToObject(subject),
-        key;
+  function setOwn() {
+    /*jshint validthis:true */
+    _.canNotBeChanged(this, 'own');
+    _.hideMethod(this, 'own');
+    _.setVariable(this, $.SYMBOL.OWN, true);
 
-      this[$STARTED] = true;
-      for (key in object) {
-        /*jshint forin:false */
-        yield getYieldValue(this, object, key);
+    return this;
+  }
+
+  function* ForInGenerator(thisArg, subject) {
+    var object = _.requireObjectCoercible(subject),
+      key,
+      own;
+
+    if (_.isUndefined(thisArg[$.SYMBOL.OWN])) {
+      own = false;
+    } else {
+      own = thisArg[$.SYMBOL.OWN];
+    }
+
+    for (key in object) {
+      if (!own || _.hasOwn(object, key)) {
+        yield getYieldValue(thisArg, object, key);
+      }
+    }
+  }
+
+  function* EnumerateGenerator(subject) {
+    var object = _.requireObjectCoercible(subject),
+      value;
+
+    this[$.SYMBOL.STARTED] = true;
+    if (_.isObject(object) && _.isFunction(object.next)) {
+      for (value of object) {
+        yield * new ForInGenerator(this, value);
+      }
+    } else {
+      yield * new ForInGenerator(this, object);
+    }
+  }
+
+  function enumerate() {
+    /*jshint validthis:true */
+    return new EnumerateGenerator(this);
+  }
+
+  function* MapObjectGenerator(subject) {
+    yield subject;
+  }
+
+  function* SetObjectGenerator(subject) {
+    yield subject;
+  }
+
+  function genetateCount(subject, to, by) {
+    var iterator = new CountGenerator();
+
+    if (_.isNumber(subject)) {
+      if (_.isNil(to)) {
+        iterator.to(subject);
+      } else {
+        iterator.from(subject).to(to);
+      }
+
+      if (!_.isNil(by)) {
+        iterator.by(by);
       }
     }
 
-    defineCommonMethods(ObjectEnumerator.prototype);
-    /*
-    setMethod(ObjectEnumerator.prototype, 'flatten', flatten);
-    setMethod(ObjectEnumerator.prototype, 'walkOwn', walkOwn);
-    */
+    return iterator;
+  }
 
-    function enumerate(subject) {
-      return defineCommonVariables(new ObjectEnumerator(subject));
+  function generateOthers(subject) {
+    var tag = _.toStringTag(subject),
+      iterator;
+
+    if (tag === $.MAPTAG) {
+      iterator = new MapObjectGenerator(subject);
+    } else if (tag === $.SETTAG) {
+      iterator = new SetObjectGenerator(subject);
+    } else {
+      iterator = new EnumerateGenerator(subject);
     }
 
-    setMethod($E.Object, 'enumerate', enumerate);
-  }());
+    return iterator;
+  }
+
+  function Reiterate(subject, to, by) {
+    if (!(this instanceof Reiterate)) {
+      return new Reiterate(subject, to, by);
+    }
+
+    var iterator;
+
+    if (_.isNil(subject) || _.isNumber(subject)) {
+      iterator = genetateCount(subject, to, by);
+    } else if (_.isArray(subject, to)) {
+      iterator = new ArrayGenerator(subject);
+    } else if (_.isString(subject)) {
+      iterator = new StringGenerator(subject);
+    } else {
+      iterator = generateOthers(subject);
+    }
+
+    return iterator;
+  }
+
+  function* IterateIterator(subject, relaxed) {
+    var object = _.requireObjectCoercible(subject),
+      value,
+      tag;
+
+    this[$.SYMBOL.STARTED] = true;
+    for (value of object) {
+      if (_.isArray(value, relaxed)) {
+        yield * new ArrayGenerator(value, this);
+      } else if (_.isString(value)) {
+        yield * new StringGenerator(value, this);
+      } else {
+        tag = _.toStringTag(value);
+        if (tag === $.MAPTAG) {
+          yield * new MapObjectGenerator(value, this);
+        } else if (tag === $.SETTAG) {
+          yield * new SetObjectGenerator(value, this);
+        }
+      }
+    }
+  }
+
+  function iterate(relaxed) {
+    /*jshint validthis:true */
+    return new IterateIterator(this, relaxed);
+  }
 
   /*
-   * enumerateOwn
+   * reduce
    */
-
-  (function () {
-    function* ObjectEnumeratorOwn(subject) {
-      var object = $ToObject(subject),
-        key;
-
-      this[$STARTED] = true;
-      for (key in object) {
-        if ($HOP(object, key)) {
-          yield getYieldValue(this, object, key);
-        }
-      }
-    }
-
-    defineCommonMethods(ObjectEnumeratorOwn.prototype);
-    /*
-    setMethod(ObjectEnumeratorOwn.prototype, 'flatten', flatten);
-    setMethod(ObjectEnumeratorOwn.prototype, 'walkOwn', walkOwn);
-    */
-
-    function enumerateOwn(subject) {
-      return defineCommonVariables(new ObjectEnumeratorOwn(subject));
-    }
-
-    setMethod($E.Object, 'enumerateOwn', enumerateOwn);
-  }());
 
   /*
-   * map
-   */
+  _.setMethod(Reiterate, 'reduce', function (subject, callback, initialValue) {
+    var object = _.requireObjectCoercible(subject),
+      element,
+      index;
 
-  (function () {
-    function checkcallback(callback) {
-      if (!isFunction(callback)) {
-        /*jshint newcap:false */
-        throw new $TE('callback must be a function');
-      }
+    _.checkcallback(callback);
+    index = 0;
+    for (element of object) {
+      initialValue = callback(initialValue, element, index, object);
+      index += 1;
     }
 
-    setMethod($E.Object, 'map', function* (subject, callback, thisArg) {
-      var object = $ToObject(subject),
-        element,
-        index;
+    return initialValue;
+  });
+  */
 
-      checkcallback(callback);
-      index = 0;
-      for (element of object) {
-        yield callback.call(thisArg, element, index, object);
-        index += 1;
-      }
-    });
+  /*
+   * forEach
+   */
 
-    /*
-     * filter
-     */
+  /*
+  _.setMethod(Reiterate, 'forEach', function (subject, callback, thisArg) {
+    var object = _.requireObjectCoercible(subject),
+      element,
+      index;
 
-    setMethod($E.Object, 'filter', function* (subject, callback, thisArg) {
-      var object = $ToObject(subject),
-        element,
-        index;
+    _.checkcallback(callback);
+    index = 0;
+    for (element of object) {
+      callback.call(thisArg, element, index, object);
+      index += 1;
+    }
+  });
+  */
 
-      checkcallback(callback);
-      index = 0;
-      for (element of object) {
-        if (callback.call(thisArg, element, index, object)) {
-          yield element;
-          index += 1;
-        }
-      }
-    });
+  /*
+   * every
+   */
 
-    /*
-     * reduce
-     */
+  /*
+  _.setMethod(Reiterate, 'every', function (subject, callback, thisArg) {
+    var object = _.requireObjectCoercible(subject),
+      result,
+      element,
+      index;
 
-    setMethod($E.Object, 'reduce', function (subject, callback, initialValue) {
-      var object = $ToObject(subject),
-        element,
-        index;
-
-      checkcallback(callback);
-      index = 0;
-      for (element of object) {
-        initialValue = callback(initialValue, element, index, object);
-        index += 1;
+    _.checkcallback(callback);
+    result = true;
+    index = 0;
+    for (element of object) {
+      if (!callback.call(thisArg, element, index, object)) {
+        result = false;
+        break;
       }
 
-      return initialValue;
-    });
+      index += 1;
+    }
 
-    /*
-     * forEach
-     */
+    return result;
+  });
+  */
 
-    setMethod($E.Object, 'forEach', function (subject, callback, thisArg) {
-      var object = $ToObject(subject),
-        element,
-        index;
+  _.setMethod(CountGenerator.prototype, 'from', setFrom);
+  _.setMethod(CountGenerator.prototype, 'to', setTo);
+  _.setMethod(CountGenerator.prototype, 'by', setBy);
+  _.setMethod(CountGenerator.prototype, 'reverse', reverse);
+  _.setMethod(CountGenerator.prototype, 'then', then);
+  _.setMethod(CountGenerator.prototype, 'filter', filter);
+  _.setMethod(CountGenerator.prototype, 'map', map);
+  _.setMethod(CountGenerator.prototype, 'toArray', toArray);
 
-      checkcallback(callback);
-      index = 0;
-      for (element of object) {
-        callback.call(thisArg, element, index, object);
-        index += 1;
-      }
-    });
+  _.setMethod(MapGenerator.prototype, 'reverse', reverse);
+  _.setMethod(MapGenerator.prototype, 'filter', filter);
+  _.setMethod(MapGenerator.prototype, 'map', map);
+  _.setMethod(MapGenerator.prototype, 'unique', unique);
+  _.setMethod(MapGenerator.prototype, 'iterate', iterate);
+  _.setMethod(MapGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(MapGenerator.prototype, 'then', then);
+  _.setMethod(MapGenerator.prototype, 'toArray', toArray);
 
-    /*
-     * every
-     */
+  _.setMethod(FilterGenerator.prototype, 'reverse', reverse);
+  _.setMethod(FilterGenerator.prototype, 'filter', filter);
+  _.setMethod(FilterGenerator.prototype, 'map', map);
+  _.setMethod(FilterGenerator.prototype, 'unique', unique);
+  _.setMethod(FilterGenerator.prototype, 'iterate', iterate);
+  _.setMethod(FilterGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(FilterGenerator.prototype, 'then', then);
+  _.setMethod(FilterGenerator.prototype, 'toArray', toArray);
 
-    setMethod($E.Object, 'every', function (subject, callback, thisArg) {
-      var object = $ToObject(subject),
-        result,
-        element,
-        index;
+  _.setMethod(ArrayGenerator.prototype, 'keys', keys);
+  _.setMethod(ArrayGenerator.prototype, 'values', values);
+  _.setMethod(ArrayGenerator.prototype, 'entries', entries);
+  _.setMethod(ArrayGenerator.prototype, 'reverse', reverse);
+  _.setMethod(ArrayGenerator.prototype, 'filter', filter);
+  _.setMethod(ArrayGenerator.prototype, 'map', map);
+  _.setMethod(ArrayGenerator.prototype, 'unique', unique);
+  _.setMethod(ArrayGenerator.prototype, 'iterate', iterate);
+  _.setMethod(ArrayGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(ArrayGenerator.prototype, 'then', then);
+  _.setMethod(ArrayGenerator.prototype, 'toArray', toArray);
 
-      checkcallback(callback);
-      result = true;
-      index = 0;
-      for (element of object) {
-        if (!callback.call(thisArg, element, index, object)) {
-          result = false;
-          break;
-        }
+  _.setMethod(IterateIterator.prototype, 'keys', keys);
+  _.setMethod(IterateIterator.prototype, 'values', values);
+  _.setMethod(IterateIterator.prototype, 'entries', entries);
+  _.setMethod(IterateIterator.prototype, 'reverse', reverse);
+  _.setMethod(IterateIterator.prototype, 'filter', filter);
+  _.setMethod(IterateIterator.prototype, 'map', map);
+  _.setMethod(IterateIterator.prototype, 'unique', unique);
+  _.setMethod(IterateIterator.prototype, 'iterate', iterate);
+  _.setMethod(IterateIterator.prototype, 'enumerate', enumerate);
+  _.setMethod(IterateIterator.prototype, 'then', then);
+  _.setMethod(IterateIterator.prototype, 'toArray', toArray);
 
-        index += 1;
-      }
+  _.setMethod(StringGenerator.prototype, 'keys', keys);
+  _.setMethod(StringGenerator.prototype, 'values', values);
+  _.setMethod(StringGenerator.prototype, 'entries', entries);
+  _.setMethod(StringGenerator.prototype, 'reverse', reverse);
+  _.setMethod(StringGenerator.prototype, 'filter', filter);
+  _.setMethod(StringGenerator.prototype, 'map', map);
+  _.setMethod(StringGenerator.prototype, 'unique', unique);
+  _.setMethod(StringGenerator.prototype, 'iterate', iterate);
+  _.setMethod(StringGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(StringGenerator.prototype, 'then', then);
+  _.setMethod(StringGenerator.prototype, 'toArray', toArray);
+  _.setMethod(StringGenerator.prototype, 'stringify', stringify);
 
-      return result;
-    });
-  }());
+  _.setMethod(EnumerateGenerator.prototype, 'keys', keys);
+  _.setMethod(EnumerateGenerator.prototype, 'values', values);
+  _.setMethod(EnumerateGenerator.prototype, 'entries', entries);
+  _.setMethod(EnumerateGenerator.prototype, 'unique', unique);
+  _.setMethod(EnumerateGenerator.prototype, 'filter', filter);
+  _.setMethod(EnumerateGenerator.prototype, 'map', map);
+  _.setMethod(EnumerateGenerator.prototype, 'iterate', iterate);
+  _.setMethod(EnumerateGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(EnumerateGenerator.prototype, 'own', setOwn);
+  _.setMethod(EnumerateGenerator.prototype, 'then', then);
+  _.setMethod(EnumerateGenerator.prototype, 'toArray', toArray);
 
-  return $E;
+  _.setMethod(UniqueGenerator.prototype, 'filter', filter);
+  _.setMethod(UniqueGenerator.prototype, 'map', map);
+  _.setMethod(UniqueGenerator.prototype, 'unique', unique);
+  _.setMethod(UniqueGenerator.prototype, 'iterate', iterate);
+  _.setMethod(UniqueGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(UniqueGenerator.prototype, 'then', then);
+  _.setMethod(UniqueGenerator.prototype, 'toArray', toArray);
+
+  _.setMethod(FlattenGenerator.prototype, 'filter', filter);
+  _.setMethod(FlattenGenerator.prototype, 'map', map);
+  _.setMethod(FlattenGenerator.prototype, 'unique', unique);
+  _.setMethod(FlattenGenerator.prototype, 'iterate', iterate);
+  _.setMethod(FlattenGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(FlattenGenerator.prototype, 'then', then);
+  _.setMethod(FlattenGenerator.prototype, 'toArray', toArray);
+
+  _.setMethod(WalkOwnGenerator.prototype, 'filter', filter);
+  _.setMethod(WalkOwnGenerator.prototype, 'map', map);
+  _.setMethod(WalkOwnGenerator.prototype, 'unique', unique);
+  _.setMethod(WalkOwnGenerator.prototype, 'iterate', iterate);
+  _.setMethod(WalkOwnGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(WalkOwnGenerator.prototype, 'then', then);
+  _.setMethod(WalkOwnGenerator.prototype, 'toArray', toArray);
+
+  _.setMethod(MapObjectGenerator.prototype, 'filter', filter);
+  _.setMethod(MapObjectGenerator.prototype, 'map', map);
+  _.setMethod(MapObjectGenerator.prototype, 'unique', unique);
+  _.setMethod(MapObjectGenerator.prototype, 'iterate', iterate);
+  _.setMethod(MapObjectGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(MapObjectGenerator.prototype, 'then', then);
+  _.setMethod(MapObjectGenerator.prototype, 'toArray', toArray);
+
+  _.setMethod(SetObjectGenerator.prototype, 'filter', filter);
+  _.setMethod(SetObjectGenerator.prototype, 'map', map);
+  _.setMethod(SetObjectGenerator.prototype, 'iterate', iterate);
+  _.setMethod(SetObjectGenerator.prototype, 'enumerate', enumerate);
+  _.setMethod(SetObjectGenerator.prototype, 'then', then);
+  _.setMethod(SetObjectGenerator.prototype, 'toArray', toArray);
+
+  return Reiterate;
 }));
