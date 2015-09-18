@@ -30,9 +30,9 @@
     floor, for, has, hasOwn, hasOwnProperty, hideMethod, isArray, isArrayLike,
     isCircular, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
     isObject, isString, isSurrogatePair, isUndefined, lastIndex, length, max,
-    min, onlyCoercibleToString, prototype, requireObjectCoercible, setMethod,
-    setProperty, setVariable, sign, toInteger, toSafeInteger, toString,
-    toStringTag, toValidCount, unscopables, value, writable
+    min, prototype, setMethod, setProperty, setVariable, sign, toInteger,
+    toSafeInteger, toString, toStringTag, toValidCount, unscopables, value,
+    writable
 */
 
 // UMD (Universal Module Definition)
@@ -116,15 +116,11 @@
       },
 
       setMethod: function (object, property, method) {
-        if (!_.hasOwn(object, property)) {
+        if (_.hasOwn(object, property)) {
+          throw new Error('property already exists on object');
+        } else {
           $.METHODDESCRIPTOR.value = method;
           _.setProperty(object, property, $.METHODDESCRIPTOR);
-          if (Array.prototype[Symbol.unscopables]) {
-            if (object === Array.prototype) {
-              /*jshint freeze:false */
-              Array.prototype[Symbol.unscopables][property] = true;
-            }
-          }
         }
 
         return method;
@@ -160,6 +156,7 @@
        * @see http://www.ecma-international.org/ecma-262/6.0/
        *      #sec-requireobjectcoercible
        */
+      /*
       requireObjectCoercible: function (subject) {
         if (_.isNil(subject)) {
           throw new TypeError('Cannot convert undefined or null to object');
@@ -167,6 +164,7 @@
 
         return subject;
       },
+      */
 
       /**
        * The abstract operation converts its argument to a value of type Object.
@@ -371,9 +369,11 @@
        * @throws {TypeError} If subject is null or undefined.
        * @return {string}
        */
+      /*
       onlyCoercibleToString: function (subject) {
         return String(_.requireObjectCoercible(subject));
       },
+      */
 
       /**
        * Tests if the two character arguments combined are a valid UTF-16
@@ -406,6 +406,16 @@
       checkcallback: function (callback) {
         if (!_.isFunction(callback)) {
           throw new TypeError('callback must be a function');
+        }
+
+        return callback;
+      },
+
+      mustBeAfunction: function (subject, name) {
+        if (!_.isUndefined(subject) && !_.isFunction(subject)) {
+          throw new TypeError(
+            'If not undefined, ' + name + ' must be a function'
+          );
         }
       },
 
@@ -453,10 +463,7 @@
     var result,
       item;
 
-    if (!_.isUndefined(mapFn) && !_.isFunction(mapFn)) {
-      throw new TypeError('If not undefined, mapFn must be a function');
-    }
-
+    _.mustBeAfunction(mapFn, 'mapFn');
     result = [];
     /*jshint validthis:true */
     for (item of this) {
@@ -661,8 +668,7 @@
 
   function map(callback, thisArg) {
     /*jshint validthis:true */
-    _.checkcallback(callback);
-    return new MapGenerator(this, callback, thisArg);
+    return new MapGenerator(this, _.checkcallback(callback), thisArg);
   }
 
   /*
@@ -679,9 +685,7 @@
 
   function filter(callback, thisArg) {
     /*jshint validthis:true */
-    _.checkcallback(callback);
-
-    return new FilterGenerator(this, callback, thisArg);
+    return new FilterGenerator(this, _.checkcallback(callback), thisArg);
   }
 
   function then(Generator) {
@@ -696,6 +700,18 @@
       iterator = this;
     } else {
       iterator = new Generator(this);
+      _.setMethod(iterator, 'keys', keys);
+      _.setMethod(iterator, 'values', values);
+      _.setMethod(iterator, 'entries', entries);
+      _.setMethod(iterator, 'reverse', reverse);
+      _.setMethod(iterator, 'filter', filter);
+      _.setMethod(iterator, 'map', map);
+      _.setMethod(iterator, 'unique', unique);
+      _.setMethod(iterator, 'iterate', iterate);
+      _.setMethod(iterator, 'enumerate', enumerate);
+      _.setMethod(iterator, 'then', then);
+      _.setMethod(iterator, 'toArray', toArray);
+      _.setMethod(iterator, 'stringify', stringify);
     }
 
     return iterator;
@@ -814,15 +830,14 @@
    */
 
   function* ArrayGenerator(subject, thisArg) {
-    thisArg = thisArg || this;
-    var object = _.requireObjectCoercible(subject),
+    var useThis = arguments.length > 1 ? thisArg : this,
       counter = new CountGenerator(),
-      countIt = setReversed(thisArg, counter.to(_.lastIndex(object))),
+      countIt = setReversed(useThis, counter.to(_.lastIndex(subject))),
       key;
 
-    thisArg[$.SYMBOL.STARTED] = true;
+    useThis[$.SYMBOL.STARTED] = true;
     for (key of countIt) {
-      yield getYieldValue(thisArg, object, key);
+      yield getYieldValue(useThis, subject, key);
     }
   }
 
@@ -834,10 +849,7 @@
     var result,
       item;
 
-    if (!_.isUndefined(mapFn) && !_.isFunction(mapFn)) {
-      throw new TypeError('If not undefined, mapFn must be a function');
-    }
-
+    _.mustBeAfunction(mapFn, 'mapFn');
     result = '';
     /*jshint validthis:true */
     for (item of this) {
@@ -866,35 +878,34 @@
   }
 
   function* StringGenerator(subject, thisArg) {
-    thisArg = thisArg || this;
-    var string = _.onlyCoercibleToString(subject),
+    var useThis = arguments.length > 1 ? thisArg : this,
       counter = new CountGenerator(),
-      countIt = setReversed(thisArg, counter.to(_.lastIndex(string))),
+      countIt = setReversed(useThis, counter.to(_.lastIndex(subject))),
       next = true,
       char1,
       char2,
       key;
 
-    thisArg[$.SYMBOL.STARTED] = true;
+    useThis[$.SYMBOL.STARTED] = true;
     for (key of countIt) {
       if (next) {
-        if (thisArg[$.SYMBOL.REVERSED]) {
-          char1 = string[key - 1];
-          char2 = string[key];
+        if (useThis[$.SYMBOL.REVERSED]) {
+          char1 = subject[key - 1];
+          char2 = subject[key];
           next = !_.isSurrogatePair(char1, char2);
           if (next) {
-            yield getStringYieldValue(thisArg, char2, key);
+            yield getStringYieldValue(useThis, char2, key);
           }
         } else {
-          char1 = string[key];
-          char2 = string[key + 1];
+          char1 = subject[key];
+          char2 = subject[key + 1];
           next = !_.isSurrogatePair(char1, char2);
-          yield getStringYieldValue(thisArg, char1 + char2, key);
+          yield getStringYieldValue(useThis, char1 + char2, key);
         }
       } else {
         next = !next;
-        if (thisArg[$.SYMBOL.REVERSED]) {
-          yield getStringYieldValue(thisArg, char1 + char2, key);
+        if (useThis[$.SYMBOL.REVERSED]) {
+          yield getStringYieldValue(useThis, char1 + char2, key);
         }
       }
     }
@@ -914,8 +925,7 @@
   }
 
   function* ForInGenerator(thisArg, subject) {
-    var object = _.requireObjectCoercible(subject),
-      key,
+    var key,
       own;
 
     if (_.isUndefined(thisArg[$.SYMBOL.OWN])) {
@@ -924,24 +934,23 @@
       own = thisArg[$.SYMBOL.OWN];
     }
 
-    for (key in object) {
-      if (!own || _.hasOwn(object, key)) {
-        yield getYieldValue(thisArg, object, key);
+    for (key in subject) {
+      if (!own || _.hasOwn(subject, key)) {
+        yield getYieldValue(thisArg, subject, key);
       }
     }
   }
 
   function* EnumerateGenerator(subject) {
-    var object = _.requireObjectCoercible(subject),
-      value;
+    var value;
 
     this[$.SYMBOL.STARTED] = true;
-    if (_.isObject(object) && _.isFunction(object.next)) {
-      for (value of object) {
+    if (_.isObject(subject) && _.isFunction(subject.next)) {
+      for (value of subject) {
         yield * new ForInGenerator(this, value);
       }
     } else {
-      yield * new ForInGenerator(this, object);
+      yield * new ForInGenerator(this, subject);
     }
   }
 
@@ -950,12 +959,24 @@
     return new EnumerateGenerator(this);
   }
 
-  function* MapObjectGenerator(subject) {
-    yield subject;
+  function* MapObjectGenerator(subject, thisArg) {
+    var useThis = arguments.length > 1 ? thisArg : this;
+
+    if (useThis) {
+      throw new Error('not yet');
+    }
+
+    yield undefined;
   }
 
-  function* SetObjectGenerator(subject) {
-    yield subject;
+  function* SetObjectGenerator(subject, thisArg) {
+    var useThis = arguments.length > 1 ? thisArg : this;
+
+    if (useThis) {
+      throw new Error('not yet');
+    }
+
+    yield undefined;
   }
 
   function genetateCount(subject, to, by) {
@@ -1012,12 +1033,11 @@
   }
 
   function* IterateIterator(subject, relaxed) {
-    var object = _.requireObjectCoercible(subject),
-      value,
+    var value,
       tag;
 
     this[$.SYMBOL.STARTED] = true;
-    for (value of object) {
+    for (value of subject) {
       if (_.isArray(value, relaxed)) {
         yield * new ArrayGenerator(value, this);
       } else if (_.isString(value)) {
