@@ -134,7 +134,9 @@
               maxBuffer: 1048576
             }
           },
-          command: 'export TEST_NAME=<%= pkg.name %>; <%= pkg.scripts.test %>'
+          command: ['export TEST_NAME=<%= pkg.name %>;',
+            '<%= pkg.scripts.npmtest %>'
+          ].join(' ')
         },
         coveralls: {
           options: {
@@ -165,7 +167,7 @@
             }
           },
           command: ['export TEST_NAME=<%= pkg.name %>.min;',
-            '<%= pkg.scripts.test %>'
+            '<%= pkg.scripts.npmtest %>'
           ].join(' ')
         }
       }

@@ -92,6 +92,7 @@
     "istanbul": false
   },
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js"
+    "test": "grunt test",
+    "npmtest": "./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js"
   }
 }
