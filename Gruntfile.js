@@ -134,7 +134,7 @@
               maxBuffer: 1048576
             }
           },
-          command: 'TEST_NAME=<%= pkg.name %> <%= pkg.scripts.test %>'
+          command: 'export TEST_NAME=<%= pkg.name %>; <%= pkg.scripts.test %>'
         },
         coveralls: {
           options: {
@@ -145,7 +145,7 @@
               maxBuffer: 1048576
             }
           },
-          command: ['TEST_NAME=<%= pkg.name %>',
+          command: ['export TEST_NAME=<%= pkg.name %>;',
             './node_modules/istanbul/lib/cli.js cover --report lcovonly',
             './node_modules/mocha/bin/_mocha --',
             '--check-leaks -u bdd -t 10000 -b -R tap tests/*.js',
@@ -164,7 +164,9 @@
               maxBuffer: 1048576
             }
           },
-          command: 'TEST_NAME=<%= pkg.name %>.min <%= pkg.scripts.test %>'
+          command: ['export TEST_NAME=<%= pkg.name %>.min;',
+            '<%= pkg.scripts.test %>'
+          ].join(' ')
         }
       }
     });

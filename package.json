@@ -35,6 +35,7 @@
     "lib": "lib",
     "doc": "doc"
   },
+  "dependencies": {},
   "devDependencies": {
     "google-closure-compiler": "latest",
     "grunt": "latest",
