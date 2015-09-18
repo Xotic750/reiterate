@@ -1,10 +1,37 @@
-/**
- * @file {@link https://github.com/Xotic750/ES6-reiterate reiterate}.
- * A Javascript generator and iterator library.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: reiterate.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: reiterate.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @file {@link http://xotic750.github.io/reiterate/ reiterate}. A modern iteration library..
  * @version 0.1.0
- * @author Graham Fairweather <xotic750@gmail.com>
- * @copyright Copyright (c) 2013 Graham Fairweather
- * @license {@link <http://www.gnu.org/licenses/gpl-3.0.html> GPL3}
+ * @author Xotic750 &lt;Xotic750@gmail.com>
+ * @copyright  Xotic750
+ * @license {@link &lt;http://www.gnu.org/licenses/gpl-3.0.html> GPL3}
  * @module reiterate
  */
 
@@ -13,8 +40,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:20,
-    maxcomplexity:6
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:200,
+    maxcomplexity:7
 */
 
 /*global
@@ -40,10 +67,10 @@
 (function (root, factory) {
   'use strict';
 
-  if (typeof define === 'function' && define.amd) {
+  if (typeof define === 'function' &amp;&amp; define.amd) {
     // AMD. Register as an anonymous module.
     define([], factory);
-  } else if (typeof module === 'object' && module.exports) {
+  } else if (typeof module === 'object' &amp;&amp; module.exports) {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like environments that support module.exports,
     // like Node.
@@ -292,7 +319,7 @@
        *                   else `false`.
        */
       isLength: function (subject) {
-        return _.toSafeInteger(subject) === subject && subject >= 0;
+        return _.toSafeInteger(subject) === subject &amp;&amp; subject >= 0;
       },
 
       /**
@@ -307,8 +334,8 @@
        *                   else `false`.
        */
       isArrayLike: function (subject) {
-        return !_.isNil(subject) &&
-          !_.isFunction(subject) &&
+        return !_.isNil(subject) &amp;&amp;
+          !_.isFunction(subject) &amp;&amp;
           _.isLength(subject.length);
       },
 
@@ -328,7 +355,7 @@
         var isA;
 
         if (relaxed) {
-          isA = _.isArrayLike(subject) && !_.isString(subject);
+          isA = _.isArrayLike(subject) &amp;&amp; !_.isString(subject);
         } else {
           isA = Array.isArray(subject);
         }
@@ -344,7 +371,7 @@
        * @return {number} Returns the last index number of the array.like or 0.
        */
       lastIndex: function (subject) {
-        return _.isArrayLike(subject) &&
+        return _.isArrayLike(subject) &amp;&amp;
           _.toSafeInteger(subject.length - 1) ||
           0;
       },
@@ -390,11 +417,11 @@
           code1,
           code2;
 
-        if (char1 && char2 && _.isString(char1) && _.isString(char2)) {
+        if (char1 &amp;&amp; char2 &amp;&amp; _.isString(char1) &amp;&amp; _.isString(char2)) {
           code1 = char1.charCodeAt();
-          if (code1 >= 0xD800 && code1 <= 0xDBFF) {
+          if (code1 >= 0xD800 &amp;&amp; code1 &lt;= 0xDBFF) {
             code2 = char2.charCodeAt();
-            if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
+            if (code2 >= 0xDC00 &amp;&amp; code2 &lt;= 0xDFFF) {
               result = true;
             }
           }
@@ -412,7 +439,7 @@
       },
 
       mustBeAfunction: function (subject, name) {
-        if (!_.isUndefined(subject) && !_.isFunction(subject)) {
+        if (!_.isUndefined(subject) &amp;&amp; !_.isFunction(subject)) {
           throw new TypeError(
             'If not undefined, ' + name + ' must be a function'
           );
@@ -754,8 +781,8 @@
   function* CountReverseGenerator(thisArg) {
     var count = thisArg[$.SYMBOL.TO];
 
-    if (thisArg[$.SYMBOL.TO] <= thisArg[$.SYMBOL.FROM]) {
-      while (count <= thisArg[$.SYMBOL.FROM]) {
+    if (thisArg[$.SYMBOL.TO] &lt;= thisArg[$.SYMBOL.FROM]) {
+      while (count &lt;= thisArg[$.SYMBOL.FROM]) {
         yield count;
         count += thisArg[$.SYMBOL.BY];
       }
@@ -770,8 +797,8 @@
   function* CountForwardGenerator(thisArg) {
     var count = thisArg[$.SYMBOL.FROM];
 
-    if (thisArg[$.SYMBOL.FROM] <= thisArg[$.SYMBOL.TO]) {
-      while (count <= thisArg[$.SYMBOL.TO]) {
+    if (thisArg[$.SYMBOL.FROM] &lt;= thisArg[$.SYMBOL.TO]) {
+      while (count &lt;= thisArg[$.SYMBOL.TO]) {
         yield count;
         count += thisArg[$.SYMBOL.BY];
       }
@@ -945,7 +972,7 @@
     var value;
 
     this[$.SYMBOL.STARTED] = true;
-    if (_.isObject(subject) && _.isFunction(subject.next)) {
+    if (_.isObject(subject) &amp;&amp; _.isFunction(subject.next)) {
       for (value of subject) {
         yield * new ForInGenerator(this, value);
       }
@@ -1242,3 +1269,26 @@
 
   return Reiterate;
 }));
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-reiterate.html">reiterate</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.2</a> on Fri Sep 18 2015 22:12:36 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

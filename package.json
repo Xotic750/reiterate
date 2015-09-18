@@ -1,0 +1,96 @@
+{
+  "name": "reiterate",
+  "homepage": "http://xotic750.github.io/reiterate/",
+  "description": "A modern iteration library.",
+  "version": "0.1.0",
+  "keywords": [
+    "javascript",
+    "library",
+    "module",
+    "generator",
+    "iterator",
+    "ecmascript6"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Xotic750/reiterate.git"
+  },
+  "main": "./lib/reiterate.js",
+  "author": {
+    "name": "Xotic750",
+    "email": "Xotic750@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/Xotic750/reiterate/issues"
+  },
+  "engines": {
+    "node": "11"
+  },
+  "licenses": [{
+    "type": "GPL3",
+    "url": "http://www.gnu.org/licenses/gpl-3.0.html"
+  }],
+  "directories": {
+    "lib": "lib",
+    "doc": "doc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "google-closure-compiler": "latest",
+    "grunt": "latest",
+    "jsdoc": "latest",
+    "mocha": "latest",
+    "mocha-lcov-reporter": "latest",
+    "expect.js": "latest",
+    "grunt-cli": "latest",
+    "grunt-contrib-jshint": "latest",
+    "grunt-contrib-uglify": "latest",
+    "grunt-lib-legacyhelpers": "latest",
+    "grunt-contrib-clean": "latest",
+    "grunt-jsdoc": "latest",
+    "grunt-replace": "latest",
+    "coveralls": "latest",
+    "grunt-shell": "latest",
+    "istanbul": "latest",
+    "browserify": "latest"
+  },
+  "optionalDependencies": {
+    "google-closure-compiler": "latest",
+    "grunt": "latest",
+    "jsdoc": "latest",
+    "mocha": "latest",
+    "mocha-lcov-reporter": "latest",
+    "expect.js": "latest",
+    "grunt-cli": "latest",
+    "grunt-contrib-jshint": "latest",
+    "grunt-contrib-uglify": "latest",
+    "grunt-lib-legacyhelpers": "latest",
+    "grunt-contrib-clean": "latest",
+    "grunt-jsdoc": "latest",
+    "grunt-replace": "latest",
+    "coveralls": "latest",
+    "grunt-shell": "latest",
+    "istanbul": "latest",
+    "browserify": "latest"
+  },
+  "browser": {
+    "../lib/reiterate.js": "../lib/reiterate.min.js",
+    "google-closure-compiler": false,
+    "grunt": false,
+    "js-beautify": false,
+    "jsdoc": false,
+    "grunt-cli": false,
+    "grunt-contrib-jshint": false,
+    "grunt-contrib-uglify": false,
+    "grunt-lib-legacyhelpers": false,
+    "grunt-contrib-clean": false,
+    "grunt-jsdoc": false,
+    "grunt-replace": false,
+    "coveralls": false,
+    "grunt-shell": false,
+    "istanbul": false
+  },
+  "scripts": {
+    "test": "./node_modules/mocha/bin/mocha --check-leaks -u bdd -t 10000 -b -R tap tests/*.js"
+  }
+}
