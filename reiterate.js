@@ -30,8 +30,8 @@
     floor, for, has, hasOwn, hasOwnProperty, hideMethod, isArray, isArrayLike,
     isCircular, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
     isObject, isString, isSurrogatePair, isUndefined, lastIndex, length, max,
-    min, prototype, setMethod, setProperty, setVariable, sign, toInteger,
-    toSafeInteger, toString, toStringTag, toValidCount, unscopables, value,
+    min, mustBeAfunction, prototype, setMethod, setProperty, setVariable, sign,
+    toInteger, toSafeInteger, toString, toStringTag, toValidCount, value,
     writable
 */
 
@@ -118,10 +118,10 @@
       setMethod: function (object, property, method) {
         if (_.hasOwn(object, property)) {
           throw new Error('property already exists on object');
-        } else {
-          $.METHODDESCRIPTOR.value = method;
-          _.setProperty(object, property, $.METHODDESCRIPTOR);
         }
+
+        $.METHODDESCRIPTOR.value = method;
+        _.setProperty(object, property, $.METHODDESCRIPTOR);
 
         return method;
       },
