@@ -59,6 +59,8 @@ will create *@@MODULE.min.js*.
 
 ## Feedback
 
+[Test your browser](https://rawgit.com/Xotic750/reiterate/master/tests/browser/tests.html)
+
 Feedback is welcome.
 
 ## Licence
