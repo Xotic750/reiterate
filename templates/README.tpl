@@ -45,7 +45,7 @@ The tests can be run with Node.
 
 To test all the methods
 
-    $ node test
+    $ npm test
 
 ## Build
 

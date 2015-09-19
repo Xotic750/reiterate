@@ -48,6 +48,22 @@
       expect(function () {
         reiterate({});
       }).to.not.throwException();
+
+      expect(function () {
+        reiterate(function () {});
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate(new Map());
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate(new Set());
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate(/a\ regex/);
+      }).to.not.throwException();
     });
   });
 }());

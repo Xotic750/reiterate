@@ -529,5 +529,130 @@
         expect(e).to.be.a(TypeError);
       });
     });
+
+    it('Counter map', function () {
+      var index,
+        entry,
+        counter;
+
+      expect(function () {
+        reiterate().map();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        counter = reiterate().from(65).to(90).map(function (value) {
+          return String.fromCharCode(value);
+        });
+      }).to.not.throwException();
+
+      index = 65;
+      for (entry of counter) {
+        expect(entry).to.be(String.fromCharCode(index));
+        index += 1;
+      }
+    });
+
+    it('Counter filter', function () {
+      var index,
+        entry,
+        counter;
+
+      expect(function () {
+        reiterate().filter();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        counter = reiterate().to(10).filter(function (value) {
+          return value >= 4 && value <= 6;
+        });
+      }).to.not.throwException();
+
+      index = 4;
+      for (entry of counter) {
+        expect(entry).to.be.within(4, 6);
+        expect(entry).to.be(index);
+        index += 1;
+      }
+    });
+
+    it('Counter filter map', function () {
+      var index,
+        entry,
+        counter;
+
+      expect(function () {
+        counter = reiterate().from(65).to(90).filter(function (value) {
+          return value >= 80 && value <= 85;
+        }).map(function (value) {
+          return String.fromCharCode(value);
+        });
+      }).to.not.throwException();
+
+      index = 80;
+      for (entry of counter) {
+        expect(index).to.be.within(80, 85);
+        expect(entry).to.be(String.fromCharCode(index));
+        index += 1;
+      }
+    });
+
+    it('Counter map filter', function () {
+      var index,
+        entry,
+        counter;
+
+      expect(function () {
+        counter = reiterate().from(65).to(90).map(function (value) {
+          return String.fromCharCode(value);
+        }).filter(function (value) {
+          return value >= 'P' && value <= 'U';
+        });
+      }).to.not.throwException();
+
+      index = 80;
+      for (entry of counter) {
+        expect(index).to.be.within(80, 85);
+        expect(entry).to.be(String.fromCharCode(index));
+        index += 1;
+      }
+    });
+
+    it('Counter toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().to(3).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([0, 1, 2, 3]);
+    });
+
+    it('Counter map toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(65).to(68).map(function (value) {
+          return String.fromCharCode(value);
+        }).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql(['A', 'B', 'C', 'D']);
+    });
+
+    it('Counter filter toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().to(10).filter(function (value) {
+          return value >= 4 && value <= 6;
+        }).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([4, 5, 6]);
+    });
   });
 }());
