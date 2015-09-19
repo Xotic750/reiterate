@@ -6,13 +6,15 @@
     esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:20,
     maxcomplexity:6
 */
-/*global module, require, process */
+/*global module, require */
 
 (function () {
   'use strict';
 
-  module.exports = {
-    expect: require('expect.js'),
-    subject: require('../lib/' + process.env.TEST_NAME)
-  };
+  module.exports. expect = require('expect.js');
+  if (process.env.MIN) {
+    module.exports.subject = require('../lib/reiterate.min');
+  } else {
+    module.exports.subject = require('../lib/reiterate');
+  }
 }());

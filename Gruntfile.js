@@ -16,7 +16,7 @@
       pkg: grunt.file.readJSON('package.json'),
 
       clean: {
-        all: ['README.md', 'doc', 'lib', 'coverage'],
+        all: ['README.md', 'doc', 'lib', 'coverage', 'tests/browser/tests.js'],
         after: ['coverage'],
         coverage: ['coverage']
       },
@@ -125,6 +125,20 @@
             '--js lib/<%= pkg.name %>.js'
           ].join(' ')
         },
+        browserify: {
+          options: {
+            stdout: true,
+            stderr: true,
+            failOnError: true,
+            execOptions: {
+              maxBuffer: 1048576
+            }
+          },
+          command: ['./node_modules/browserify/bin/cmd.js',
+            './tests/*.js',
+            '-o ./tests/browser/tests.js'
+          ].join(' ')
+        },
         beautified: {
           options: {
             stdout: true,
@@ -134,9 +148,7 @@
               maxBuffer: 1048576
             }
           },
-          command: ['export TEST_NAME=<%= pkg.name %>;',
-            '<%= pkg.scripts.npmtest %>'
-          ].join(' ')
+          command: '<%= pkg.scripts.test %>'
         },
         coveralls: {
           options: {
@@ -147,7 +159,7 @@
               maxBuffer: 1048576
             }
           },
-          command: ['export TEST_NAME=<%= pkg.name %>;',
+          command: [
             './node_modules/istanbul/lib/cli.js cover --report lcovonly',
             './node_modules/mocha/bin/_mocha --',
             '--check-leaks -u bdd -t 10000 -b -R tap tests/*.js',
@@ -166,9 +178,7 @@
               maxBuffer: 1048576
             }
           },
-          command: ['export TEST_NAME=<%= pkg.name %>.min;',
-            '<%= pkg.scripts.npmtest %>'
-          ].join(' ')
+          command: 'export MIN=1; <%= pkg.scripts.test %>'
         }
       }
     });
@@ -191,6 +201,7 @@
       'replace:lib',
       'jshint:lib',
       'shell:beautified',
+      'shell:browserify',
       'shell:minify',
       'shell:uglified',
       'buildReadme',

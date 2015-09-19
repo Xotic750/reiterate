@@ -72,10 +72,11 @@
     "coveralls": "latest",
     "grunt-shell": "latest",
     "istanbul": "latest",
-    "browserify": "latest"
+    "browserify": "latest",
+    "envify": "latest"
   },
   "browser": {
-    "../lib/reiterate.js": "../lib/reiterate.min.js",
+    "../lib/reiterate.min": false,
     "google-closure-compiler": false,
     "grunt": false,
     "js-beautify": false,
@@ -92,7 +93,6 @@
     "istanbul": false
   },
   "scripts": {
-    "test": "grunt test",
-    "npmtest": "./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js"
+    "test": "./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js"
   }
 }
