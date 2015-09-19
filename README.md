@@ -51,11 +51,11 @@ To test all the methods
 
 I.e. minify.
 
-On Node
+On command line
 
-    $ node run-script build
+    $ npm run-script minify
 
-will create *reiterate.min.js*.
+will create lib/*reiterate.min.js* from lib/*reiterate.js*.
 
 ## Feedback
 

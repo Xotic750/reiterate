@@ -117,13 +117,7 @@
               maxBuffer: 1048576
             }
           },
-          command: ['java -jar',
-            './node_modules/google-closure-compiler/compiler.jar',
-            '--compilation_level=WHITESPACE_ONLY',
-            '--language_in=ECMASCRIPT6_STRICT',
-            '--js_output_file=lib/<%= pkg.name %>.min.js',
-            '--js lib/<%= pkg.name %>.js'
-          ].join(' ')
+          command: '<%= pkg.scripts.minify %>'
         },
         browserify: {
           options: {
@@ -134,10 +128,7 @@
               maxBuffer: 1048576
             }
           },
-          command: ['./node_modules/browserify/bin/cmd.js',
-            './tests/*.js',
-            '-o ./tests/browser/tests.js'
-          ].join(' ')
+          command: '<%= pkg.scripts.browserify %>'
         },
         beautified: {
           options: {
@@ -159,15 +150,7 @@
               maxBuffer: 1048576
             }
           },
-          command: [
-            './node_modules/istanbul/lib/cli.js cover --report lcovonly',
-            './node_modules/mocha/bin/_mocha --',
-            '--check-leaks -u bdd -t 10000 -b -R tap tests/*.js',
-            '&&',
-            'cat ./coverage/lcov.info',
-            '|',
-            './node_modules/coveralls/bin/coveralls.js'
-          ].join(' ')
+          command: '<%= pkg.scripts.coveralls %>'
         },
         uglified: {
           options: {
@@ -178,7 +161,7 @@
               maxBuffer: 1048576
             }
           },
-          command: 'export MIN=1; <%= pkg.scripts.test %>'
+          command: '<%= pkg.scripts.testmin %>'
         }
       }
     });
