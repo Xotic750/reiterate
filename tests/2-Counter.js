@@ -15,6 +15,12 @@
     expect = required.expect,
     reiterate = required.subject;
 
+  function* times2(subject) {
+    for (var item of subject) {
+      yield item * 2;
+    }
+  }
+
   describe('Basic tests', function () {
     it('Counter simple', function () {
       var index = 0,
@@ -653,6 +659,98 @@
       }).to.not.throwException();
 
       expect(array).to.eql([4, 5, 6]);
+    });
+
+    it('Counter map unique toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(10).map(function () {
+          return 'a';
+        }).unique().toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql(['a']);
+    });
+
+    it('Counter map filter unique toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(10).map(function () {
+          return 'a';
+        }).filter(function () {
+          return true;
+        }).unique().toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql(['a']);
+    });
+
+    it('Counter then undefined', function () {
+      var index = 0,
+        value,
+        iterator;
+
+      expect(function () {
+        iterator = reiterate().from(0).to(10).then();
+      }).to.not.throwException();
+
+      for (value of iterator) {
+        expect(index).to.be.within(0, 10);
+        expect(value).to.be(index);
+        index += 1;
+      }
+    });
+
+    it('Counter then times2', function () {
+      var index = 0,
+        value,
+        iterator;
+
+      expect(function () {
+        iterator = reiterate().from(0).to(10).then(times2);
+      }).to.not.throwException();
+
+      for (value of iterator) {
+        expect(index).to.be.within(0, 10);
+        expect(value).to.be(index * 2);
+        index += 1;
+      }
+    });
+
+    it('Counter then toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(3).then(times2).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([0, 2, 4, 6]);
+    });
+
+    it('Counter then map toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(3).then(times2).map(function (value) {
+          return value * 2;
+        }).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([0, 4, 8, 12]);
+    });
+
+    it('Counter then filter toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(3).then(times2).filter(function (value) {
+          return value >= 2 && value <= 4;
+        }).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([2, 4]);
     });
   });
 }());
