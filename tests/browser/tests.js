@@ -5525,6 +5525,30 @@ process.umask = function() { return 0; };
         b = [1, 2, 3, 5, 4],
         c = [4, 2, 1, 3, 5],
         d = [1, 2, 3, 5, 1, 3, 1, 2, 4],
+        e = {
+          0: 1,
+          1: {
+            0: 2,
+            length: 1
+          },
+          2: 3,
+          3: 5,
+          4: {
+            0: 1,
+            1: 3,
+            2: {
+              0: 1,
+              length: 1
+            },
+            length: 3
+          },
+          5: 2,
+          6: {
+            0: 4,
+            length: 1
+          },
+          length: 7
+        },
         index = 0,
         entry,
         array;
@@ -5618,6 +5642,10 @@ process.umask = function() { return 0; };
       expect(array).to.eql(d.slice().reverse().filter(function (item) {
         return item === 1;
       }));
+
+      // flatten
+      array = reiterate(e, true).values().flatten(true).toArray();
+      expect(array).to.eql(d);
     });
   });
 }());
@@ -5641,22 +5669,34 @@ process.umask = function() { return 0; };
     reiterate = required.subject;
 
   describe('Basic tests', function () {
-    it('Object enumerate, no length', function () {
-      var a = {
-          0: 1,
-          1: 2,
-          2: 3,
-          3: 5,
-          4: 1,
-          5: 3,
-          6: 1,
-          7: 2,
-          8: 4
-        },
-        index = 0,
-        entry;
+    var a = {
+        0: 1,
+        1: 2,
+        2: 3,
+        3: 5,
+        4: 1,
+        5: 3,
+        6: 1,
+        7: 2,
+        8: 4
+      },
+      b = [1, 2, 3, 5, 1, 3, 1, 2, 4],
+      c = {
+        0: 1,
+        1: [2],
+        2: 3,
+        3: 5,
+        4: [1, 3, [1]],
+        5: 2,
+        6: [4]
+      },
+      index,
+      entry,
+      array;
 
+    it('Object enumerate, no length', function () {
       // forward
+      index = 0;
       for (entry of reiterate(a)) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
@@ -5689,21 +5729,8 @@ process.umask = function() { return 0; };
     });
 
     it('Object enumerate own, no length', function () {
-      var a = {
-          0: 1,
-          1: 2,
-          2: 3,
-          3: 5,
-          4: 1,
-          5: 3,
-          6: 1,
-          7: 2,
-          8: 4
-        },
-        index = 0,
-        entry;
-
       // forward
+      index = 0;
       for (entry of reiterate(a).own()) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
@@ -5733,6 +5760,11 @@ process.umask = function() { return 0; };
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
+    });
+
+    it('Object enumerate own flatten, no length', function () {
+      array = reiterate(c).own().values().flatten().toArray();
+      expect(array).to.eql(b);
     });
   });
 }());

@@ -16,22 +16,34 @@
     reiterate = required.subject;
 
   describe('Basic tests', function () {
-    it('Object enumerate, no length', function () {
-      var a = {
-          0: 1,
-          1: 2,
-          2: 3,
-          3: 5,
-          4: 1,
-          5: 3,
-          6: 1,
-          7: 2,
-          8: 4
-        },
-        index = 0,
-        entry;
+    var a = {
+        0: 1,
+        1: 2,
+        2: 3,
+        3: 5,
+        4: 1,
+        5: 3,
+        6: 1,
+        7: 2,
+        8: 4
+      },
+      b = [1, 2, 3, 5, 1, 3, 1, 2, 4],
+      c = {
+        0: 1,
+        1: [2],
+        2: 3,
+        3: 5,
+        4: [1, 3, [1]],
+        5: 2,
+        6: [4]
+      },
+      index,
+      entry,
+      array;
 
+    it('Object enumerate, no length', function () {
       // forward
+      index = 0;
       for (entry of reiterate(a)) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
@@ -64,21 +76,8 @@
     });
 
     it('Object enumerate own, no length', function () {
-      var a = {
-          0: 1,
-          1: 2,
-          2: 3,
-          3: 5,
-          4: 1,
-          5: 3,
-          6: 1,
-          7: 2,
-          8: 4
-        },
-        index = 0,
-        entry;
-
       // forward
+      index = 0;
       for (entry of reiterate(a).own()) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
@@ -108,6 +107,11 @@
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
+    });
+
+    it('Object enumerate own flatten, no length', function () {
+      array = reiterate(c).own().values().flatten().toArray();
+      expect(array).to.eql(b);
     });
   });
 }());
