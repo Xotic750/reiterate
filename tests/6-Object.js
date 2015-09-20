@@ -16,7 +16,7 @@
     reiterate = required.subject;
 
   describe('Basic tests', function () {
-    it('Object of primatives, no length', function () {
+    it('Object enumerate, no length', function () {
       var a = {
           0: 1,
           1: 2,
@@ -58,6 +58,53 @@
       // reverse
       expect(function () {
         reiterate(a).reverse();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('Object enumerate own, no length', function () {
+      var a = {
+          0: 1,
+          1: 2,
+          2: 3,
+          3: 5,
+          4: 1,
+          5: 3,
+          6: 1,
+          7: 2,
+          8: 4
+        },
+        index = 0,
+        entry;
+
+      // forward
+      for (entry of reiterate(a).own()) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate(a).own().entries()) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate(a).own().values()) {
+        expect(entry).to.be(a[index]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate(a).own().keys()) {
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+
+      // reverse
+      expect(function () {
+        reiterate(a).own().reverse();
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
