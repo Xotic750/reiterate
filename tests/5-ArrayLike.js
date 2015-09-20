@@ -29,8 +29,12 @@
           8: 4,
           length: 9
         },
+        b = [1, 2, 3, 5, 4],
+        c = [4, 2, 1, 3, 5],
+        d = [1, 2, 3, 5, 1, 3, 1, 2, 4],
         index = 0,
-        entry;
+        entry,
+        array;
 
       // forward
       for (entry of reiterate(a, true)) {
@@ -80,6 +84,47 @@
         expect(entry).to.eql(index);
         index -= 1;
       }
+
+      // unique
+      array = reiterate(a, true).values().unique().toArray();
+      expect(array).to.eql(b);
+
+      array = reiterate(a, true).values().reverse().unique().toArray();
+      expect(array).to.eql(c);
+
+      // map
+      array = reiterate(a, true).values().map(function (item) {
+        return String(item);
+      }).toArray();
+
+      expect(array).to.eql(d.map(function (item) {
+        return String(item);
+      }));
+
+      array = reiterate(a, true).values().reverse().map(function (item) {
+        return String(item);
+      }).toArray();
+
+      expect(array).to.eql(d.slice().reverse().map(function (item) {
+        return String(item);
+      }));
+
+      // filter
+      array = reiterate(a, true).values().filter(function (item) {
+        return item === 1;
+      }).toArray();
+
+      expect(array).to.eql(d.filter(function (item) {
+        return item === 1;
+      }));
+
+      array = reiterate(a, true).values().reverse().filter(function (item) {
+        return item === 1;
+      }).toArray();
+
+      expect(array).to.eql(d.slice().reverse().filter(function (item) {
+        return item === 1;
+      }));
     });
   });
 }());
