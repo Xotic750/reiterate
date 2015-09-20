@@ -4532,6 +4532,12 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject;
 
+  function* times2(subject) {
+    for (var item of subject) {
+      yield item * 2;
+    }
+  }
+
   describe('Basic tests', function () {
     it('Counter simple', function () {
       var index = 0,
@@ -5171,6 +5177,98 @@ process.umask = function() { return 0; };
 
       expect(array).to.eql([4, 5, 6]);
     });
+
+    it('Counter map unique toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(10).map(function () {
+          return 'a';
+        }).unique().toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql(['a']);
+    });
+
+    it('Counter map filter unique toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(10).map(function () {
+          return 'a';
+        }).filter(function () {
+          return true;
+        }).unique().toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql(['a']);
+    });
+
+    it('Counter then undefined', function () {
+      var index = 0,
+        value,
+        iterator;
+
+      expect(function () {
+        iterator = reiterate().from(0).to(10).then();
+      }).to.not.throwException();
+
+      for (value of iterator) {
+        expect(index).to.be.within(0, 10);
+        expect(value).to.be(index);
+        index += 1;
+      }
+    });
+
+    it('Counter then times2', function () {
+      var index = 0,
+        value,
+        iterator;
+
+      expect(function () {
+        iterator = reiterate().from(0).to(10).then(times2);
+      }).to.not.throwException();
+
+      for (value of iterator) {
+        expect(index).to.be.within(0, 10);
+        expect(value).to.be(index * 2);
+        index += 1;
+      }
+    });
+
+    it('Counter then toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(3).then(times2).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([0, 2, 4, 6]);
+    });
+
+    it('Counter then map toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(3).then(times2).map(function (value) {
+          return value * 2;
+        }).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([0, 4, 8, 12]);
+    });
+
+    it('Counter then filter toArray', function () {
+      var array;
+
+      expect(function () {
+        array = reiterate().from(0).to(3).then(times2).filter(function (value) {
+          return value >= 2 && value <= 4;
+        }).toArray();
+      }).to.not.throwException();
+
+      expect(array).to.eql([2, 4]);
+    });
   });
 }());
 
@@ -5250,4 +5348,142 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12]);
+},{"../scripts/":9}],13:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:200,
+    maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('UTF-16 string', function () {
+      var a = 'A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6A',
+        b = ['A', '\uD835\uDC68', 'B', '\uD835\uDC69', 'C', '\uD835\uDC6A'],
+        c = [0, 1, 3, 4, 6, 7],
+        d = [
+          [0, 'A'],
+          [1, '\uD835\uDC68'],
+          [3, 'B'],
+          [4, '\uD835\uDC69'],
+          [6, 'C'],
+          [7, '\uD835\uDC6A']
+        ],
+        array = reiterate(a).values().toArray();
+
+      // forward
+      expect(array).to.eql(b);
+      array = reiterate(a).keys().toArray();
+      expect(array).to.eql(c);
+      array = reiterate(a).entries().toArray();
+      expect(array).to.eql(d);
+
+      // reverse
+      array = reiterate(a).values().reverse().toArray();
+      expect(array).to.eql(b.reverse());
+      array = reiterate(a).keys().reverse().toArray();
+      expect(array).to.eql(c.reverse());
+      array = reiterate(a).entries().reverse().toArray();
+      expect(array).to.eql(d.reverse());
+    });
+  });
+}());
+
+},{"../scripts/":9}],14:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:200,
+    maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('ArrayLike of primatives', function () {
+      var a = {
+          0: 1,
+          1: 2,
+          2: 3,
+          3: 5,
+          4: 1,
+          5: 3,
+          6: 1,
+          7: 2,
+          8: 4,
+          length: 9
+        },
+        index = 0,
+        entry;
+
+      // forward
+      for (entry of reiterate(a, true)) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate(a, true).entries()) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate(a, true).values()) {
+        expect(entry).to.be(a[index]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate(a, true).keys()) {
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+
+      // reverse
+      index = a.length - 1;
+      for (entry of reiterate(a, true).reverse()) {
+        expect(entry).to.eql([index, a[index]]);
+        index -= 1;
+      }
+
+      index = a.length - 1;
+      for (entry of reiterate(a, true).entries().reverse()) {
+        expect(entry).to.eql([index, a[index]]);
+        index -= 1;
+      }
+
+      index = a.length - 1;
+      for (entry of reiterate(a, true).values().reverse()) {
+        expect(entry).to.be(a[index]);
+        index -= 1;
+      }
+
+      index = a.length - 1;
+      for (entry of reiterate(a, true).keys().reverse()) {
+        expect(entry).to.eql(index);
+        index -= 1;
+      }
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14]);
