@@ -500,13 +500,13 @@
    * flatten
    */
 
-  function* FlattenGenerator(relaxed) {
+  function* FlattenGenerator(thisArg, relaxed) {
     var stack = new Map(),
       object,
       value,
       tail;
 
-    for (object of this) {
+    for (object of thisArg) {
       if (_.isArray(object, relaxed)) {
         stack.set(object, {
           index: 0,
@@ -524,7 +524,7 @@
         } else {
           value = object[tail.index];
           if (_.isArray(value, relaxed)) {
-            _.isCircular(this, stack, value);
+            _.isCircular(thisArg, stack, value);
             stack.set(value, {
               index: 0,
               prev: object
@@ -539,6 +539,11 @@
         }
       }
     }
+  }
+
+  function flatten(relaxed) {
+    /*jshint validthis:true */
+    return new FlattenGenerator(this, relaxed);
   }
 
   /*
@@ -712,6 +717,7 @@
       _.setMethod(iterator, 'then', then);
       _.setMethod(iterator, 'toArray', toArray);
       _.setMethod(iterator, 'stringify', stringify);
+      _.setMethod(iterator, 'flatten', flatten);
     }
 
     return iterator;
@@ -1142,6 +1148,7 @@
   _.setMethod(MapGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(MapGenerator.prototype, 'then', then);
   _.setMethod(MapGenerator.prototype, 'toArray', toArray);
+  _.setMethod(MapGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(FilterGenerator.prototype, 'reverse', reverse);
   _.setMethod(FilterGenerator.prototype, 'filter', filter);
@@ -1151,6 +1158,7 @@
   _.setMethod(FilterGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(FilterGenerator.prototype, 'then', then);
   _.setMethod(FilterGenerator.prototype, 'toArray', toArray);
+  _.setMethod(FilterGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(ArrayGenerator.prototype, 'keys', keys);
   _.setMethod(ArrayGenerator.prototype, 'values', values);
@@ -1163,6 +1171,7 @@
   _.setMethod(ArrayGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(ArrayGenerator.prototype, 'then', then);
   _.setMethod(ArrayGenerator.prototype, 'toArray', toArray);
+  _.setMethod(ArrayGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(IterateIterator.prototype, 'keys', keys);
   _.setMethod(IterateIterator.prototype, 'values', values);
@@ -1175,6 +1184,7 @@
   _.setMethod(IterateIterator.prototype, 'enumerate', enumerate);
   _.setMethod(IterateIterator.prototype, 'then', then);
   _.setMethod(IterateIterator.prototype, 'toArray', toArray);
+  _.setMethod(IterateIterator.prototype, 'flatten', flatten);
 
   _.setMethod(StringGenerator.prototype, 'keys', keys);
   _.setMethod(StringGenerator.prototype, 'values', values);
@@ -1200,6 +1210,7 @@
   _.setMethod(EnumerateGenerator.prototype, 'own', setOwn);
   _.setMethod(EnumerateGenerator.prototype, 'then', then);
   _.setMethod(EnumerateGenerator.prototype, 'toArray', toArray);
+  _.setMethod(EnumerateGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(UniqueGenerator.prototype, 'filter', filter);
   _.setMethod(UniqueGenerator.prototype, 'map', map);
@@ -1208,6 +1219,7 @@
   _.setMethod(UniqueGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(UniqueGenerator.prototype, 'then', then);
   _.setMethod(UniqueGenerator.prototype, 'toArray', toArray);
+  _.setMethod(UniqueGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(FlattenGenerator.prototype, 'filter', filter);
   _.setMethod(FlattenGenerator.prototype, 'map', map);
@@ -1216,6 +1228,7 @@
   _.setMethod(FlattenGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(FlattenGenerator.prototype, 'then', then);
   _.setMethod(FlattenGenerator.prototype, 'toArray', toArray);
+  _.setMethod(FlattenGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(WalkOwnGenerator.prototype, 'filter', filter);
   _.setMethod(WalkOwnGenerator.prototype, 'map', map);
@@ -1224,6 +1237,7 @@
   _.setMethod(WalkOwnGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(WalkOwnGenerator.prototype, 'then', then);
   _.setMethod(WalkOwnGenerator.prototype, 'toArray', toArray);
+  _.setMethod(WalkOwnGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(MapObjectGenerator.prototype, 'filter', filter);
   _.setMethod(MapObjectGenerator.prototype, 'map', map);
@@ -1232,6 +1246,7 @@
   _.setMethod(MapObjectGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(MapObjectGenerator.prototype, 'then', then);
   _.setMethod(MapObjectGenerator.prototype, 'toArray', toArray);
+  _.setMethod(MapObjectGenerator.prototype, 'flatten', flatten);
 
   _.setMethod(SetObjectGenerator.prototype, 'filter', filter);
   _.setMethod(SetObjectGenerator.prototype, 'map', map);
@@ -1239,6 +1254,7 @@
   _.setMethod(SetObjectGenerator.prototype, 'enumerate', enumerate);
   _.setMethod(SetObjectGenerator.prototype, 'then', then);
   _.setMethod(SetObjectGenerator.prototype, 'toArray', toArray);
+  _.setMethod(SetObjectGenerator.prototype, 'flatten', flatten);
 
   return Reiterate;
 }));
@@ -5295,6 +5311,7 @@ process.umask = function() { return 0; };
       var a = [1, 2, 3, 5, 1, 3, 1, 2, 4],
         b = [1, 2, 3, 5, 4],
         c = [4, 2, 1, 3, 5],
+        d = [1, [2], 3, [5, 1, [3]], 1, 2, [4]],
         index = 0,
         entry,
         array;
@@ -5388,6 +5405,10 @@ process.umask = function() { return 0; };
       expect(array).to.eql(a.slice().reverse().filter(function (item) {
         return item === 1;
       }));
+
+      // flatten
+      array = reiterate(d).values().flatten().toArray();
+      expect(array).to.eql(a);
     });
   });
 }());

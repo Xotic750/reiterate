@@ -32,6 +32,30 @@
         b = [1, 2, 3, 5, 4],
         c = [4, 2, 1, 3, 5],
         d = [1, 2, 3, 5, 1, 3, 1, 2, 4],
+        e = {
+          0: 1,
+          1: {
+            0: 2,
+            length: 1
+          },
+          2: 3,
+          3: 5,
+          4: {
+            0: 1,
+            1: 3,
+            2: {
+              0: 1,
+              length: 1
+            },
+            length: 3
+          },
+          5: 2,
+          6: {
+            0: 4,
+            length: 1
+          },
+          length: 7
+        },
         index = 0,
         entry,
         array;
@@ -125,6 +149,10 @@
       expect(array).to.eql(d.slice().reverse().filter(function (item) {
         return item === 1;
       }));
+
+      // flatten
+      array = reiterate(e, true).values().flatten(true).toArray();
+      expect(array).to.eql(d);
     });
   });
 }());

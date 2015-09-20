@@ -20,6 +20,7 @@
       var a = [1, 2, 3, 5, 1, 3, 1, 2, 4],
         b = [1, 2, 3, 5, 4],
         c = [4, 2, 1, 3, 5],
+        d = [1, [2], 3, [5, 1, [3]], 1, 2, [4]],
         index = 0,
         entry,
         array;
@@ -113,6 +114,10 @@
       expect(array).to.eql(a.slice().reverse().filter(function (item) {
         return item === 1;
       }));
+
+      // flatten
+      array = reiterate(d).values().flatten().toArray();
+      expect(array).to.eql(a);
     });
   });
 }());
