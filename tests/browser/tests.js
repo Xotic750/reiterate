@@ -5379,22 +5379,48 @@ process.umask = function() { return 0; };
           [6, 'C'],
           [7, '\uD835\uDC6A']
         ],
-        array = reiterate(a).values().toArray();
+        e = b.map(function (item) {
+          return item.codePointAt();
+        }),
+        array = reiterate(a).values().toArray(),
+        string = reiterate(a).values().stringify(),
+        iterator = reiterate(a).values().map(function (item) {
+          return item.codePointAt();
+        }),
+        index = 0,
+        entry;
 
       // forward
+      expect(string).to.be(a);
       expect(array).to.eql(b);
       array = reiterate(a).keys().toArray();
       expect(array).to.eql(c);
       array = reiterate(a).entries().toArray();
       expect(array).to.eql(d);
+      for (entry of iterator) {
+        expect(entry).to.be(e[index]);
+        index += 1;
+      }
 
       // reverse
+      string = reiterate(a).values().reverse().stringify();
+      b.reverse();
+      expect(string).to.be(b.join(''));
       array = reiterate(a).values().reverse().toArray();
-      expect(array).to.eql(b.reverse());
+      expect(array).to.eql(b);
       array = reiterate(a).keys().reverse().toArray();
       expect(array).to.eql(c.reverse());
       array = reiterate(a).entries().reverse().toArray();
       expect(array).to.eql(d.reverse());
+      iterator = reiterate(a).values().reverse().map(function (item) {
+        return item.codePointAt();
+      });
+
+      index = b.length - 1;
+      for (entry of iterator) {
+        expect(entry).to.be(e[index]);
+        index -= 1;
+      }
     });
   });
 }());
