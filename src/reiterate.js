@@ -1,5 +1,6 @@
 /**
- * @file {@link @@HOMEPAGE @@MODULE}. @@DESCRIPTION.
+ * @file {@link @@HOMEPAGE @@MODULE}
+ * @@DESCRIPTION
  * @version @@VERSION
  * @author @@AUTHORNAME <@@AUTHOREMAIL>
  * @copyright @@COPYRIGHT @@AUTHORNAME
@@ -12,7 +13,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:200,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:60,
     maxcomplexity:6
 */
 
@@ -21,16 +22,16 @@
 */
 
 /*property
-    ARRAY, BY, ENTRIES, FROM, FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER,
-    METHODDESCRIPTOR, MIN_SAFE_INTEGER, NUMBER, OWN, Object, REVERSED, SET,
-    STARTED, STRING, STRINGTAG, SYMBOL, TO, TYPE, UNDEFINED, VALUES,
+    ARRAY, FUNCTION, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR, MIN_SAFE_INTEGER,
+    NUMBER, Object, SET, STRING, STRINGTAG, TYPE, UNDEFINED,
     VARIABLEDESCRIPTOR, abs, amd, bind, call, charCodeAt, clamp,
     clampToSafeIntegerRange, configurable, defineProperty, enumerable, exports,
-    floor, for, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isCircular,
+    floor, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isCircular,
     isFinite, isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
     isSurrogatePair, isUndefined, lastIndex, length, max, min, mustBeFunction,
     mustBeFunctionIfDefined, prototype, setMethod, setProperty, setVariable,
-    sign, toInteger, toSafeInteger, toString, toStringTag, value, writable
+    sign, toArray, toInteger, toSafeInteger, toString, toStringTag, value,
+    writable
 */
 
 // UMD (Universal Module Definition)
@@ -48,11 +49,11 @@
     module.exports = factory();
   } else {
     // Browser globals (root is window)
-    if (root.hasOwnProperty('reiterate')) {
-      throw new Error('Unable to define "reiterate"');
+    if (root.hasOwnProperty('@@MODULE')) {
+      throw new Error('Unable to define "@@MODULE"');
     }
 
-    Object.defineProperty(root, 'reiterate', {
+    Object.defineProperty(root, '@@MODULE', {
       enumerable: false,
       writable: true,
       configurable: true,
@@ -89,17 +90,6 @@
         writable: true,
         configurable: false,
         value: undefined
-      },
-      SYMBOL: {
-        ENTRIES: Symbol.for('entries'),
-        KEYS: Symbol.for('keys'),
-        VALUES: Symbol.for('values'),
-        STARTED: Symbol.for('started'),
-        REVERSED: Symbol.for('reversed'),
-        OWN: Symbol.for('own'),
-        FROM: Symbol.for('from'),
-        TO: Symbol.for('to'),
-        BY: Symbol.for('by')
       }
     },
     _ = {
@@ -142,42 +132,6 @@
         /*jshint eqnull:true */
         return subject == null;
       },
-
-      /**
-       * The abstract operation throws an error if its argument is a value that
-       * cannot be  converted to an Object, otherwise returns the argument.
-       *
-       * @private
-       * @param {*} inputArg
-       * @throws {TypeError} If inputArg is null or undefined.
-       * @return {*}
-       * @see http://www.ecma-international.org/ecma-262/6.0/
-       *      #sec-requireobjectcoercible
-       */
-      /*
-      requireObjectCoercible: function (subject) {
-        if (_.isNil(subject)) {
-          throw new TypeError('Cannot convert undefined or null to object');
-        }
-
-        return subject;
-      },
-      */
-
-      /**
-       * The abstract operation converts its argument to a value of type Object.
-       *
-       * @private
-       * @param {*} subject
-       * @throws {TypeError} If subject is null or undefined.
-       * @return {Object}
-       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-toobject
-       */
-      /*
-      toObject: function (subject) {
-        return _.Object(_.requireObjectCoercible(subject));
-      },
-      */
 
       /**
        * The function evaluates the passed value and converts it to an integer.
@@ -449,221 +403,217 @@
 
         return false;
       }
+    },
+    p = {
+      toArray: function (mapFn, thisArg) {
+        var result,
+          item;
+
+        _.mustBeFunctionIfDefined(mapFn, 'mapFn');
+        for (item of this) {
+          if (!result) {
+            result = [];
+          }
+
+          result.push(mapFn ? mapFn.call(thisArg, this, item) : item);
+        }
+
+        return result;
+      },
+
+      uniqueGenerator: function* () {
+        var seen,
+          item;
+
+        for (item of this) {
+          if (!seen) {
+            seen = new Set();
+          }
+
+          if (!seen.has(item)) {
+            seen.add(item, true);
+            yield item;
+          }
+        }
+      },
+
+      flattenGenerator: function* (relaxed) {
+        var stack,
+          object,
+          value,
+          tail;
+
+        for (object of this) {
+          if (_.isArray(object, relaxed)) {
+            stack = new Map().set(object, {
+              index: 0,
+              prev: null
+            });
+          } else {
+            yield object;
+          }
+
+          while (stack && stack.size) {
+            tail = stack.get(object);
+            if (tail.index >= object.length) {
+              stack.delete(object);
+              object = tail.prev;
+            } else {
+              value = object[tail.index];
+              if (_.isArray(value, relaxed)) {
+                _.isCircular(this, stack, value);
+                stack.set(value, {
+                  index: 0,
+                  prev: object
+                });
+
+                object = value;
+              } else {
+                yield value;
+              }
+
+              tail.index += 1;
+            }
+          }
+        }
+      },
+
+      walkOwnGenerator: function* () {
+        var stack = new Map(),
+          object,
+          value,
+          tail,
+          key;
+
+        for (object of this) {
+          if (_.isObject(object)) {
+            stack.set(object, {
+              keys: Object.keys(object),
+              index: 0,
+              prev: null
+            });
+          } else {
+            yield object;
+          }
+
+          while (stack.size) {
+            tail = stack.get(object);
+            if (tail.index >= tail.keys.length) {
+              stack.delete(object);
+              object = tail.prev;
+            } else {
+              key = tail.keys[tail.index];
+              value = object[key];
+              if (_.isObject(value)) {
+                _.isCircular(this, stack, value);
+                stack.set(value, {
+                  keys: Object.keys(value),
+                  index: 0,
+                  prev: object
+                });
+
+                object = value;
+              } else {
+                yield value;
+              }
+
+              tail.index += 1;
+            }
+          }
+        }
+      },
+
+      mapGenerator: function* (callback, thisArg) {
+        _.mustBeFunction(callback);
+        for (var element of this) {
+          yield callback.call(thisArg, element, this);
+        }
+      },
+
+      filterGenerator: function* (callback, thisArg) {
+        _.mustBeFunction(callback);
+        for (var element of this) {
+          if (callback.call(thisArg, element, this)) {
+            yield element;
+          }
+        }
+      },
+
+      reduce: function (callback, initialValue) {
+        _.mustBeFunction(callback);
+        for (var element of this) {
+          initialValue = callback(initialValue, element, this);
+        }
+
+        return initialValue;
+      },
+
+      forEach: function (callback, thisArg) {
+        _.mustBeFunction(callback);
+        for (var element of this) {
+          callback.call(thisArg, element, this);
+        }
+      },
+
+      every: function (callback, thisArg) {
+        var result,
+          element;
+
+        _.mustBeFunction(callback);
+        result = true;
+        for (element of this) {
+          if (!callback.call(thisArg, element, this)) {
+            result = false;
+            break;
+          }
+        }
+
+        return result;
+      },
+
+      stringify: function (mapFn, thisArg) {
+        var result,
+          item;
+
+        _.mustBeFunctionIfDefined(mapFn, 'mapFn');
+        result = '';
+        for (item of this) {
+          result += mapFn ? mapFn.call(thisArg, this, item) : item;
+        }
+
+        return result;
+      },
+
+      then: function (generator) {
+        var iterator;
+
+        if (!_.isFunction(generator)) {
+          if (!_.isUndefined(generator)) {
+            throw new TypeError(
+              'If not undefined, generator must be a function'
+            );
+          }
+
+          iterator = this;
+        } else {
+          iterator = generator(this);
+          _.setMethod(iterator, 'filter', p.filterGenerator);
+          _.setMethod(iterator, 'map', p.mapGenerator);
+          _.setMethod(iterator, 'unique', p.uniqueGenerator);
+          _.setMethod(iterator, 'iterate', iterateGenerator);
+          _.setMethod(iterator, 'enumerate', EnumerateGenerator);
+          _.setMethod(iterator, 'then', p.then);
+          _.setMethod(iterator, 'toArray', p.toArray);
+          _.setMethod(iterator, 'stringify', p.stringify);
+          _.setMethod(iterator, 'flatten', p.flattenGenerator);
+          _.setMethod(iterator, 'reduce', p.reduce);
+          _.setMethod(iterator, 'forEach', p.forEach);
+          _.setMethod(iterator, 'every', p.every);
+        }
+
+        return iterator;
+      }
     };
-
-  /*
-   * define iterators
-   */
-
-  /*
-   * toArray
-   */
-
-  function toArray(mapFn, thisArg) {
-    var result,
-      item;
-
-    _.mustBeFunctionIfDefined(mapFn, 'mapFn');
-    /*jshint validthis:true */
-    for (item of this) {
-      if (!result) {
-        result = [];
-      }
-
-      result.push(mapFn ? mapFn.call(thisArg, this, item) : item);
-    }
-
-    return result;
-  }
-
-  /*
-   * unique
-   */
-
-  function* uniqueGenerator() {
-    var seen,
-      item;
-
-    /*jshint validthis:true */
-    for (item of this) {
-      if (!seen) {
-        seen = new Set();
-      }
-
-      if (!seen.has(item)) {
-        seen.add(item, true);
-        yield item;
-      }
-    }
-  }
-
-  /*
-   * flatten
-   */
-
-  function* flattenGenerator(relaxed) {
-    var stack,
-      object,
-      value,
-      tail;
-
-    /*jshint validthis:true */
-    for (object of this) {
-      if (_.isArray(object, relaxed)) {
-        stack = new Map().set(object, {
-          index: 0,
-          prev: null
-        });
-      } else {
-        yield object;
-      }
-
-      while (stack && stack.size) {
-        tail = stack.get(object);
-        if (tail.index >= object.length) {
-          stack.delete(object);
-          object = tail.prev;
-        } else {
-          value = object[tail.index];
-          if (_.isArray(value, relaxed)) {
-            /*jshint validthis:true */
-            _.isCircular(this, stack, value);
-            stack.set(value, {
-              index: 0,
-              prev: object
-            });
-
-            object = value;
-          } else {
-            yield value;
-          }
-
-          tail.index += 1;
-        }
-      }
-    }
-  }
-
-  /*
-   * walkOwn
-   */
-
-  /*
-  function* WalkOwnGenerator() {
-    var stack = new Map(),
-      object,
-      value,
-      tail,
-      key;
-
-    for (object of this) {
-      if (_.isObject(object)) {
-        stack.set(object, {
-          keys: Object.keys(object),
-          index: 0,
-          prev: null
-        });
-      } else {
-        yield object;
-      }
-
-      while (stack.size) {
-        tail = stack.get(object);
-        if (tail.index >= tail.keys.length) {
-          stack.delete(object);
-          object = tail.prev;
-        } else {
-          key = tail.keys[tail.index];
-          value = object[key];
-          if (_.isObject(value)) {
-            _.isCircular(this, stack, value);
-            stack.set(value, {
-              keys: Object.keys(value),
-              index: 0,
-              prev: object
-            });
-
-            object = value;
-          } else {
-            yield value;
-          }
-
-          tail.index += 1;
-        }
-      }
-    }
-  }
-  */
-
-  /*
-   * iterator execution
-   */
-
-  function getYieldValue(opts, object, key) {
-    var result,
-      value;
-
-    if (opts.keys) {
-      result = key;
-    } else {
-      value = object[key];
-      if (opts.values) {
-        result = value;
-      } else {
-        result = [key, value];
-      }
-    }
-
-    return result;
-  }
-
-  function* mapGenerator(callback, thisArg) {
-    _.mustBeFunction(callback);
-    /*jshint validthis:true */
-    for (var element of this) {
-      yield callback.call(thisArg, element, this);
-    }
-  }
-
-  /*
-   * filter
-   */
-
-  function* filterGenerator(callback, thisArg) {
-    _.mustBeFunction(callback);
-    /*jshint validthis:true */
-    for (var element of this) {
-      if (callback.call(thisArg, element, this)) {
-        yield element;
-      }
-    }
-  }
-
-  function then(generator) {
-    /*jshint validthis:true */
-    var iterator;
-
-    if (!_.isFunction(generator)) {
-      if (!_.isUndefined(generator)) {
-        throw new TypeError('If not undefined, generator must be a function');
-      }
-
-      iterator = this;
-    } else {
-      iterator = generator(this);
-      _.setMethod(iterator, 'filter', filterGenerator);
-      _.setMethod(iterator, 'map', mapGenerator);
-      _.setMethod(iterator, 'unique', uniqueGenerator);
-      _.setMethod(iterator, 'iterate', iterateGenerator);
-      _.setMethod(iterator, 'enumerate', EnumerateGenerator);
-      _.setMethod(iterator, 'then', then);
-      _.setMethod(iterator, 'toArray', toArray);
-      _.setMethod(iterator, 'stringify', stringify);
-      _.setMethod(iterator, 'flatten', flattenGenerator);
-    }
-
-    return iterator;
-  }
 
   /*
    * counter
@@ -767,14 +717,34 @@
     });
   }
 
-  _.setMethod(CounterGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(CounterGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(CounterGenerator.prototype, 'toArray', toArray);
-  _.setMethod(CounterGenerator.prototype, 'then', then);
+  _.setMethod(CounterGenerator.prototype, 'map', p.mapGenerator);
+  _.setMethod(CounterGenerator.prototype, 'filter', p.filterGenerator);
+  _.setMethod(CounterGenerator.prototype, 'toArray', p.toArray);
+  _.setMethod(CounterGenerator.prototype, 'then', p.then);
+  _.setMethod(CounterGenerator.prototype, 'reduce', p.reduce);
+  _.setMethod(CounterGenerator.prototype, 'forEach', p.forEach);
 
   /*
    * arrayEntries
    */
+
+  function getYieldValue(opts, object, key) {
+    var result,
+      value;
+
+    if (opts.keys) {
+      result = key;
+    } else {
+      value = object[key];
+      if (opts.values) {
+        result = value;
+      } else {
+        result = [key, value];
+      }
+    }
+
+    return result;
+  }
 
   function* arrayGenerator(subject, opts) {
     var generator = new CounterGenerator(),
@@ -838,30 +808,19 @@
     });
   }
 
-  _.setMethod(ArrayGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(ArrayGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(ArrayGenerator.prototype, 'toArray', toArray);
-  _.setMethod(ArrayGenerator.prototype, 'then', then);
-  _.setMethod(ArrayGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(ArrayGenerator.prototype, 'flatten', flattenGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'map', p.mapGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'filter', p.filterGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'toArray', p.toArray);
+  _.setMethod(ArrayGenerator.prototype, 'then', p.then);
+  _.setMethod(ArrayGenerator.prototype, 'unique', p.uniqueGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'flatten', p.flattenGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'reduce', p.reduce);
+  _.setMethod(ArrayGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(ArrayGenerator.prototype, 'every', p.every);
 
   /*
    * stringEntries
    */
-
-  function stringify(mapFn, thisArg) {
-    var result,
-      item;
-
-    _.mustBeFunctionIfDefined(mapFn, 'mapFn');
-    result = '';
-    /*jshint validthis:true */
-    for (item of this) {
-      result += mapFn ? mapFn.call(thisArg, this, item) : item;
-    }
-
-    return result;
-  }
 
   function getStringYieldValue(opts, character, key) {
     var value,
@@ -965,12 +924,15 @@
     });
   }
 
-  _.setMethod(StringGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(StringGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(StringGenerator.prototype, 'toArray', toArray);
-  _.setMethod(StringGenerator.prototype, 'then', then);
-  _.setMethod(StringGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(StringGenerator.prototype, 'stringify', stringify);
+  _.setMethod(StringGenerator.prototype, 'map', p.mapGenerator);
+  _.setMethod(StringGenerator.prototype, 'filter', p.filterGenerator);
+  _.setMethod(StringGenerator.prototype, 'toArray', p.toArray);
+  _.setMethod(StringGenerator.prototype, 'then', p.then);
+  _.setMethod(StringGenerator.prototype, 'unique', p.uniqueGenerator);
+  _.setMethod(StringGenerator.prototype, 'stringify', p.stringify);
+  _.setMethod(StringGenerator.prototype, 'reduce', p.reduce);
+  _.setMethod(StringGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(StringGenerator.prototype, 'every', p.every);
 
   /*
    * enumerate
@@ -1036,13 +998,16 @@
     });
   }
 
-  _.setMethod(EnumerateGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(EnumerateGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(EnumerateGenerator.prototype, 'toArray', toArray);
-  _.setMethod(EnumerateGenerator.prototype, 'then', then);
-  _.setMethod(EnumerateGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(EnumerateGenerator.prototype, 'flatten', flattenGenerator);
-  _.setMethod(EnumerateGenerator.prototype, 'stringify', stringify);
+  _.setMethod(EnumerateGenerator.prototype, 'map', p.mapGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'filter', p.filterGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'toArray', p.toArray);
+  _.setMethod(EnumerateGenerator.prototype, 'then', p.then);
+  _.setMethod(EnumerateGenerator.prototype, 'unique', p.uniqueGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'flatten', p.flattenGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'stringify', p.stringify);
+  _.setMethod(EnumerateGenerator.prototype, 'reduce', p.reduce);
+  _.setMethod(EnumerateGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(EnumerateGenerator.prototype, 'every', p.every);
 
   function* mapObjectGenerator() {
     if (true) {
@@ -1059,6 +1024,47 @@
 
     yield undefined;
   }
+
+  function* iterateGenerator(relaxed) {
+    var value,
+      tag;
+
+    /*jshint validthis:true */
+    for (value of this) {
+      if (_.isArray(value, relaxed)) {
+        yield * new ArrayGenerator(value);
+      } else if (_.isString(value)) {
+        yield * new StringGenerator(value);
+      } else {
+        tag = _.toStringTag(value);
+        if (tag === $.MAPTAG) {
+          yield * mapObjectGenerator(value);
+        } else if (tag === $.SETTAG) {
+          yield * setObjectGenerator(value);
+        }
+      }
+    }
+  }
+
+  function addMethods(object) {
+    _.setMethod(object, 'filter', p.filterGenerator);
+    _.setMethod(object, 'map', p.mapGenerator);
+    _.setMethod(object, 'unique', p.uniqueGenerator);
+    _.setMethod(object, 'iterate', iterateGenerator);
+    _.setMethod(object, 'enumerate', EnumerateGenerator);
+    _.setMethod(object, 'then', p.then);
+    _.setMethod(object, 'toArray', p.toArray);
+    _.setMethod(object, 'flatten', p.flattenGenerator);
+    _.setMethod(object, 'reduce', p.reduce);
+    _.setMethod(object, 'forEach', p.forEach);
+    _.setMethod(object, 'every', p.every);
+  }
+
+  addMethods(p.mapGenerator.prototype);
+  addMethods(p.filterGenerator.prototype);
+  addMethods(p.uniqueGenerator.prototype);
+  addMethods(p.flattenGenerator.prototype);
+  addMethods(iterateGenerator.prototype);
 
   function makeCounterGenerator(subject, to, by) {
     var generator = new CounterGenerator();
@@ -1093,7 +1099,7 @@
     return generator;
   }
 
-  function Reiterate(subject, to, by) {
+  return function Reiterate(subject, to, by) {
     if (!(this instanceof Reiterate)) {
       return new Reiterate(subject, to, by);
     }
@@ -1111,139 +1117,5 @@
     }
 
     return generator;
-  }
-
-  function* iterateGenerator(relaxed) {
-    var value,
-      tag;
-
-    /*jshint validthis:true */
-    for (value of this) {
-      if (_.isArray(value, relaxed)) {
-        yield * new ArrayGenerator(value);
-      } else if (_.isString(value)) {
-        yield * new StringGenerator(value);
-      } else {
-        tag = _.toStringTag(value);
-        if (tag === $.MAPTAG) {
-          yield * mapObjectGenerator(value);
-        } else if (tag === $.SETTAG) {
-          yield * setObjectGenerator(value);
-        }
-      }
-    }
-  }
-
-  /*
-   * reduce
-   */
-
-  /*
-  _.setMethod(Reiterate, 'reduce', function (subject, callback, initialValue) {
-    var object = _.requireObjectCoercible(subject),
-      element,
-      index;
-
-    _.mustBeFunction(callback);
-    index = 0;
-    for (element of object) {
-      initialValue = callback(initialValue, element, index, object);
-      index += 1;
-    }
-
-    return initialValue;
-  });
-  */
-
-  /*
-   * forEach
-   */
-
-  /*
-  _.setMethod(Reiterate, 'forEach', function (subject, callback, thisArg) {
-    var object = _.requireObjectCoercible(subject),
-      element,
-      index;
-
-    _.mustBeFunction(callback);
-    index = 0;
-    for (element of object) {
-      callback.call(thisArg, element, index, object);
-      index += 1;
-    }
-  });
-  */
-
-  /*
-   * every
-   */
-
-  /*
-  _.setMethod(Reiterate, 'every', function (subject, callback, thisArg) {
-    var object = _.requireObjectCoercible(subject),
-      result,
-      element,
-      index;
-
-    _.mustBeFunction(callback);
-    result = true;
-    index = 0;
-    for (element of object) {
-      if (!callback.call(thisArg, element, index, object)) {
-        result = false;
-        break;
-      }
-
-      index += 1;
-    }
-
-    return result;
-  });
-  */
-  _.setMethod(mapGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(mapGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(mapGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(mapGenerator.prototype, 'iterate', iterateGenerator);
-  _.setMethod(mapGenerator.prototype, 'enumerate', EnumerateGenerator);
-  _.setMethod(mapGenerator.prototype, 'then', then);
-  _.setMethod(mapGenerator.prototype, 'toArray', toArray);
-  _.setMethod(mapGenerator.prototype, 'flatten', flattenGenerator);
-
-  _.setMethod(filterGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(filterGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(filterGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(filterGenerator.prototype, 'iterate', iterateGenerator);
-  _.setMethod(filterGenerator.prototype, 'enumerate', EnumerateGenerator);
-  _.setMethod(filterGenerator.prototype, 'then', then);
-  _.setMethod(filterGenerator.prototype, 'toArray', toArray);
-  _.setMethod(filterGenerator.prototype, 'flatten', flattenGenerator);
-
-  _.setMethod(iterateGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(iterateGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(iterateGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(iterateGenerator.prototype, 'iterate', iterateGenerator);
-  _.setMethod(iterateGenerator.prototype, 'enumerate', EnumerateGenerator);
-  _.setMethod(iterateGenerator.prototype, 'then', then);
-  _.setMethod(iterateGenerator.prototype, 'toArray', toArray);
-  _.setMethod(iterateGenerator.prototype, 'flatten', flattenGenerator);
-
-  _.setMethod(uniqueGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(uniqueGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(uniqueGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(uniqueGenerator.prototype, 'iterate', iterateGenerator);
-  _.setMethod(uniqueGenerator.prototype, 'enumerate', EnumerateGenerator);
-  _.setMethod(uniqueGenerator.prototype, 'then', then);
-  _.setMethod(uniqueGenerator.prototype, 'toArray', toArray);
-  _.setMethod(uniqueGenerator.prototype, 'flatten', flattenGenerator);
-
-  _.setMethod(flattenGenerator.prototype, 'filter', filterGenerator);
-  _.setMethod(flattenGenerator.prototype, 'map', mapGenerator);
-  _.setMethod(flattenGenerator.prototype, 'unique', uniqueGenerator);
-  _.setMethod(flattenGenerator.prototype, 'iterate', iterateGenerator);
-  _.setMethod(flattenGenerator.prototype, 'enumerate', EnumerateGenerator);
-  _.setMethod(flattenGenerator.prototype, 'then', then);
-  _.setMethod(flattenGenerator.prototype, 'toArray', toArray);
-  _.setMethod(flattenGenerator.prototype, 'flatten', flattenGenerator);
-
-  return Reiterate;
+  };
 }));
