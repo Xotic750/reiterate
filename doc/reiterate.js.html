@@ -41,7 +41,7 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:200,
-    maxcomplexity:7
+    maxcomplexity:6
 */
 
 /*global
@@ -52,14 +52,13 @@
     ARRAY, BY, ENTRIES, FROM, FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER,
     METHODDESCRIPTOR, MIN_SAFE_INTEGER, NUMBER, OWN, Object, REVERSED, SET,
     STARTED, STRING, STRINGTAG, SYMBOL, TO, TYPE, UNDEFINED, VALUES,
-    VARIABLEDESCRIPTOR, abs, amd, bind, call, canNotBeChanged, charCodeAt,
-    checkcallback, clamp, configurable, defineProperty, enumerable, exports,
-    floor, for, has, hasOwn, hasOwnProperty, hideMethod, isArray, isArrayLike,
-    isCircular, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
-    isObject, isString, isSurrogatePair, isUndefined, lastIndex, length, max,
-    min, mustBeAfunction, prototype, setMethod, setProperty, setVariable, sign,
-    toInteger, toSafeInteger, toString, toStringTag, toValidCount, value,
-    writable
+    VARIABLEDESCRIPTOR, abs, amd, bind, call, charCodeAt, clamp,
+    clampToSafeIntegerRange, configurable, defineProperty, enumerable, exports,
+    floor, for, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isCircular,
+    isFinite, isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
+    isSurrogatePair, isUndefined, lastIndex, length, max, min, mustBeFunction,
+    mustBeFunctionIfDefined, prototype, setMethod, setProperty, setVariable,
+    sign, toInteger, toSafeInteger, toString, toStringTag, value, writable
 */
 
 // UMD (Universal Module Definition)
@@ -346,9 +345,10 @@
        * 'relaxed' is true then 'isArrayLike' is used for the test.
        *
        * @private
-       * @param {*} subject The object to be tested.
+       * @param {*} subject The argument to be tested.
        * @param {boolean} [relaxed] Use isArrayLike rather than isArray
-       * @return {boolean}
+       * @return {boolean} True if an array, or if relaxed and array-like,
+       *                   otherwise false.
        * @see http://www.ecma-international.org/ecma-262/6.0/#sec-isarray
        */
       isArray: function (subject, relaxed) {
@@ -368,7 +368,7 @@
        *
        * @private
        * @param {*} subject The object to get the last index of.
-       * @return {number} Returns the last index number of the array.like or 0.
+       * @return {number} Returns the last index number of the array-like or 0.
        */
       lastIndex: function (subject) {
         return _.isArrayLike(subject) &amp;&amp;
@@ -380,27 +380,12 @@
        * Returns true if the operand subject is an Object.
        *
        * @private
-       * @param {*} subject
-       * @return {boolean}
+       * @param {*} subject The argument to test for validity.
+       * @return {boolean} true if an object, otherwise false.
        */
       isObject: function (subject) {
         return _.Object(subject) === subject;
       },
-
-      /**
-       * Returns a string only if the arguments is coercible otherwise throws an
-       * error.
-       *
-       * @private
-       * @param {*} subject
-       * @throws {TypeError} If subject is null or undefined.
-       * @return {string}
-       */
-      /*
-      onlyCoercibleToString: function (subject) {
-        return String(_.requireObjectCoercible(subject));
-      },
-      */
 
       /**
        * Tests if the two character arguments combined are a valid UTF-16
@@ -409,8 +394,8 @@
        * @private
        * @param {*} char1 The first character of a suspected surrogate pair.
        * @param {*} char2 The second character of a suspected surrogate pair.
-       * @return {number} Returns true if the two characters create a valid
-       *                  UTF-16 surrogate pair; otherwise false.
+       * @return {boolean} Returns true if the two characters create a valid
+       *                   UTF-16 surrogate pair; otherwise false.
        */
       isSurrogatePair: function (char1, char2) {
         var result = false,
@@ -430,29 +415,51 @@
         return result;
       },
 
-      checkcallback: function (callback) {
-        if (!_.isFunction(callback)) {
-          throw new TypeError('callback must be a function');
+      /**
+       * Tests the subject to see if it is a function and throws an error if it
+       * is not.
+       *
+       * @private
+       * @param {*} subject The argument to test for validity.
+       * @throws {TypeError} If subject is not a function
+       * @return {*} Returns the subject if passes.
+       */
+      mustBeFunction: function (subject) {
+        if (!_.isFunction(subject)) {
+          throw new TypeError('argument must be a function');
         }
 
-        return callback;
+        return subject;
       },
 
-      mustBeAfunction: function (subject, name) {
+      /**
+       * Tests the subject to see if it is undefined, if not then the subject
+       * must be a function, otherwise throw an error.
+       *
+       * @private
+       * @param {*} subject The argument to test for validity
+       * @throws {TypeError} If subject is not undefined and  is not a function.
+       * @return {*} Returns the subject if passes.
+       */
+      mustBeFunctionIfDefined: function (subject, name) {
         if (!_.isUndefined(subject) &amp;&amp; !_.isFunction(subject)) {
           throw new TypeError(
             'If not undefined, ' + name + ' must be a function'
           );
         }
+
+        return subject;
       },
 
-      canNotBeChanged: function (thisArg, name) {
-        if (thisArg[$.SYMBOL.STARTED]) {
-          throw new TypeError(name + ' can not be changed.');
-        }
-      },
-
-      toValidCount: function (subject) {
+      /**
+       * Converts the subject into a safe number within the max and min safe
+       * integer range.
+       *
+       * @private
+       * @param {*} subject The argument to be converted.
+       * @return {number} Returns a safe number in range.
+       */
+      clampToSafeIntegerRange: function (subject) {
         var num = +subject,
           val = 0;
 
@@ -461,12 +468,6 @@
         }
 
         return val;
-      },
-
-      hideMethod: function (thisArg, name) {
-        if (thisArg[name]) {
-          _.setVariable(thisArg, name, undefined);
-        }
       },
 
       isCircular: function (thisArg, stack, value) {
@@ -490,10 +491,13 @@
     var result,
       item;
 
-    _.mustBeAfunction(mapFn, 'mapFn');
-    result = [];
+    _.mustBeFunctionIfDefined(mapFn, 'mapFn');
     /*jshint validthis:true */
     for (item of this) {
+      if (!result) {
+        result = [];
+      }
+
       result.push(mapFn ? mapFn.call(thisArg, this, item) : item);
     }
 
@@ -504,38 +508,37 @@
    * unique
    */
 
-  function* UniqueGenerator(thisArg) {
-    var seen = new Set(),
-      item,
-      value;
+  function* uniqueGenerator() {
+    var seen,
+      item;
 
-    for (item of thisArg) {
-      value = item;
-      if (!seen.has(value)) {
-        seen.add(value, true);
+    /*jshint validthis:true */
+    for (item of this) {
+      if (!seen) {
+        seen = new Set();
+      }
+
+      if (!seen.has(item)) {
+        seen.add(item, true);
         yield item;
       }
     }
-  }
-
-  function unique() {
-    /*jshint validthis:true */
-    return new UniqueGenerator(this);
   }
 
   /*
    * flatten
    */
 
-  function* FlattenGenerator(thisArg, relaxed) {
-    var stack = new Map(),
+  function* flattenGenerator(relaxed) {
+    var stack,
       object,
       value,
       tail;
 
-    for (object of thisArg) {
+    /*jshint validthis:true */
+    for (object of this) {
       if (_.isArray(object, relaxed)) {
-        stack.set(object, {
+        stack = new Map().set(object, {
           index: 0,
           prev: null
         });
@@ -543,7 +546,7 @@
         yield object;
       }
 
-      while (stack.size) {
+      while (stack &amp;&amp; stack.size) {
         tail = stack.get(object);
         if (tail.index >= object.length) {
           stack.delete(object);
@@ -551,7 +554,8 @@
         } else {
           value = object[tail.index];
           if (_.isArray(value, relaxed)) {
-            _.isCircular(thisArg, stack, value);
+            /*jshint validthis:true */
+            _.isCircular(this, stack, value);
             stack.set(value, {
               index: 0,
               prev: object
@@ -568,15 +572,11 @@
     }
   }
 
-  function flatten(relaxed) {
-    /*jshint validthis:true */
-    return new FlattenGenerator(this, relaxed);
-  }
-
   /*
    * walkOwn
    */
 
+  /*
   function* WalkOwnGenerator() {
     var stack = new Map(),
       object,
@@ -621,68 +621,21 @@
       }
     }
   }
-
-  function reverse() {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'reverse');
-    _.hideMethod(this, 'reverse');
-    _.setVariable(this, $.SYMBOL.REVERSED, true);
-
-    return this;
-  }
-
-  function entries() {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'entries');
-    _.hideMethod(this, 'entries');
-    _.hideMethod(this, 'values');
-    _.hideMethod(this, 'keys');
-    this[$.SYMBOL.ENTRIES] = true;
-    this[$.SYMBOL.KEYS] = false;
-    this[$.SYMBOL.VALUES] = false;
-
-    return this;
-  }
-
-  function values() {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'values');
-    _.hideMethod(this, 'entries');
-    _.hideMethod(this, 'values');
-    _.hideMethod(this, 'keys');
-    this[$.SYMBOL.ENTRIES] = false;
-    this[$.SYMBOL.KEYS] = false;
-    this[$.SYMBOL.VALUES] = true;
-
-    return this;
-  }
-
-  function keys() {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'values');
-    _.hideMethod(this, 'entries');
-    _.hideMethod(this, 'values');
-    _.hideMethod(this, 'keys');
-    this[$.SYMBOL.ENTRIES] = false;
-    this[$.SYMBOL.KEYS] = true;
-    this[$.SYMBOL.VALUES] = false;
-
-    return this;
-  }
+  */
 
   /*
    * iterator execution
    */
 
-  function getYieldValue(thisArg, object, key) {
+  function getYieldValue(opts, object, key) {
     var result,
       value;
 
-    if (thisArg[$.SYMBOL.KEYS]) {
+    if (opts.keys) {
       result = key;
     } else {
       value = object[key];
-      if (thisArg[$.SYMBOL.VALUES]) {
+      if (opts.values) {
         result = value;
       } else {
         result = [key, value];
@@ -692,59 +645,49 @@
     return result;
   }
 
-  function* MapGenerator(subject, callback, thisArg) {
-    for (var element of subject) {
-      yield callback.call(thisArg, element, subject);
-    }
-  }
-
-  function map(callback, thisArg) {
+  function* mapGenerator(callback, thisArg) {
+    _.mustBeFunction(callback);
     /*jshint validthis:true */
-    return new MapGenerator(this, _.checkcallback(callback), thisArg);
+    for (var element of this) {
+      yield callback.call(thisArg, element, this);
+    }
   }
 
   /*
    * filter
    */
 
-  function* FilterGenerator(subject, callback, thisArg) {
-    for (var element of subject) {
-      if (callback.call(thisArg, element, subject)) {
+  function* filterGenerator(callback, thisArg) {
+    _.mustBeFunction(callback);
+    /*jshint validthis:true */
+    for (var element of this) {
+      if (callback.call(thisArg, element, this)) {
         yield element;
       }
     }
   }
 
-  function filter(callback, thisArg) {
-    /*jshint validthis:true */
-    return new FilterGenerator(this, _.checkcallback(callback), thisArg);
-  }
-
-  function then(Generator) {
+  function then(generator) {
     /*jshint validthis:true */
     var iterator;
 
-    if (!_.isFunction(Generator)) {
-      if (!_.isUndefined(Generator)) {
-        throw new TypeError('If not undefined, Generator must be a function');
+    if (!_.isFunction(generator)) {
+      if (!_.isUndefined(generator)) {
+        throw new TypeError('If not undefined, generator must be a function');
       }
 
       iterator = this;
     } else {
-      iterator = new Generator(this);
-      _.setMethod(iterator, 'keys', keys);
-      _.setMethod(iterator, 'values', values);
-      _.setMethod(iterator, 'entries', entries);
-      _.setMethod(iterator, 'reverse', reverse);
-      _.setMethod(iterator, 'filter', filter);
-      _.setMethod(iterator, 'map', map);
-      _.setMethod(iterator, 'unique', unique);
-      _.setMethod(iterator, 'iterate', iterate);
-      _.setMethod(iterator, 'enumerate', enumerate);
+      iterator = generator(this);
+      _.setMethod(iterator, 'filter', filterGenerator);
+      _.setMethod(iterator, 'map', mapGenerator);
+      _.setMethod(iterator, 'unique', uniqueGenerator);
+      _.setMethod(iterator, 'iterate', iterateGenerator);
+      _.setMethod(iterator, 'enumerate', EnumerateGenerator);
       _.setMethod(iterator, 'then', then);
       _.setMethod(iterator, 'toArray', toArray);
       _.setMethod(iterator, 'stringify', stringify);
-      _.setMethod(iterator, 'flatten', flatten);
+      _.setMethod(iterator, 'flatten', flattenGenerator);
     }
 
     return iterator;
@@ -754,125 +697,181 @@
    * counter
    */
 
-  function setFrom(number) {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'from');
-    _.hideMethod(this, 'from');
-    _.setVariable(this, $.SYMBOL.FROM, _.toValidCount(number));
+  function* countReverseGenerator(opts) {
+    var count = opts.to;
 
-    return this;
-  }
-
-  function setTo(number) {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'to');
-    _.hideMethod(this, 'to');
-    _.setVariable(this, $.SYMBOL.TO, _.toValidCount(number));
-
-    return this;
-  }
-
-  function setBy(number) {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'by');
-    _.hideMethod(this, 'by');
-    _.setVariable(this, $.SYMBOL.BY, Math.abs(_.toValidCount(number)));
-    if (!this[$.SYMBOL.BY]) {
-      throw new TypeError('can not count by zero');
-    }
-
-    return this;
-  }
-
-  function* CountReverseGenerator(thisArg) {
-    var count = thisArg[$.SYMBOL.TO];
-
-    if (thisArg[$.SYMBOL.TO] &lt;= thisArg[$.SYMBOL.FROM]) {
-      while (count &lt;= thisArg[$.SYMBOL.FROM]) {
+    if (opts.to &lt;= opts.from) {
+      while (count &lt;= opts.from) {
         yield count;
-        count += thisArg[$.SYMBOL.BY];
+        count += opts.by;
       }
     } else {
-      while (count >= thisArg[$.SYMBOL.FROM]) {
+      while (count >= opts.from) {
         yield count;
-        count -= thisArg[$.SYMBOL.BY];
+        count -= opts.by;
       }
     }
   }
 
-  function* CountForwardGenerator(thisArg) {
-    var count = thisArg[$.SYMBOL.FROM];
+  function* countForwardGenerator(opts) {
+    var count = opts.from;
 
-    if (thisArg[$.SYMBOL.FROM] &lt;= thisArg[$.SYMBOL.TO]) {
-      while (count &lt;= thisArg[$.SYMBOL.TO]) {
+    if (opts.from &lt;= opts.to) {
+      while (count &lt;= opts.to) {
         yield count;
-        count += thisArg[$.SYMBOL.BY];
+        count += opts.by;
       }
     } else {
-      while (count >= thisArg[$.SYMBOL.TO]) {
+      while (count >= opts.to) {
         yield count;
-        count -= thisArg[$.SYMBOL.BY];
+        count -= opts.by;
       }
     }
   }
 
-  function* CountGenerator() {
-    var from,
-      to,
-      by;
-
-    _.setVariable(this, $.SYMBOL.STARTED, true);
-    if (_.isUndefined(this[$.SYMBOL.FROM])) {
-      from = 0;
+  function* countGenerator(opts) {
+    if (opts.reversed) {
+      yield * countReverseGenerator(opts);
     } else {
-      from = this[$.SYMBOL.FROM];
-    }
-
-    _.setVariable(this, $.SYMBOL.FROM, from);
-    if (_.isUndefined(this[$.SYMBOL.TO])) {
-      to = Number.MAX_SAFE_INTEGER;
-    } else {
-      to = this[$.SYMBOL.TO];
-    }
-
-    _.setVariable(this, $.SYMBOL.TO, to);
-    if (_.isUndefined(this[$.SYMBOL.BY])) {
-      by = 1;
-    } else {
-      by = this[$.SYMBOL.BY];
-    }
-
-    _.setVariable(this, $.SYMBOL.BY, by);
-    if (this[$.SYMBOL.REVERSED]) {
-      yield * new CountReverseGenerator(this);
-    } else {
-      yield * new CountForwardGenerator(this);
+      yield * countForwardGenerator(opts);
     }
   }
 
-  function setReversed(thisArg, iterator) {
-    if (thisArg[$.SYMBOL.REVERSED]) {
-      iterator.reverse();
+  function setReverseGenerator(opts, generator) {
+    if (opts.reversed) {
+      generator.reverse();
     }
 
-    return iterator;
+    return generator;
   }
+
+  function CounterGenerator() {
+    if (!(this instanceof CounterGenerator)) {
+      return new CounterGenerator();
+    }
+
+    var opts = {
+      reversed: false,
+      from: 0,
+      to: Number.MAX_SAFE_INTEGER,
+      by: 1
+    };
+
+    _.setMethod(this, 'state', function () {
+      return {
+        reversed: opts.reversed,
+        from: opts.from,
+        to: opts.to,
+        by: opts.by
+      };
+    });
+
+    _.setMethod(this, Symbol.iterator, function () {
+      return countGenerator(this.state());
+    });
+
+    _.setMethod(this, 'from', function (number) {
+      opts.from = _.clampToSafeIntegerRange(number);
+      return this;
+    });
+
+    _.setMethod(this, 'to', function (number) {
+      opts.to = _.clampToSafeIntegerRange(number);
+      return this;
+    });
+
+    _.setMethod(this, 'by', function (number) {
+      opts.by = Math.abs(_.clampToSafeIntegerRange(number));
+      if (!opts.by) {
+        throw new TypeError('can not count by zero');
+      }
+
+      return this;
+    });
+
+    _.setMethod(this, 'reverse', function () {
+      opts.reversed = !opts.reversed;
+      return this;
+    });
+  }
+
+  _.setMethod(CounterGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(CounterGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(CounterGenerator.prototype, 'toArray', toArray);
+  _.setMethod(CounterGenerator.prototype, 'then', then);
 
   /*
    * arrayEntries
    */
 
-  function* ArrayGenerator(subject, thisArg) {
-    var useThis = arguments.length > 1 ? thisArg : this,
-      counter = new CountGenerator(),
-      countIt = setReversed(useThis, counter.to(_.lastIndex(subject))),
+  function* arrayGenerator(subject, opts) {
+    var generator = new CounterGenerator(),
       key;
 
-    useThis[$.SYMBOL.STARTED] = true;
-    for (key of countIt) {
-      yield getYieldValue(useThis, subject, key);
+    setReverseGenerator(opts, generator.to(_.lastIndex(subject)));
+    for (key of generator) {
+      yield getYieldValue(opts, subject, key);
     }
   }
+
+  function ArrayGenerator(subject) {
+    if (!(this instanceof ArrayGenerator)) {
+      return new ArrayGenerator(subject);
+    }
+
+    var opts = {
+      reversed: false,
+      entries: true,
+      values: false,
+      keys: false,
+    };
+
+    _.setMethod(this, 'state', function () {
+      return {
+        reversed: opts.reversed,
+        entries: opts.entries,
+        values: opts.values,
+        keys: opts.keys
+      };
+    });
+
+    _.setMethod(this, Symbol.iterator, function () {
+      return arrayGenerator(subject, this.state());
+    });
+
+    _.setMethod(this, 'entries', function () {
+      opts.entries = true;
+      opts.values = false;
+      opts.keys = false;
+      return this;
+    });
+
+    _.setMethod(this, 'values', function () {
+      opts.entries = false;
+      opts.values = true;
+      opts.keys = false;
+      return this;
+    });
+
+    _.setMethod(this, 'keys', function () {
+      opts.entries = false;
+      opts.values = false;
+      opts.keys = true;
+      return this;
+    });
+
+    _.setMethod(this, 'reverse', function () {
+      opts.reversed = !opts.reversed;
+      return this;
+    });
+  }
+
+  _.setMethod(ArrayGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'toArray', toArray);
+  _.setMethod(ArrayGenerator.prototype, 'then', then);
+  _.setMethod(ArrayGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(ArrayGenerator.prototype, 'flatten', flattenGenerator);
 
   /*
    * stringEntries
@@ -882,7 +881,7 @@
     var result,
       item;
 
-    _.mustBeAfunction(mapFn, 'mapFn');
+    _.mustBeFunctionIfDefined(mapFn, 'mapFn');
     result = '';
     /*jshint validthis:true */
     for (item of this) {
@@ -892,15 +891,15 @@
     return result;
   }
 
-  function getStringYieldValue(thisArg, character, key) {
+  function getStringYieldValue(opts, character, key) {
     var value,
       result;
 
-    if (thisArg[$.SYMBOL.KEYS]) {
+    if (opts.keys) {
       result = key;
     } else {
       value = String.fromCodePoint(character.codePointAt(0));
-      if (thisArg[$.SYMBOL.VALUES]) {
+      if (opts.values) {
         result = value;
       } else {
         result = [key, value];
@@ -910,139 +909,216 @@
     return result;
   }
 
-  function* StringGenerator(subject, thisArg) {
-    var useThis = arguments.length > 1 ? thisArg : this,
-      counter = new CountGenerator(),
-      countIt = setReversed(useThis, counter.to(_.lastIndex(subject))),
+  function* stringGenerator(subject, opts) {
+    var generator = new CounterGenerator(opts),
       next = true,
       char1,
       char2,
       key;
 
-    useThis[$.SYMBOL.STARTED] = true;
-    for (key of countIt) {
+    setReverseGenerator(opts, generator.to(_.lastIndex(subject)));
+    for (key of generator) {
       if (next) {
-        if (useThis[$.SYMBOL.REVERSED]) {
+        if (opts.reversed) {
           char1 = subject[key - 1];
           char2 = subject[key];
           next = !_.isSurrogatePair(char1, char2);
           if (next) {
-            yield getStringYieldValue(useThis, char2, key);
+            yield getStringYieldValue(opts, char2, key);
           }
         } else {
           char1 = subject[key];
           char2 = subject[key + 1];
           next = !_.isSurrogatePair(char1, char2);
-          yield getStringYieldValue(useThis, char1 + char2, key);
+          yield getStringYieldValue(opts, char1 + char2, key);
         }
       } else {
         next = !next;
-        if (useThis[$.SYMBOL.REVERSED]) {
-          yield getStringYieldValue(useThis, char1 + char2, key);
+        if (opts.reversed) {
+          yield getStringYieldValue(opts, char1 + char2, key);
         }
       }
     }
   }
+
+  function StringGenerator(subject) {
+    if (!(this instanceof StringGenerator)) {
+      return new StringGenerator(subject);
+    }
+
+    var opts = {
+      reversed: false,
+      entries: true,
+      values: false,
+      keys: false,
+    };
+
+    _.setMethod(this, 'state', function () {
+      return {
+        reversed: opts.reversed,
+        entries: opts.entries,
+        values: opts.values,
+        keys: opts.keys
+      };
+    });
+
+    _.setMethod(this, Symbol.iterator, function () {
+      return stringGenerator(subject, this.state());
+    });
+
+    _.setMethod(this, 'entries', function () {
+      opts.entries = true;
+      opts.values = false;
+      opts.keys = false;
+      return this;
+    });
+
+    _.setMethod(this, 'values', function () {
+      opts.entries = false;
+      opts.values = true;
+      opts.keys = false;
+      return this;
+    });
+
+    _.setMethod(this, 'keys', function () {
+      opts.entries = false;
+      opts.values = false;
+      opts.keys = true;
+      return this;
+    });
+
+    _.setMethod(this, 'reverse', function () {
+      opts.reversed = !opts.reversed;
+      return this;
+    });
+  }
+
+  _.setMethod(StringGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(StringGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(StringGenerator.prototype, 'toArray', toArray);
+  _.setMethod(StringGenerator.prototype, 'then', then);
+  _.setMethod(StringGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(StringGenerator.prototype, 'stringify', stringify);
 
   /*
    * enumerate
    */
 
-  function setOwn() {
-    /*jshint validthis:true */
-    _.canNotBeChanged(this, 'own');
-    _.hideMethod(this, 'own');
-    _.setVariable(this, $.SYMBOL.OWN, true);
-
-    return this;
-  }
-
-  function* ForInGenerator(thisArg, subject) {
-    var key,
-      own;
-
-    if (_.isUndefined(thisArg[$.SYMBOL.OWN])) {
-      own = false;
-    } else {
-      own = thisArg[$.SYMBOL.OWN];
-    }
-
-    for (key in subject) {
-      if (!own || _.hasOwn(subject, key)) {
-        yield getYieldValue(thisArg, subject, key);
+  function* enumerateGenerator(subject, opts) {
+    for (var key in subject) {
+      if (!opts.own || _.hasOwn(subject, key)) {
+        yield getYieldValue(opts, subject, key);
       }
     }
   }
 
-  function* EnumerateGenerator(subject) {
-    var value;
-
-    this[$.SYMBOL.STARTED] = true;
-    if (_.isObject(subject) &amp;&amp; _.isFunction(subject.next)) {
-      for (value of subject) {
-        yield * new ForInGenerator(this, value);
-      }
-    } else {
-      yield * new ForInGenerator(this, subject);
+  function EnumerateGenerator(subject) {
+    if (!(this instanceof EnumerateGenerator)) {
+      return new EnumerateGenerator(subject);
     }
+
+    var opts = {
+      entries: true,
+      values: false,
+      keys: false,
+      own: false
+    };
+
+    _.setMethod(this, 'state', function () {
+      return {
+        entries: opts.entries,
+        values: opts.values,
+        keys: opts.keys,
+        own: opts.own
+      };
+    });
+
+    _.setMethod(this, Symbol.iterator, function () {
+      return enumerateGenerator(subject, this.state());
+    });
+
+    _.setMethod(this, 'entries', function () {
+      opts.entries = true;
+      opts.values = false;
+      opts.keys = false;
+      return this;
+    });
+
+    _.setMethod(this, 'values', function () {
+      opts.entries = false;
+      opts.values = true;
+      opts.keys = false;
+      return this;
+    });
+
+    _.setMethod(this, 'keys', function () {
+      opts.entries = false;
+      opts.values = false;
+      opts.keys = true;
+      return this;
+    });
+
+    _.setMethod(this, 'own', function () {
+      opts.own = !opts.own;
+      return this;
+    });
   }
 
-  function enumerate() {
-    /*jshint validthis:true */
-    return new EnumerateGenerator(this);
-  }
+  _.setMethod(EnumerateGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'toArray', toArray);
+  _.setMethod(EnumerateGenerator.prototype, 'then', then);
+  _.setMethod(EnumerateGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'flatten', flattenGenerator);
+  _.setMethod(EnumerateGenerator.prototype, 'stringify', stringify);
 
-  function* MapObjectGenerator(subject, thisArg) {
-    var useThis = arguments.length > 1 ? thisArg : this;
-
-    if (useThis) {
+  function* mapObjectGenerator() {
+    if (true) {
       throw new Error('not yet');
     }
 
     yield undefined;
   }
 
-  function* SetObjectGenerator(subject, thisArg) {
-    var useThis = arguments.length > 1 ? thisArg : this;
-
-    if (useThis) {
+  function* setObjectGenerator() {
+    if (true) {
       throw new Error('not yet');
     }
 
     yield undefined;
   }
 
-  function genetateCount(subject, to, by) {
-    var iterator = new CountGenerator();
+  function makeCounterGenerator(subject, to, by) {
+    var generator = new CounterGenerator();
 
     if (_.isNumber(subject)) {
       if (_.isNil(to)) {
-        iterator.to(subject);
+        generator.to(subject);
       } else {
-        iterator.from(subject).to(to);
+        generator.from(subject).to(to);
       }
 
       if (!_.isNil(by)) {
-        iterator.by(by);
+        generator.by(by);
       }
     }
 
-    return iterator;
+    return generator;
   }
 
-  function generateOthers(subject) {
+  function makeOtherGenerators(subject) {
     var tag = _.toStringTag(subject),
-      iterator;
+      generator;
 
     if (tag === $.MAPTAG) {
-      iterator = new MapObjectGenerator(subject);
+      generator = mapObjectGenerator(subject);
     } else if (tag === $.SETTAG) {
-      iterator = new SetObjectGenerator(subject);
+      generator = setObjectGenerator(subject);
     } else {
-      iterator = new EnumerateGenerator(subject);
+      generator = new EnumerateGenerator(subject);
     }
 
-    return iterator;
+    return generator;
   }
 
   function Reiterate(subject, to, by) {
@@ -1050,45 +1126,40 @@
       return new Reiterate(subject, to, by);
     }
 
-    var iterator;
+    var generator;
 
     if (_.isNil(subject) || _.isNumber(subject)) {
-      iterator = genetateCount(subject, to, by);
+      generator = makeCounterGenerator(subject, to, by);
     } else if (_.isArray(subject, to)) {
-      iterator = new ArrayGenerator(subject);
+      generator = new ArrayGenerator(subject);
     } else if (_.isString(subject)) {
-      iterator = new StringGenerator(subject);
+      generator = new StringGenerator(subject);
     } else {
-      iterator = generateOthers(subject);
+      generator = makeOtherGenerators(subject);
     }
 
-    return iterator;
+    return generator;
   }
 
-  function* IterateIterator(subject, relaxed) {
+  function* iterateGenerator(relaxed) {
     var value,
       tag;
 
-    this[$.SYMBOL.STARTED] = true;
-    for (value of subject) {
+    /*jshint validthis:true */
+    for (value of this) {
       if (_.isArray(value, relaxed)) {
-        yield * new ArrayGenerator(value, this);
+        yield * new ArrayGenerator(value);
       } else if (_.isString(value)) {
-        yield * new StringGenerator(value, this);
+        yield * new StringGenerator(value);
       } else {
         tag = _.toStringTag(value);
         if (tag === $.MAPTAG) {
-          yield * new MapObjectGenerator(value, this);
+          yield * mapObjectGenerator(value);
         } else if (tag === $.SETTAG) {
-          yield * new SetObjectGenerator(value, this);
+          yield * setObjectGenerator(value);
         }
       }
     }
-  }
-
-  function iterate(relaxed) {
-    /*jshint validthis:true */
-    return new IterateIterator(this, relaxed);
   }
 
   /*
@@ -1101,7 +1172,7 @@
       element,
       index;
 
-    _.checkcallback(callback);
+    _.mustBeFunction(callback);
     index = 0;
     for (element of object) {
       initialValue = callback(initialValue, element, index, object);
@@ -1122,7 +1193,7 @@
       element,
       index;
 
-    _.checkcallback(callback);
+    _.mustBeFunction(callback);
     index = 0;
     for (element of object) {
       callback.call(thisArg, element, index, object);
@@ -1142,7 +1213,7 @@
       element,
       index;
 
-    _.checkcallback(callback);
+    _.mustBeFunction(callback);
     result = true;
     index = 0;
     for (element of object) {
@@ -1157,131 +1228,50 @@
     return result;
   });
   */
+  _.setMethod(mapGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(mapGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(mapGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(mapGenerator.prototype, 'iterate', iterateGenerator);
+  _.setMethod(mapGenerator.prototype, 'enumerate', EnumerateGenerator);
+  _.setMethod(mapGenerator.prototype, 'then', then);
+  _.setMethod(mapGenerator.prototype, 'toArray', toArray);
+  _.setMethod(mapGenerator.prototype, 'flatten', flattenGenerator);
 
-  _.setMethod(CountGenerator.prototype, 'from', setFrom);
-  _.setMethod(CountGenerator.prototype, 'to', setTo);
-  _.setMethod(CountGenerator.prototype, 'by', setBy);
-  _.setMethod(CountGenerator.prototype, 'reverse', reverse);
-  _.setMethod(CountGenerator.prototype, 'then', then);
-  _.setMethod(CountGenerator.prototype, 'filter', filter);
-  _.setMethod(CountGenerator.prototype, 'map', map);
-  _.setMethod(CountGenerator.prototype, 'toArray', toArray);
+  _.setMethod(filterGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(filterGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(filterGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(filterGenerator.prototype, 'iterate', iterateGenerator);
+  _.setMethod(filterGenerator.prototype, 'enumerate', EnumerateGenerator);
+  _.setMethod(filterGenerator.prototype, 'then', then);
+  _.setMethod(filterGenerator.prototype, 'toArray', toArray);
+  _.setMethod(filterGenerator.prototype, 'flatten', flattenGenerator);
 
-  _.setMethod(MapGenerator.prototype, 'reverse', reverse);
-  _.setMethod(MapGenerator.prototype, 'filter', filter);
-  _.setMethod(MapGenerator.prototype, 'map', map);
-  _.setMethod(MapGenerator.prototype, 'unique', unique);
-  _.setMethod(MapGenerator.prototype, 'iterate', iterate);
-  _.setMethod(MapGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(MapGenerator.prototype, 'then', then);
-  _.setMethod(MapGenerator.prototype, 'toArray', toArray);
-  _.setMethod(MapGenerator.prototype, 'flatten', flatten);
+  _.setMethod(iterateGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(iterateGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(iterateGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(iterateGenerator.prototype, 'iterate', iterateGenerator);
+  _.setMethod(iterateGenerator.prototype, 'enumerate', EnumerateGenerator);
+  _.setMethod(iterateGenerator.prototype, 'then', then);
+  _.setMethod(iterateGenerator.prototype, 'toArray', toArray);
+  _.setMethod(iterateGenerator.prototype, 'flatten', flattenGenerator);
 
-  _.setMethod(FilterGenerator.prototype, 'reverse', reverse);
-  _.setMethod(FilterGenerator.prototype, 'filter', filter);
-  _.setMethod(FilterGenerator.prototype, 'map', map);
-  _.setMethod(FilterGenerator.prototype, 'unique', unique);
-  _.setMethod(FilterGenerator.prototype, 'iterate', iterate);
-  _.setMethod(FilterGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(FilterGenerator.prototype, 'then', then);
-  _.setMethod(FilterGenerator.prototype, 'toArray', toArray);
-  _.setMethod(FilterGenerator.prototype, 'flatten', flatten);
+  _.setMethod(uniqueGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(uniqueGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(uniqueGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(uniqueGenerator.prototype, 'iterate', iterateGenerator);
+  _.setMethod(uniqueGenerator.prototype, 'enumerate', EnumerateGenerator);
+  _.setMethod(uniqueGenerator.prototype, 'then', then);
+  _.setMethod(uniqueGenerator.prototype, 'toArray', toArray);
+  _.setMethod(uniqueGenerator.prototype, 'flatten', flattenGenerator);
 
-  _.setMethod(ArrayGenerator.prototype, 'keys', keys);
-  _.setMethod(ArrayGenerator.prototype, 'values', values);
-  _.setMethod(ArrayGenerator.prototype, 'entries', entries);
-  _.setMethod(ArrayGenerator.prototype, 'reverse', reverse);
-  _.setMethod(ArrayGenerator.prototype, 'filter', filter);
-  _.setMethod(ArrayGenerator.prototype, 'map', map);
-  _.setMethod(ArrayGenerator.prototype, 'unique', unique);
-  _.setMethod(ArrayGenerator.prototype, 'iterate', iterate);
-  _.setMethod(ArrayGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(ArrayGenerator.prototype, 'then', then);
-  _.setMethod(ArrayGenerator.prototype, 'toArray', toArray);
-  _.setMethod(ArrayGenerator.prototype, 'flatten', flatten);
-
-  _.setMethod(IterateIterator.prototype, 'keys', keys);
-  _.setMethod(IterateIterator.prototype, 'values', values);
-  _.setMethod(IterateIterator.prototype, 'entries', entries);
-  _.setMethod(IterateIterator.prototype, 'reverse', reverse);
-  _.setMethod(IterateIterator.prototype, 'filter', filter);
-  _.setMethod(IterateIterator.prototype, 'map', map);
-  _.setMethod(IterateIterator.prototype, 'unique', unique);
-  _.setMethod(IterateIterator.prototype, 'iterate', iterate);
-  _.setMethod(IterateIterator.prototype, 'enumerate', enumerate);
-  _.setMethod(IterateIterator.prototype, 'then', then);
-  _.setMethod(IterateIterator.prototype, 'toArray', toArray);
-  _.setMethod(IterateIterator.prototype, 'flatten', flatten);
-
-  _.setMethod(StringGenerator.prototype, 'keys', keys);
-  _.setMethod(StringGenerator.prototype, 'values', values);
-  _.setMethod(StringGenerator.prototype, 'entries', entries);
-  _.setMethod(StringGenerator.prototype, 'reverse', reverse);
-  _.setMethod(StringGenerator.prototype, 'filter', filter);
-  _.setMethod(StringGenerator.prototype, 'map', map);
-  _.setMethod(StringGenerator.prototype, 'unique', unique);
-  _.setMethod(StringGenerator.prototype, 'iterate', iterate);
-  _.setMethod(StringGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(StringGenerator.prototype, 'then', then);
-  _.setMethod(StringGenerator.prototype, 'toArray', toArray);
-  _.setMethod(StringGenerator.prototype, 'stringify', stringify);
-
-  _.setMethod(EnumerateGenerator.prototype, 'keys', keys);
-  _.setMethod(EnumerateGenerator.prototype, 'values', values);
-  _.setMethod(EnumerateGenerator.prototype, 'entries', entries);
-  _.setMethod(EnumerateGenerator.prototype, 'unique', unique);
-  _.setMethod(EnumerateGenerator.prototype, 'filter', filter);
-  _.setMethod(EnumerateGenerator.prototype, 'map', map);
-  _.setMethod(EnumerateGenerator.prototype, 'iterate', iterate);
-  _.setMethod(EnumerateGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(EnumerateGenerator.prototype, 'own', setOwn);
-  _.setMethod(EnumerateGenerator.prototype, 'then', then);
-  _.setMethod(EnumerateGenerator.prototype, 'toArray', toArray);
-  _.setMethod(EnumerateGenerator.prototype, 'flatten', flatten);
-
-  _.setMethod(UniqueGenerator.prototype, 'filter', filter);
-  _.setMethod(UniqueGenerator.prototype, 'map', map);
-  _.setMethod(UniqueGenerator.prototype, 'unique', unique);
-  _.setMethod(UniqueGenerator.prototype, 'iterate', iterate);
-  _.setMethod(UniqueGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(UniqueGenerator.prototype, 'then', then);
-  _.setMethod(UniqueGenerator.prototype, 'toArray', toArray);
-  _.setMethod(UniqueGenerator.prototype, 'flatten', flatten);
-
-  _.setMethod(FlattenGenerator.prototype, 'filter', filter);
-  _.setMethod(FlattenGenerator.prototype, 'map', map);
-  _.setMethod(FlattenGenerator.prototype, 'unique', unique);
-  _.setMethod(FlattenGenerator.prototype, 'iterate', iterate);
-  _.setMethod(FlattenGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(FlattenGenerator.prototype, 'then', then);
-  _.setMethod(FlattenGenerator.prototype, 'toArray', toArray);
-  _.setMethod(FlattenGenerator.prototype, 'flatten', flatten);
-
-  _.setMethod(WalkOwnGenerator.prototype, 'filter', filter);
-  _.setMethod(WalkOwnGenerator.prototype, 'map', map);
-  _.setMethod(WalkOwnGenerator.prototype, 'unique', unique);
-  _.setMethod(WalkOwnGenerator.prototype, 'iterate', iterate);
-  _.setMethod(WalkOwnGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(WalkOwnGenerator.prototype, 'then', then);
-  _.setMethod(WalkOwnGenerator.prototype, 'toArray', toArray);
-  _.setMethod(WalkOwnGenerator.prototype, 'flatten', flatten);
-
-  _.setMethod(MapObjectGenerator.prototype, 'filter', filter);
-  _.setMethod(MapObjectGenerator.prototype, 'map', map);
-  _.setMethod(MapObjectGenerator.prototype, 'unique', unique);
-  _.setMethod(MapObjectGenerator.prototype, 'iterate', iterate);
-  _.setMethod(MapObjectGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(MapObjectGenerator.prototype, 'then', then);
-  _.setMethod(MapObjectGenerator.prototype, 'toArray', toArray);
-  _.setMethod(MapObjectGenerator.prototype, 'flatten', flatten);
-
-  _.setMethod(SetObjectGenerator.prototype, 'filter', filter);
-  _.setMethod(SetObjectGenerator.prototype, 'map', map);
-  _.setMethod(SetObjectGenerator.prototype, 'iterate', iterate);
-  _.setMethod(SetObjectGenerator.prototype, 'enumerate', enumerate);
-  _.setMethod(SetObjectGenerator.prototype, 'then', then);
-  _.setMethod(SetObjectGenerator.prototype, 'toArray', toArray);
-  _.setMethod(SetObjectGenerator.prototype, 'flatten', flatten);
+  _.setMethod(flattenGenerator.prototype, 'filter', filterGenerator);
+  _.setMethod(flattenGenerator.prototype, 'map', mapGenerator);
+  _.setMethod(flattenGenerator.prototype, 'unique', uniqueGenerator);
+  _.setMethod(flattenGenerator.prototype, 'iterate', iterateGenerator);
+  _.setMethod(flattenGenerator.prototype, 'enumerate', EnumerateGenerator);
+  _.setMethod(flattenGenerator.prototype, 'then', then);
+  _.setMethod(flattenGenerator.prototype, 'toArray', toArray);
+  _.setMethod(flattenGenerator.prototype, 'flatten', flattenGenerator);
 
   return Reiterate;
 }));
@@ -1301,7 +1291,7 @@
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.2</a> on Sun Sep 20 2015 13:20:01 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.2</a> on Mon Sep 21 2015 23:28:25 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

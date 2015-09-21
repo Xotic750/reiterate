@@ -3,7 +3,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:200,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
     maxcomplexity:false
 */
 /*global require, describe, it */
@@ -454,83 +454,64 @@
     });
 
     it('Counter next', function () {
-      var counter = reiterate().from(0).to(3).by(1);
+      var generator = reiterate().from(0).to(3).by(1),
+        iterator = generator[Symbol.iterator]();
 
-      expect(counter.next()).to.eql({
+      expect(iterator.next()).to.eql({
         value: 0,
         done: false
       });
 
-      expect(counter.next()).to.eql({
+      expect(iterator.next()).to.eql({
         value: 1,
         done: false
       });
 
-      expect(counter.next()).to.eql({
+      expect(iterator.next()).to.eql({
         value: 2,
         done: false
       });
 
-      expect(counter.next()).to.eql({
+      expect(iterator.next()).to.eql({
         value: 3,
         done: false
       });
 
-      expect(counter.next()).to.eql({
+      expect(iterator.next()).to.eql({
         value: undefined,
         done: true
       });
     });
 
-    it('Counter hidden once used', function () {
-      var counter = reiterate();
-
-      expect(counter.from).to.be.a('function');
-      expect(counter.to).to.be.a('function');
-      expect(counter.by).to.be.a('function');
-      expect(counter.reverse).to.be.a('function');
-
-      counter.from(0);
-      expect(counter.from).to.be(undefined);
-
-      counter.to(10);
-      expect(counter.to).to.be(undefined);
-
-      counter.by(1);
-      expect(counter.by).to.be(undefined);
-
-      counter.reverse();
-      expect(counter.reverse).to.be(undefined);
-    });
-
     it('Counter already started', function () {
-      var counter = reiterate();
+      var generator = reiterate(),
+        iterator = generator[Symbol.iterator]();
 
-      expect(counter.next()).to.eql({
+      expect(iterator.next()).to.eql({
         value: 0,
         done: false
       });
 
       expect(function () {
-        counter.from(0);
+        iterator.from(0);
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
 
       expect(function () {
-        counter.to(3);
+        iterator.to(3);
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
 
       expect(function () {
-        counter.by(1);
+        iterator.by(1);
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
 
       expect(function () {
-        counter.reverse();
+        iterator.reverse();
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -542,7 +523,9 @@
         counter;
 
       expect(function () {
-        reiterate().map();
+        for (entry of reiterate().map()) {
+          break;
+        }
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -566,7 +549,9 @@
         counter;
 
       expect(function () {
-        reiterate().filter();
+        for (entry of reiterate().filter()) {
+          break;
+        }
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
