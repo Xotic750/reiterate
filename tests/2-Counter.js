@@ -803,6 +803,16 @@
     it('Counter each', function () {
       var index = 10;
 
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate().each()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
       // forward
       reiterate().from(10).to(20).each(function (entry) {
         expect(this).to.be(undefined);
@@ -847,6 +857,16 @@
     it('Counter every', function () {
       var index = 10,
         e;
+
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate().every()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
 
       // forward
       e = reiterate().from(10).to(20).every(function (entry) {
@@ -903,6 +923,16 @@
       var index = 10,
         r;
 
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate().reduce()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
       // forward
       r = reiterate().from(10).to(20).reduce(function (acc, entry) {
         expect(acc).to.be(undefined);
@@ -910,9 +940,19 @@
         expect(entry).to.be(index);
         index += 1;
         return acc;
-      });
+      }, undefined);
 
       expect(r).to.be(undefined);
+      index = 11;
+      r = reiterate().from(10).to(20).reduce(function (acc, entry) {
+        expect(acc).to.be.a('number');
+        expect(entry).to.be.within(11, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return acc;
+      });
+
+      expect(r).to.be(10);
       index = 10;
       r = reiterate().from(10).to(20).reduce(function (acc, entry, object) {
         expect(acc).to.be.an('array');
@@ -947,18 +987,83 @@
         2: 10
       });
 
-      index = 20;
+      index = 19;
       r = reiterate().to(20).reverse().reduce(function (acc, entry, object) {
         expect(acc).to.be.a('number');
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
-        expect(entry).to.be.within(0, 20);
+        expect(entry).to.be.within(0, 19);
         expect(entry).to.be(index);
         index -= 1;
         return acc + entry;
-      }, 0);
+      });
 
       expect(r).to.be(210);
     }, 0);
+
+    it('Counter some', function () {
+      var index = 10,
+        s;
+
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate().some()) {
+          break;
+        }
+      }).to.throwException(function (s) {
+        expect(s).to.be.a(TypeError);
+      });
+
+      // forward
+      s = reiterate().from(10).to(20).some(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return entry === 15;
+      });
+
+      expect(s).to.be(true);
+      index = 10;
+      s = reiterate().from(10).to(20).some(function (entry, object) {
+        expect(this).to.be(true);
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        var arr = object.toArray();
+
+        expect(entry).to.be(arr[index - 10]);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return entry === 0;
+      }, true);
+
+      expect(s).to.be(false);
+
+      // reverse
+      index = 20;
+      s = reiterate().from(10).to(20).reverse().some(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index -= 1;
+        return entry === 15;
+      });
+
+      expect(s).to.be(true);
+      index = 20;
+      s = reiterate().from(10).to(20).reverse().some(function (entry, object) {
+        expect(this).to.be(true);
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index -= 1;
+        return entry === 21;
+      }, true);
+
+      expect(s).to.be(false);
+    });
   });
 }());

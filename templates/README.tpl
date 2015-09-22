@@ -57,9 +57,9 @@ On command line
 
 will create lib/*@@MODULE.min.js* from lib/*@@MODULE.js*.
 
-## Feedback
-
 [Test your browser](https://rawgit.com/Xotic750/reiterate/master/tests/browser/tests.html)
+
+## Feedback
 
 Feedback is welcome.
 
