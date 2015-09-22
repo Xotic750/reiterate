@@ -434,10 +434,6 @@
        * Global_Objects/Object/assign
        */
       assign: (function () {
-        if (Object.assign) {
-          return Object.assign;
-        }
-
         /**
          * The abstract operation converts its argument to a value of type
          * Object.
@@ -464,7 +460,7 @@
 
           while (index < len) {
             key = keys[index];
-            if (_.hasOwn(key, from)) {
+            if (_.hasOwn(from, key)) {
               to[key] = from[key];
             }
 
@@ -5540,6 +5536,18 @@ process.umask = function() { return 0; };
 
       expect(s).to.be(false);
     });
+
+    it('Counter state', function () {
+      var gen = reiterate().from(1).to(100).by(2).reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        from: 1,
+        to: 100,
+        by: 2
+      });
+    });
   });
 }());
 
@@ -5665,6 +5673,18 @@ process.umask = function() { return 0; };
       array = reiterate(d).values().flatten().toArray();
       expect(array).to.eql(a);
     });
+
+    it('Array state', function () {
+      var gen = reiterate([]).keys().reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        entries: false,
+        values: false,
+        keys: true
+      });
+    });
   });
 }());
 
@@ -5741,6 +5761,18 @@ process.umask = function() { return 0; };
         expect(entry).to.be(e[index]);
         index -= 1;
       }
+    });
+
+    it('String state', function () {
+      var gen = reiterate('').values().reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        entries: false,
+        values: true,
+        keys: false
+      });
     });
   });
 }());
@@ -5902,6 +5934,18 @@ process.umask = function() { return 0; };
       array = reiterate(e, true).values().flatten(true).toArray();
       expect(array).to.eql(d);
     });
+
+    it('Array-like state', function () {
+      var gen = reiterate({length: 0}, true).entries().reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        entries: true,
+        values: false,
+        keys: false
+      });
+    });
   });
 }());
 
@@ -6020,6 +6064,18 @@ process.umask = function() { return 0; };
     it('Object enumerate own flatten, no length', function () {
       array = reiterate(c).own().values().flatten().toArray();
       expect(array).to.eql(b);
+    });
+
+    it('Object state', function () {
+      var gen = reiterate({}).own(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        entries: true,
+        values: false,
+        keys: false,
+        own: true
+      });
     });
   });
 }());
