@@ -871,7 +871,6 @@
             _.setMethod(iterator, 'filter', p.filterGenerator);
             _.setMethod(iterator, 'map', p.mapGenerator);
             _.setMethod(iterator, 'unique', p.uniqueGenerator);
-            _.setMethod(iterator, 'iterate', iterateGenerator);
             _.setMethod(iterator, 'enumerate', g.EnumerateGenerator);
             _.setMethod(iterator, 'then', p.then);
             _.setMethod(iterator, 'toArray', p.toArray);
@@ -1235,49 +1234,11 @@
 
       };
 
-    function* iterateGenerator(relaxed) {
-      var value,
-        tag;
-
-      /*jshint validthis:true */
-      for (value of this) {
-        if (_.isArray(value, relaxed)) {
-          yield * new g.ArrayGenerator(value);
-        } else if (_.isString(value)) {
-          yield * new g.StringGenerator(value);
-        } else {
-          tag = _.toStringTag(value);
-          if (tag === $.MAPTAG) {
-            yield * mapObjectGenerator(value);
-          } else if (tag === $.SETTAG) {
-            yield * setObjectGenerator(value);
-          }
-        }
-      }
-    }
-
-    function* mapObjectGenerator() {
-      if (true) {
-        throw new Error('not yet');
-      }
-
-      yield undefined;
-    }
-
-    function* setObjectGenerator() {
-      if (true) {
-        throw new Error('not yet');
-      }
-
-      yield undefined;
-    }
-
     (function () {
       function addMethods(object) {
         _.setMethod(object, 'filter', p.filterGenerator);
         _.setMethod(object, 'map', p.mapGenerator);
         _.setMethod(object, 'unique', p.uniqueGenerator);
-        _.setMethod(object, 'iterate', iterateGenerator);
         _.setMethod(object, 'enumerate', g.EnumerateGenerator);
         _.setMethod(object, 'then', p.then);
         _.setMethod(object, 'toArray', p.toArray);
@@ -1292,7 +1253,6 @@
       addMethods(p.filterGenerator.prototype);
       addMethods(p.uniqueGenerator.prototype);
       addMethods(p.flattenGenerator.prototype);
-      addMethods(iterateGenerator.prototype);
     }());
 
     return (function () {
@@ -1315,13 +1275,10 @@
       }
 
       function makeOtherGenerators(subject) {
-        var tag = _.toStringTag(subject),
-          generator;
+        var generator;
 
-        if (tag === $.MAPTAG) {
-          generator = mapObjectGenerator(subject);
-        } else if (tag === $.SETTAG) {
-          generator = setObjectGenerator(subject);
+        if (subject[Symbol.iterator]) {
+          generator = subject[Symbol.iterator];
         } else {
           generator = new g.EnumerateGenerator(subject);
         }
@@ -1329,7 +1286,7 @@
         return generator;
       }
 
-      return function Reiterate(subject, to, by) {
+      function Reiterate(subject, to, by) {
         if (!(this instanceof Reiterate)) {
           return new Reiterate(subject, to, by);
         }
@@ -1347,7 +1304,16 @@
         }
 
         return generator;
-      };
+      }
+
+      /*
+       * Static methods
+       */
+      _.setMethod(Reiterate, 'array', g.ArrayGenerator);
+      _.setMethod(Reiterate, 'string', g.StringGenerator);
+      _.setMethod(Reiterate, 'enumerate', g.EnumerateGenerator);
+
+      return Reiterate;
     }());
   }
 
