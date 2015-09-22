@@ -14,7 +14,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:60,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:61,
     maxcomplexity:6
 */
 
@@ -549,7 +549,7 @@
         return initialValue;
       },
 
-      forEach: function (callback, thisArg) {
+      each: function (callback, thisArg) {
         _.mustBeFunction(callback);
         for (var element of this) {
           callback.call(thisArg, element, this);
@@ -608,7 +608,7 @@
           _.setMethod(iterator, 'stringify', p.stringify);
           _.setMethod(iterator, 'flatten', p.flattenGenerator);
           _.setMethod(iterator, 'reduce', p.reduce);
-          _.setMethod(iterator, 'forEach', p.forEach);
+          _.setMethod(iterator, 'each', p.each);
           _.setMethod(iterator, 'every', p.every);
         }
 
@@ -723,7 +723,8 @@
   _.setMethod(CounterGenerator.prototype, 'toArray', p.toArray);
   _.setMethod(CounterGenerator.prototype, 'then', p.then);
   _.setMethod(CounterGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(CounterGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(CounterGenerator.prototype, 'every', p.every);
+  _.setMethod(CounterGenerator.prototype, 'each', p.each);
 
   /*
    * arrayEntries
@@ -816,7 +817,7 @@
   _.setMethod(ArrayGenerator.prototype, 'unique', p.uniqueGenerator);
   _.setMethod(ArrayGenerator.prototype, 'flatten', p.flattenGenerator);
   _.setMethod(ArrayGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(ArrayGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(ArrayGenerator.prototype, 'each', p.each);
   _.setMethod(ArrayGenerator.prototype, 'every', p.every);
 
   /*
@@ -932,7 +933,7 @@
   _.setMethod(StringGenerator.prototype, 'unique', p.uniqueGenerator);
   _.setMethod(StringGenerator.prototype, 'stringify', p.stringify);
   _.setMethod(StringGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(StringGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(StringGenerator.prototype, 'each', p.each);
   _.setMethod(StringGenerator.prototype, 'every', p.every);
 
   /*
@@ -1007,7 +1008,7 @@
   _.setMethod(EnumerateGenerator.prototype, 'flatten', p.flattenGenerator);
   _.setMethod(EnumerateGenerator.prototype, 'stringify', p.stringify);
   _.setMethod(EnumerateGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(EnumerateGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(EnumerateGenerator.prototype, 'each', p.each);
   _.setMethod(EnumerateGenerator.prototype, 'every', p.every);
 
   function* mapObjectGenerator() {
@@ -1057,7 +1058,7 @@
     _.setMethod(object, 'toArray', p.toArray);
     _.setMethod(object, 'flatten', p.flattenGenerator);
     _.setMethod(object, 'reduce', p.reduce);
-    _.setMethod(object, 'forEach', p.forEach);
+    _.setMethod(object, 'each', p.each);
     _.setMethod(object, 'every', p.every);
   }
 
@@ -4398,7 +4399,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:2, maxstatements:100,
     maxcomplexity:false
 */
 /*global require, describe, it */
@@ -5132,6 +5133,229 @@ process.umask = function() { return 0; };
 
       expect(array).to.eql([2, 4]);
     });
+
+    it('Counter using sugar', function () {
+      var index = 0,
+        entry;
+
+      // forward
+      for (entry of reiterate().from(0).to(10).by(1)) {
+        expect(entry).to.be.within(0, 10);
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+
+      index = -10;
+      for (entry of reiterate().from(-10).to(0).by(2)) {
+        expect(entry).to.be.within(-10, 0);
+        expect(entry).to.be(index);
+        index += 2;
+      }
+
+      index = 10;
+      for (entry of reiterate().from(10).to(-20).by(3)) {
+        expect(entry).to.be.within(-20, 10);
+        expect(entry).to.be(index);
+        index -= 3;
+      }
+
+      index = -20;
+      for (entry of reiterate().from(-20).to(-10).by(2)) {
+        expect(entry).to.be.within(-20, -10);
+        expect(entry).to.be(index);
+        index += 2;
+      }
+
+      // reverse
+      index = 10;
+      for (entry of reiterate().from(0).to(10).by(1).reverse()) {
+        expect(entry).to.be.within(0, 10);
+        expect(entry).to.be(index);
+        index -= 1;
+      }
+
+      index = 0;
+      for (entry of reiterate().from(10).to(0).by(2).reverse()) {
+        expect(entry).to.be.within(0, 10);
+        expect(entry).to.be(index);
+        index += 2;
+      }
+
+      index = 0;
+      for (entry of reiterate().from(-10).to(0).by(3).reverse()) {
+        expect(entry).to.be.within(-10, 0);
+        expect(entry).to.be(index);
+        index -= 3;
+      }
+
+      index = -10;
+      for (entry of reiterate().from(0).to(-10).by(-2).reverse()) {
+        expect(entry).to.be.within(-10, 0);
+        expect(entry).to.be(index);
+        index += 2;
+      }
+    });
+
+    it('Counter each', function () {
+      var index = 10;
+
+      // forward
+      reiterate().from(10).to(20).each(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+      });
+
+      index = 10;
+      reiterate().from(10).to(20).each(function (entry, object) {
+        expect(this).to.be(true);
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        var arr = object.toArray();
+
+        expect(entry).to.be(arr[index - 10]);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+      }, true);
+
+      // reverse
+      index = 20;
+      reiterate().from(10).to(20).reverse().each(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index -= 1;
+      });
+
+      index = 20;
+      reiterate().from(10).to(20).reverse().each(function (entry, object) {
+        expect(this).to.be(true);
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index -= 1;
+      }, true);
+    });
+
+    it('Counter every', function () {
+      var index = 10,
+        e;
+
+      // forward
+      e = reiterate().from(10).to(20).every(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return typeof entry === 'number';
+      });
+
+      expect(e).to.be(true);
+      index = 10;
+      e = reiterate().from(10).to(20).every(function (entry, object) {
+        expect(this).to.be(true);
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        var arr = object.toArray();
+
+        expect(entry).to.be(arr[index - 10]);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return typeof entry === 'string';
+      }, true);
+
+      expect(e).to.be(false);
+
+      // reverse
+      index = 20;
+      e = reiterate().from(10).to(20).reverse().every(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index -= 1;
+        return entry >= 10 && entry <= 20;
+      });
+
+      expect(e).to.be(true);
+      index = 20;
+      e = reiterate().from(10).to(20).reverse().every(function (entry, object) {
+        expect(this).to.be(true);
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index -= 1;
+        return entry >= 15;
+      }, true);
+
+      expect(e).to.be(false);
+    });
+
+    it('Counter reduce', function () {
+      var index = 10,
+        r;
+
+      // forward
+      r = reiterate().from(10).to(20).reduce(function (acc, entry) {
+        expect(acc).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return acc;
+      });
+
+      expect(r).to.be(undefined);
+      index = 10;
+      r = reiterate().from(10).to(20).reduce(function (acc, entry, object) {
+        expect(acc).to.be.an('array');
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        var arr = object.toArray();
+
+        expect(entry).to.be(arr[index - 10]);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        acc.push(entry);
+        return acc;
+      }, []);
+
+      expect(r).to.eql(reiterate().from(10).to(20).toArray());
+
+      // reverse
+      index = 12;
+      r = reiterate().from(10).to(12).reverse().reduce(function (acc, entry) {
+        expect(acc).to.be.an('object');
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        acc[12 - index] = entry;
+        index -= 1;
+        return acc;
+      }, {});
+
+      expect(r).to.eql({
+        0: 12,
+        1: 11,
+        2: 10
+      });
+
+      index = 20;
+      r = reiterate().to(20).reverse().reduce(function (acc, entry, object) {
+        expect(acc).to.be.a('number');
+        expect(object).to.be.a(Object);
+        expect(object[Symbol.iterator]).to.be.a('function');
+        expect(entry).to.be.within(0, 20);
+        expect(entry).to.be(index);
+        index -= 1;
+        return acc + entry;
+      }, 0);
+
+      expect(r).to.be(210);
+    }, 0);
   });
 }());
 

@@ -13,7 +13,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:60,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:61,
     maxcomplexity:6
 */
 
@@ -548,7 +548,7 @@
         return initialValue;
       },
 
-      forEach: function (callback, thisArg) {
+      each: function (callback, thisArg) {
         _.mustBeFunction(callback);
         for (var element of this) {
           callback.call(thisArg, element, this);
@@ -607,7 +607,7 @@
           _.setMethod(iterator, 'stringify', p.stringify);
           _.setMethod(iterator, 'flatten', p.flattenGenerator);
           _.setMethod(iterator, 'reduce', p.reduce);
-          _.setMethod(iterator, 'forEach', p.forEach);
+          _.setMethod(iterator, 'each', p.each);
           _.setMethod(iterator, 'every', p.every);
         }
 
@@ -722,7 +722,8 @@
   _.setMethod(CounterGenerator.prototype, 'toArray', p.toArray);
   _.setMethod(CounterGenerator.prototype, 'then', p.then);
   _.setMethod(CounterGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(CounterGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(CounterGenerator.prototype, 'every', p.every);
+  _.setMethod(CounterGenerator.prototype, 'each', p.each);
 
   /*
    * arrayEntries
@@ -815,7 +816,7 @@
   _.setMethod(ArrayGenerator.prototype, 'unique', p.uniqueGenerator);
   _.setMethod(ArrayGenerator.prototype, 'flatten', p.flattenGenerator);
   _.setMethod(ArrayGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(ArrayGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(ArrayGenerator.prototype, 'each', p.each);
   _.setMethod(ArrayGenerator.prototype, 'every', p.every);
 
   /*
@@ -931,7 +932,7 @@
   _.setMethod(StringGenerator.prototype, 'unique', p.uniqueGenerator);
   _.setMethod(StringGenerator.prototype, 'stringify', p.stringify);
   _.setMethod(StringGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(StringGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(StringGenerator.prototype, 'each', p.each);
   _.setMethod(StringGenerator.prototype, 'every', p.every);
 
   /*
@@ -1006,7 +1007,7 @@
   _.setMethod(EnumerateGenerator.prototype, 'flatten', p.flattenGenerator);
   _.setMethod(EnumerateGenerator.prototype, 'stringify', p.stringify);
   _.setMethod(EnumerateGenerator.prototype, 'reduce', p.reduce);
-  _.setMethod(EnumerateGenerator.prototype, 'forEach', p.forEach);
+  _.setMethod(EnumerateGenerator.prototype, 'each', p.each);
   _.setMethod(EnumerateGenerator.prototype, 'every', p.every);
 
   function* mapObjectGenerator() {
@@ -1056,7 +1057,7 @@
     _.setMethod(object, 'toArray', p.toArray);
     _.setMethod(object, 'flatten', p.flattenGenerator);
     _.setMethod(object, 'reduce', p.reduce);
-    _.setMethod(object, 'forEach', p.forEach);
+    _.setMethod(object, 'each', p.each);
     _.setMethod(object, 'every', p.every);
   }
 
