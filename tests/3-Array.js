@@ -3,8 +3,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
 */
 /*global require, describe, it */
 

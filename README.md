@@ -47,6 +47,8 @@ To test all the methods
 
     $ npm test
 
+[Test your browser](https://rawgit.com/Xotic750/reiterate/master/tests/browser/tests.html)
+
 ## Build
 
 I.e. minify.
@@ -56,8 +58,6 @@ On command line
     $ npm run-script minify
 
 will create lib/*reiterate.min.js* from lib/*reiterate.js*.
-
-[Test your browser](https://rawgit.com/Xotic750/reiterate/master/tests/browser/tests.html)
 
 ## Feedback
 

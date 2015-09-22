@@ -4349,15 +4349,15 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:4,
+    maxcomplexity:2
 */
-/*global module, require */
+/*global module, require, process */
 
 (function () {
   'use strict';
 
-  module.exports. expect = require('expect.js');
+  module.exports.expect = require('expect.js');
   if (process.env.MIN) {
     module.exports.subject = require('../lib/reiterate.min');
   } else {
@@ -4372,8 +4372,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:12,
+    maxcomplexity:1
 */
 /*global require, describe, it */
 
@@ -4443,8 +4443,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:3, maxdepth:2, maxstatements:52,
+    maxcomplexity:15
 */
 /*global require, describe, it */
 
@@ -5514,8 +5514,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
 */
 /*global require, describe, it */
 
@@ -5639,8 +5639,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:24,
+    maxcomplexity:3
 */
 /*global require, describe, it */
 
@@ -5716,8 +5716,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
 */
 /*global require, describe, it */
 
@@ -5876,8 +5876,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:100,
-    maxcomplexity:false
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:17,
+    maxcomplexity:5
 */
 /*global require, describe, it */
 
