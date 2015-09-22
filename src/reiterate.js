@@ -9,11 +9,12 @@
  */
 
 /*jslint maxlen:80, es6:true, this:true */
+
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:25,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:19,
     maxcomplexity:6
 */
 
@@ -22,16 +23,16 @@
 */
 
 /*property
-    ARRAY, FUNCTION, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR, MIN_SAFE_INTEGER,
-    NUMBER, Object, SET, STRING, STRINGTAG, TYPE, UNDEFINED,
-    VARIABLEDESCRIPTOR, abs, amd, bind, call, charCodeAt, clamp,
-    clampToSafeIntegerRange, configurable, defineProperty, enumerable, exports,
-    floor, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isCircular,
-    isFinite, isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
-    isSurrogatePair, isUndefined, lastIndex, length, max, min, mustBeFunction,
-    mustBeFunctionIfDefined, prototype, setMethod, setProperty, setVariable,
-    sign, toArray, toInteger, toSafeInteger, toString, toStringTag, value,
-    writable
+    ARRAY, ENTRIES, FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR,
+    MIN_SAFE_INTEGER, NUMBER, OPTS, SET, STRING, STRINGTAG, TYPE, UNDEFINED,
+    VALUES, abs, amd, assign, bind, call, charCodeAt, clamp,
+    clampToSafeIntegerRange, configurable, defineProperty, entries, enumerable,
+    exports, floor, getYieldValue, has, hasOwn, hasOwnProperty, isArray,
+    isArrayLike, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
+    isObject, isString, isSurrogatePair, isUndefined, keys, lastIndex, length,
+    max, min, mustBeFunction, mustBeFunctionIfDefined, prototype, reduce,
+    reverse, reversed, setMethod, setReverseIfOpt, sign, throwIfCircular,
+    toInteger, toSafeInteger, toString, toStringTag, value, values, writable
 */
 
 // UMD (Universal Module Definition)
@@ -68,6 +69,7 @@
    */
 
   var $ = {
+
       STRINGTAG: {
         ARRAY: Object.prototype.toString.call(Array.prototype),
         MAP: Object.prototype.toString.call(Map.prototype),
@@ -75,50 +77,57 @@
         STRING: Object.prototype.toString.call(String.prototype),
         NUMBER: Object.prototype.toString.call(Number.prototype)
       },
+
       TYPE: {
         FUNCTION: typeof Function,
         UNDEFINED: typeof undefined
       },
+
       METHODDESCRIPTOR: {
         enumerable: false,
         writable: true,
-        configurable: false,
-        value: undefined
+        configurable: false
       },
-      VARIABLEDESCRIPTOR: {
-        enumerable: false,
-        writable: true,
-        configurable: false,
-        value: undefined
+
+      OPTS: {
+        ENTRIES: {
+          entries: true,
+          values: false,
+          keys: false
+        },
+
+        VALUES: {
+          entries: false,
+          values: true,
+          keys: false
+        },
+
+        KEYS: {
+          entries: false,
+          values: false,
+          keys: true
+        }
       }
+
     },
+
     _ = {
+
       hasOwn: Function.call.bind(Object.prototype.hasOwnProperty),
 
       toStringTag: Function.call.bind(Object.prototype.toString),
-
-      Object: Object,
-
-      setProperty: function (object, property, descriptor) {
-        Object.defineProperty(object, property, descriptor);
-      },
 
       setMethod: function (object, property, method) {
         if (_.hasOwn(object, property)) {
           throw new Error('property already exists on object');
         }
 
-        $.METHODDESCRIPTOR.value = method;
-        _.setProperty(object, property, $.METHODDESCRIPTOR);
+        var descriptor = _.assign({}, $.METHODDESCRIPTOR);
+
+        descriptor.value = method;
+        Object.defineProperty(object, property, descriptor);
 
         return method;
-      },
-
-      setVariable: function (object, property, value) {
-        $.VARIABLEDESCRIPTOR.value = value;
-        _.setProperty(object, property, $.VARIABLEDESCRIPTOR);
-
-        return value;
       },
 
       /**
@@ -310,7 +319,7 @@
        * @return {boolean} true if an object, otherwise false.
        */
       isObject: function (subject) {
-        return _.Object(subject) === subject;
+        return Object(subject) === subject;
       },
 
       /**
@@ -396,148 +405,115 @@
         return val;
       },
 
-      isCircular: function (thisArg, stack, value) {
+      throwIfCircular: function (thisArg, stack, value) {
         if (stack.has(thisArg) || stack.has(value)) {
           throw new TypeError('circular object');
         }
 
         return false;
-      }
-    },
-    p = {
-      toArray: function (mapFn, thisArg) {
-        var result,
-          item;
+      },
 
-        _.mustBeFunctionIfDefined(mapFn, 'mapFn');
-        for (item of this) {
-          if (!result) {
-            result = [];
+      setReverseIfOpt: function (opts, generator) {
+        if (opts.reversed) {
+          generator.reverse();
+        }
+
+        return generator;
+      },
+
+      /**
+       * The assign function is used to copy the values of all of the enumerable
+       * own properties from a source object to a target object.
+       *
+       * @private
+       * @param {Object} target
+       * @param {...Object} source
+       * @return {Object}
+       * @see https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/
+       * Global_Objects/Object/assign
+       */
+      assign: (function () {
+        if (Object.assign) {
+          return Object.assign;
+        }
+
+        /**
+         * The abstract operation converts its argument to a value of type
+         * Object.
+         *
+         * @private
+         * @param {*} inputArg The argument to be converted to an object.
+         * @throws {TypeError} If inputArg is not coercible to an object.
+         * @return {Object} Value of inputArg as type Object.
+         * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
+         */
+        function toObject(inputArg) {
+          if (_.isNil(inputArg)) {
+            throw new TypeError('Cannot convert argument to object');
           }
 
-          result.push(mapFn ? mapFn.call(thisArg, this, item) : item);
+          return Object(inputArg);
+        }
+
+        function assignFromSource(from, to) {
+          var keys = Object.keys(from),
+            len = keys.length,
+            index = 0,
+            key;
+
+          while (index < len) {
+            key = keys[index];
+            if (_.hasOwn(key, from)) {
+              to[key] = from[key];
+            }
+
+            index += 1;
+          }
+        }
+
+        return function (target) {
+          var to = toObject(target),
+            length = arguments.length,
+            index,
+            arg;
+
+          if (length >= 2) {
+            index = 1;
+            while (index < length) {
+              arg = arguments[index];
+              if (!_.isNil(arg)) {
+                assignFromSource(toObject(arg), to);
+              }
+
+              index += 1;
+            }
+          }
+
+          return to;
+        };
+      }()),
+
+      getYieldValue: function (opts, object, key) {
+        var result,
+          value;
+
+        if (opts.keys) {
+          result = key;
+        } else {
+          value = object[key];
+          if (opts.values) {
+            result = value;
+          } else {
+            result = [key, value];
+          }
         }
 
         return result;
-      },
+      }
 
-      uniqueGenerator: function* () {
-        var seen,
-          item;
+    },
 
-        for (item of this) {
-          if (!seen) {
-            seen = new Set();
-          }
-
-          if (!seen.has(item)) {
-            seen.add(item, true);
-            yield item;
-          }
-        }
-      },
-
-      flattenGenerator: function* (relaxed) {
-        var stack,
-          object,
-          value,
-          tail;
-
-        for (object of this) {
-          if (_.isArray(object, relaxed)) {
-            stack = new Map().set(object, {
-              index: 0,
-              prev: null
-            });
-          } else {
-            yield object;
-          }
-
-          while (stack && stack.size) {
-            tail = stack.get(object);
-            if (tail.index >= object.length) {
-              stack.delete(object);
-              object = tail.prev;
-            } else {
-              value = object[tail.index];
-              if (_.isArray(value, relaxed)) {
-                _.isCircular(this, stack, value);
-                stack.set(value, {
-                  index: 0,
-                  prev: object
-                });
-
-                object = value;
-              } else {
-                yield value;
-              }
-
-              tail.index += 1;
-            }
-          }
-        }
-      },
-
-      walkOwnGenerator: function* () {
-        var stack = new Map(),
-          object,
-          value,
-          tail,
-          key;
-
-        for (object of this) {
-          if (_.isObject(object)) {
-            stack.set(object, {
-              keys: Object.keys(object),
-              index: 0,
-              prev: null
-            });
-          } else {
-            yield object;
-          }
-
-          while (stack.size) {
-            tail = stack.get(object);
-            if (tail.index >= tail.keys.length) {
-              stack.delete(object);
-              object = tail.prev;
-            } else {
-              key = tail.keys[tail.index];
-              value = object[key];
-              if (_.isObject(value)) {
-                _.isCircular(this, stack, value);
-                stack.set(value, {
-                  keys: Object.keys(value),
-                  index: 0,
-                  prev: object
-                });
-
-                object = value;
-              } else {
-                yield value;
-              }
-
-              tail.index += 1;
-            }
-          }
-        }
-      },
-
-      mapGenerator: function* (callback, thisArg) {
-        _.mustBeFunction(callback);
-        for (var element of this) {
-          yield callback.call(thisArg, element, this);
-        }
-      },
-
-      filterGenerator: function* (callback, thisArg) {
-        _.mustBeFunction(callback);
-        for (var element of this) {
-          if (callback.call(thisArg, element, this)) {
-            yield element;
-          }
-        }
-      },
+    p = {
 
       reduce: function (callback, initialValue) {
         _.mustBeFunction(callback);
@@ -599,29 +575,150 @@
         return result;
       },
 
-      stringify: function (mapFn, thisArg) {
-        var result,
+      toArray: function () {
+        var result = [],
           item;
 
-        _.mustBeFunctionIfDefined(mapFn, 'mapFn');
-        result = '';
         for (item of this) {
-          result += mapFn ? mapFn.call(thisArg, this, item) : item;
+          result.push(item);
         }
 
         return result;
+      },
+
+      stringify: function () {
+        var result = '',
+          item;
+
+        for (item of this) {
+          result += item;
+        }
+
+        return result;
+      },
+
+      uniqueGenerator: function* () {
+        var seen = new Set(),
+          item;
+
+        for (item of this) {
+          if (!seen.has(item)) {
+            seen.add(item, true);
+            yield item;
+          }
+        }
+      },
+
+      flattenGenerator: (function () {
+        function setStack(stack, current, previous) {
+          return stack.set(current, {
+            index: 0,
+            prev: previous
+          });
+        }
+
+        return function* (relaxed) {
+          var stack,
+            object,
+            value,
+            tail;
+
+          for (object of this) {
+            if (_.isArray(object, relaxed)) {
+              stack = setStack(new Map(), object, null);
+            } else {
+              yield object;
+            }
+
+            while (stack && stack.size) {
+              tail = stack.get(object);
+              if (tail.index >= object.length) {
+                stack.delete(object);
+                object = tail.prev;
+              } else {
+                value = object[tail.index];
+                if (_.isArray(value, relaxed)) {
+                  _.throwIfCircular(this, stack, value);
+                  setStack(stack, value, object);
+                  object = value;
+                } else {
+                  yield value;
+                }
+
+                tail.index += 1;
+              }
+            }
+          }
+        };
+      }()),
+
+      walkOwnGenerator: (function () {
+        function setStack(stack, current, previous) {
+          return stack.set(current, {
+            keys: Object.keys(current),
+            index: 0,
+            prev: previous
+          });
+        }
+
+        return function* () {
+          var stack,
+            object,
+            value,
+            tail,
+            key;
+
+          for (object of this) {
+            if (_.isObject(object)) {
+              stack = setStack(new Map(), object, null);
+            } else {
+              yield object;
+            }
+
+            while (stack && stack.size) {
+              tail = stack.get(object);
+              if (tail.index >= tail.keys.length) {
+                stack.delete(object);
+                object = tail.prev;
+              } else {
+                key = tail.keys[tail.index];
+                value = object[key];
+                if (_.isObject(value)) {
+                  _.throwIfCircular(this, stack, value);
+                  setStack(stack, value, object);
+                  object = value;
+                } else {
+                  yield value;
+                }
+
+                tail.index += 1;
+              }
+            }
+          }
+        };
+      }()),
+
+      mapGenerator: function* (callback, thisArg) {
+        _.mustBeFunction(callback);
+        for (var element of this) {
+          yield callback.call(thisArg, element, this);
+        }
+      },
+
+      filterGenerator: function* (callback, thisArg) {
+        _.mustBeFunction(callback);
+        for (var element of this) {
+          if (callback.call(thisArg, element, this)) {
+            yield element;
+          }
+        }
       },
 
       then: function (generator) {
         var iterator;
 
         if (!_.isFunction(generator)) {
-          if (!_.isUndefined(generator)) {
-            throw new TypeError(
-              'If not undefined, generator must be a function'
-            );
-          }
-
+          _.mustBeFunctionIfDefined(generator, 'generator');
           iterator = this;
         } else {
           iterator = generator(this);
@@ -629,7 +726,7 @@
           _.setMethod(iterator, 'map', p.mapGenerator);
           _.setMethod(iterator, 'unique', p.uniqueGenerator);
           _.setMethod(iterator, 'iterate', iterateGenerator);
-          _.setMethod(iterator, 'enumerate', EnumerateGenerator);
+          _.setMethod(iterator, 'enumerate', g.EnumerateGenerator);
           _.setMethod(iterator, 'then', p.then);
           _.setMethod(iterator, 'toArray', p.toArray);
           _.setMethod(iterator, 'stringify', p.stringify);
@@ -642,414 +739,371 @@
 
         return iterator;
       }
-    };
 
-  /*
-   * counter
-   */
+    },
 
-  function* countReverseGenerator(opts) {
-    var count = opts.to;
+    g = {
 
-    if (opts.to <= opts.from) {
-      while (count <= opts.from) {
-        yield count;
-        count += opts.by;
-      }
-    } else {
-      while (count >= opts.from) {
-        yield count;
-        count -= opts.by;
-      }
-    }
-  }
+      CounterGenerator: (function () {
+        var prototype;
 
-  function* countForwardGenerator(opts) {
-    var count = opts.from;
+        function* countReverseGenerator(opts) {
+          var count = opts.to;
 
-    if (opts.from <= opts.to) {
-      while (count <= opts.to) {
-        yield count;
-        count += opts.by;
-      }
-    } else {
-      while (count >= opts.to) {
-        yield count;
-        count -= opts.by;
-      }
-    }
-  }
-
-  function* countGenerator(opts) {
-    if (opts.reversed) {
-      yield * countReverseGenerator(opts);
-    } else {
-      yield * countForwardGenerator(opts);
-    }
-  }
-
-  function setReverseGenerator(opts, generator) {
-    if (opts.reversed) {
-      generator.reverse();
-    }
-
-    return generator;
-  }
-
-  function CounterGenerator() {
-    if (!(this instanceof CounterGenerator)) {
-      return new CounterGenerator();
-    }
-
-    var opts = {
-      reversed: false,
-      from: 0,
-      to: Number.MAX_SAFE_INTEGER,
-      by: 1
-    };
-
-    _.setMethod(this, 'state', function () {
-      return {
-        reversed: opts.reversed,
-        from: opts.from,
-        to: opts.to,
-        by: opts.by
-      };
-    });
-
-    _.setMethod(this, Symbol.iterator, function () {
-      return countGenerator(this.state());
-    });
-
-    _.setMethod(this, 'from', function (number) {
-      opts.from = _.clampToSafeIntegerRange(number);
-      return this;
-    });
-
-    _.setMethod(this, 'to', function (number) {
-      opts.to = _.clampToSafeIntegerRange(number);
-      return this;
-    });
-
-    _.setMethod(this, 'by', function (number) {
-      opts.by = Math.abs(_.clampToSafeIntegerRange(number));
-      if (!opts.by) {
-        throw new TypeError('can not count by zero');
-      }
-
-      return this;
-    });
-
-    _.setMethod(this, 'reverse', function () {
-      opts.reversed = !opts.reversed;
-      return this;
-    });
-  }
-
-  (function (prototype) {
-    _.setMethod(prototype, 'map', p.mapGenerator);
-    _.setMethod(prototype, 'filter', p.filterGenerator);
-    _.setMethod(prototype, 'toArray', p.toArray);
-    _.setMethod(prototype, 'then', p.then);
-    _.setMethod(prototype, 'reduce', p.reduce);
-    _.setMethod(prototype, 'every', p.every);
-    _.setMethod(prototype, 'each', p.each);
-    _.setMethod(prototype, 'some', p.some);
-  }(CounterGenerator.prototype));
-
-  /*
-   * arrayEntries
-   */
-
-  function getYieldValue(opts, object, key) {
-    var result,
-      value;
-
-    if (opts.keys) {
-      result = key;
-    } else {
-      value = object[key];
-      if (opts.values) {
-        result = value;
-      } else {
-        result = [key, value];
-      }
-    }
-
-    return result;
-  }
-
-  function* arrayGenerator(subject, opts) {
-    var generator = new CounterGenerator(),
-      key;
-
-    setReverseGenerator(opts, generator.to(_.lastIndex(subject)));
-    for (key of generator) {
-      yield getYieldValue(opts, subject, key);
-    }
-  }
-
-  function ArrayGenerator(subject) {
-    if (!(this instanceof ArrayGenerator)) {
-      return new ArrayGenerator(subject);
-    }
-
-    var opts = {
-      reversed: false,
-      entries: true,
-      values: false,
-      keys: false,
-    };
-
-    _.setMethod(this, 'state', function () {
-      return {
-        reversed: opts.reversed,
-        entries: opts.entries,
-        values: opts.values,
-        keys: opts.keys
-      };
-    });
-
-    _.setMethod(this, Symbol.iterator, function () {
-      return arrayGenerator(subject, this.state());
-    });
-
-    _.setMethod(this, 'entries', function () {
-      opts.entries = true;
-      opts.values = false;
-      opts.keys = false;
-      return this;
-    });
-
-    _.setMethod(this, 'values', function () {
-      opts.entries = false;
-      opts.values = true;
-      opts.keys = false;
-      return this;
-    });
-
-    _.setMethod(this, 'keys', function () {
-      opts.entries = false;
-      opts.values = false;
-      opts.keys = true;
-      return this;
-    });
-
-    _.setMethod(this, 'reverse', function () {
-      opts.reversed = !opts.reversed;
-      return this;
-    });
-  }
-
-  (function (prototype) {
-    _.setMethod(prototype, 'map', p.mapGenerator);
-    _.setMethod(prototype, 'filter', p.filterGenerator);
-    _.setMethod(prototype, 'toArray', p.toArray);
-    _.setMethod(prototype, 'then', p.then);
-    _.setMethod(prototype, 'unique', p.uniqueGenerator);
-    _.setMethod(prototype, 'flatten', p.flattenGenerator);
-    _.setMethod(prototype, 'reduce', p.reduce);
-    _.setMethod(prototype, 'each', p.each);
-    _.setMethod(prototype, 'every', p.every);
-    _.setMethod(prototype, 'some', p.some);
-  }(ArrayGenerator.prototype));
-
-  /*
-   * stringEntries
-   */
-
-  function getStringYieldValue(opts, character, key) {
-    var value,
-      result;
-
-    if (opts.keys) {
-      result = key;
-    } else {
-      value = String.fromCodePoint(character.codePointAt(0));
-      if (opts.values) {
-        result = value;
-      } else {
-        result = [key, value];
-      }
-    }
-
-    return result;
-  }
-
-  function* stringGenerator(subject, opts) {
-    var generator = new CounterGenerator(opts),
-      next = true,
-      char1,
-      char2,
-      key;
-
-    setReverseGenerator(opts, generator.to(_.lastIndex(subject)));
-    for (key of generator) {
-      if (next) {
-        if (opts.reversed) {
-          char1 = subject[key - 1];
-          char2 = subject[key];
-          next = !_.isSurrogatePair(char1, char2);
-          if (next) {
-            yield getStringYieldValue(opts, char2, key);
+          if (opts.to <= opts.from) {
+            while (count <= opts.from) {
+              yield count;
+              count += opts.by;
+            }
+          } else {
+            while (count >= opts.from) {
+              yield count;
+              count -= opts.by;
+            }
           }
-        } else {
-          char1 = subject[key];
-          char2 = subject[key + 1];
-          next = !_.isSurrogatePair(char1, char2);
-          yield getStringYieldValue(opts, char1 + char2, key);
         }
+
+        function* countForwardGenerator(opts) {
+          var count = opts.from;
+
+          if (opts.from <= opts.to) {
+            while (count <= opts.to) {
+              yield count;
+              count += opts.by;
+            }
+          } else {
+            while (count >= opts.to) {
+              yield count;
+              count -= opts.by;
+            }
+          }
+        }
+
+        function* countGenerator(opts) {
+          if (opts.reversed) {
+            yield * countReverseGenerator(opts);
+          } else {
+            yield * countForwardGenerator(opts);
+          }
+        }
+
+        function CounterGenerator() {
+          if (!(this instanceof CounterGenerator)) {
+            return new CounterGenerator();
+          }
+
+          var opts = {
+            reversed: false,
+            from: 0,
+            to: Number.MAX_SAFE_INTEGER,
+            by: 1
+          };
+
+          _.setMethod(this, 'state', function () {
+            return _.assign({}, opts);
+          });
+
+          _.setMethod(this, Symbol.iterator, function () {
+            return countGenerator(_.assign({}, opts));
+          });
+
+          _.setMethod(this, 'from', function (number) {
+            opts.from = _.clampToSafeIntegerRange(number);
+            return this;
+          });
+
+          _.setMethod(this, 'to', function (number) {
+            opts.to = _.clampToSafeIntegerRange(number);
+            return this;
+          });
+
+          _.setMethod(this, 'by', function (number) {
+            opts.by = Math.abs(_.clampToSafeIntegerRange(number));
+            if (!opts.by) {
+              throw new TypeError('can not count by zero');
+            }
+
+            return this;
+          });
+
+          _.setMethod(this, 'reverse', function () {
+            opts.reversed = !opts.reversed;
+            return this;
+          });
+        }
+
+        prototype = CounterGenerator.prototype;
+        _.setMethod(prototype, 'map', p.mapGenerator);
+        _.setMethod(prototype, 'filter', p.filterGenerator);
+        _.setMethod(prototype, 'toArray', p.toArray);
+        _.setMethod(prototype, 'then', p.then);
+        _.setMethod(prototype, 'reduce', p.reduce);
+        _.setMethod(prototype, 'every', p.every);
+        _.setMethod(prototype, 'each', p.each);
+        _.setMethod(prototype, 'some', p.some);
+
+        return CounterGenerator;
+      }()),
+
+      ArrayGenerator: (function () {
+        var prototype;
+
+        function* arrayGenerator(subject, opts) {
+          var generator = new g.CounterGenerator(),
+            key;
+
+          _.setReverseIfOpt(opts, generator.to(_.lastIndex(subject)));
+          for (key of generator) {
+            yield _.getYieldValue(opts, subject, key);
+          }
+        }
+
+        function ArrayGenerator(subject) {
+          if (!(this instanceof ArrayGenerator)) {
+            return new ArrayGenerator(subject);
+          }
+
+          var opts = _.assign({
+            reversed: false
+          }, $.OPTS.ENTRIES);
+
+          _.setMethod(this, 'state', function () {
+            return _.assign({}, opts);
+          });
+
+          _.setMethod(this, Symbol.iterator, function () {
+            return arrayGenerator(subject, _.assign({}, opts));
+          });
+
+          _.setMethod(this, 'entries', function () {
+            _.assign(opts, $.OPTS.ENTRIES);
+            return this;
+          });
+
+          _.setMethod(this, 'values', function () {
+            _.assign(opts, $.OPTS.VALUES);
+            return this;
+          });
+
+          _.setMethod(this, 'keys', function () {
+            _.assign(opts, $.OPTS.KEYS);
+            return this;
+          });
+
+          _.setMethod(this, 'reverse', function () {
+            opts.reversed = !opts.reversed;
+            return this;
+          });
+        }
+
+        prototype = ArrayGenerator.prototype;
+        _.setMethod(prototype, 'map', p.mapGenerator);
+        _.setMethod(prototype, 'filter', p.filterGenerator);
+        _.setMethod(prototype, 'toArray', p.toArray);
+        _.setMethod(prototype, 'then', p.then);
+        _.setMethod(prototype, 'unique', p.uniqueGenerator);
+        _.setMethod(prototype, 'flatten', p.flattenGenerator);
+        _.setMethod(prototype, 'reduce', p.reduce);
+        _.setMethod(prototype, 'each', p.each);
+        _.setMethod(prototype, 'every', p.every);
+        _.setMethod(prototype, 'some', p.some);
+
+        return ArrayGenerator;
+      }()),
+
+      StringGenerator: (function () {
+        var prototype;
+
+        function getStringYieldValue(opts, character, key) {
+          var value,
+            result;
+
+          if (opts.keys) {
+            result = key;
+          } else {
+            value = String.fromCodePoint(character.codePointAt(0));
+            if (opts.values) {
+              result = value;
+            } else {
+              result = [key, value];
+            }
+          }
+
+          return result;
+        }
+
+        function* stringGenerator(subject, opts) {
+          var generator = new g.CounterGenerator(opts),
+            next = true,
+            char1,
+            char2,
+            key;
+
+          _.setReverseIfOpt(opts, generator.to(_.lastIndex(subject)));
+          for (key of generator) {
+            if (next) {
+              if (opts.reversed) {
+                char1 = subject[key - 1];
+                char2 = subject[key];
+                next = !_.isSurrogatePair(char1, char2);
+                if (next) {
+                  yield getStringYieldValue(opts, char2, key);
+                }
+              } else {
+                char1 = subject[key];
+                char2 = subject[key + 1];
+                next = !_.isSurrogatePair(char1, char2);
+                yield getStringYieldValue(opts, char1 + char2, key);
+              }
+            } else {
+              next = !next;
+              if (opts.reversed) {
+                yield getStringYieldValue(opts, char1 + char2, key);
+              }
+            }
+          }
+        }
+
+        function StringGenerator(subject) {
+          if (!(this instanceof StringGenerator)) {
+            return new StringGenerator(subject);
+          }
+
+          var opts = _.assign({
+            reversed: false
+          }, $.OPTS.ENTRIES);
+
+          _.setMethod(this, 'state', function () {
+            return _.assign({}, opts);
+          });
+
+          _.setMethod(this, Symbol.iterator, function () {
+            return stringGenerator(subject, _.assign({}, opts));
+          });
+
+          _.setMethod(this, 'entries', function () {
+            _.assign(opts, $.OPTS.ENTRIES);
+            return this;
+          });
+
+          _.setMethod(this, 'values', function () {
+            _.assign(opts, $.OPTS.VALUES);
+            return this;
+          });
+
+          _.setMethod(this, 'keys', function () {
+            _.assign(opts, $.OPTS.KEYS);
+            return this;
+          });
+
+          _.setMethod(this, 'reverse', function () {
+            opts.reversed = !opts.reversed;
+            return this;
+          });
+        }
+
+        prototype = StringGenerator.prototype;
+        _.setMethod(prototype, 'map', p.mapGenerator);
+        _.setMethod(prototype, 'filter', p.filterGenerator);
+        _.setMethod(prototype, 'toArray', p.toArray);
+        _.setMethod(prototype, 'then', p.then);
+        _.setMethod(prototype, 'unique', p.uniqueGenerator);
+        _.setMethod(prototype, 'stringify', p.stringify);
+        _.setMethod(prototype, 'reduce', p.reduce);
+        _.setMethod(prototype, 'each', p.each);
+        _.setMethod(prototype, 'every', p.every);
+        _.setMethod(prototype, 'some', p.some);
+
+        return StringGenerator;
+      }()),
+
+      EnumerateGenerator: (function () {
+        var prototype;
+
+        function* enumerateGenerator(subject, opts) {
+          for (var key in subject) {
+            if (!opts.own || _.hasOwn(subject, key)) {
+              yield _.getYieldValue(opts, subject, key);
+            }
+          }
+        }
+
+        function EnumerateGenerator(subject) {
+          if (!(this instanceof EnumerateGenerator)) {
+            return new EnumerateGenerator(subject);
+          }
+
+          var opts = _.assign({
+            own: false
+          }, $.OPTS.ENTRIES);
+
+          _.setMethod(this, 'state', function () {
+            return _.assign({}, opts);
+          });
+
+          _.setMethod(this, Symbol.iterator, function () {
+            return enumerateGenerator(subject, _.assign({}, opts));
+          });
+
+          _.setMethod(this, 'entries', function () {
+            _.assign(opts, $.OPTS.ENTRIES);
+            return this;
+          });
+
+          _.setMethod(this, 'values', function () {
+            _.assign(opts, $.OPTS.VALUES);
+            return this;
+          });
+
+          _.setMethod(this, 'keys', function () {
+            _.assign(opts, $.OPTS.KEYS);
+            return this;
+          });
+
+          _.setMethod(this, 'own', function () {
+            opts.own = !opts.own;
+            return this;
+          });
+        }
+
+        prototype = EnumerateGenerator.prototype;
+        _.setMethod(prototype, 'map', p.mapGenerator);
+        _.setMethod(prototype, 'filter', p.filterGenerator);
+        _.setMethod(prototype, 'toArray', p.toArray);
+        _.setMethod(prototype, 'then', p.then);
+        _.setMethod(prototype, 'unique', p.uniqueGenerator);
+        _.setMethod(prototype, 'flatten', p.flattenGenerator);
+        _.setMethod(prototype, 'stringify', p.stringify);
+        _.setMethod(prototype, 'reduce', p.reduce);
+        _.setMethod(prototype, 'each', p.each);
+        _.setMethod(prototype, 'every', p.every);
+        _.setMethod(prototype, 'some', p.some);
+
+        return EnumerateGenerator;
+      }())
+
+    };
+
+  function* iterateGenerator(relaxed) {
+    var value,
+      tag;
+
+    /*jshint validthis:true */
+    for (value of this) {
+      if (_.isArray(value, relaxed)) {
+        yield * new g.ArrayGenerator(value);
+      } else if (_.isString(value)) {
+        yield * new g.StringGenerator(value);
       } else {
-        next = !next;
-        if (opts.reversed) {
-          yield getStringYieldValue(opts, char1 + char2, key);
+        tag = _.toStringTag(value);
+        if (tag === $.MAPTAG) {
+          yield * mapObjectGenerator(value);
+        } else if (tag === $.SETTAG) {
+          yield * setObjectGenerator(value);
         }
       }
     }
   }
-
-  function StringGenerator(subject) {
-    if (!(this instanceof StringGenerator)) {
-      return new StringGenerator(subject);
-    }
-
-    var opts = {
-      reversed: false,
-      entries: true,
-      values: false,
-      keys: false,
-    };
-
-    _.setMethod(this, 'state', function () {
-      return {
-        reversed: opts.reversed,
-        entries: opts.entries,
-        values: opts.values,
-        keys: opts.keys
-      };
-    });
-
-    _.setMethod(this, Symbol.iterator, function () {
-      return stringGenerator(subject, this.state());
-    });
-
-    _.setMethod(this, 'entries', function () {
-      opts.entries = true;
-      opts.values = false;
-      opts.keys = false;
-      return this;
-    });
-
-    _.setMethod(this, 'values', function () {
-      opts.entries = false;
-      opts.values = true;
-      opts.keys = false;
-      return this;
-    });
-
-    _.setMethod(this, 'keys', function () {
-      opts.entries = false;
-      opts.values = false;
-      opts.keys = true;
-      return this;
-    });
-
-    _.setMethod(this, 'reverse', function () {
-      opts.reversed = !opts.reversed;
-      return this;
-    });
-  }
-
-  (function (prototype) {
-    _.setMethod(prototype, 'map', p.mapGenerator);
-    _.setMethod(prototype, 'filter', p.filterGenerator);
-    _.setMethod(prototype, 'toArray', p.toArray);
-    _.setMethod(prototype, 'then', p.then);
-    _.setMethod(prototype, 'unique', p.uniqueGenerator);
-    _.setMethod(prototype, 'stringify', p.stringify);
-    _.setMethod(prototype, 'reduce', p.reduce);
-    _.setMethod(prototype, 'each', p.each);
-    _.setMethod(prototype, 'every', p.every);
-    _.setMethod(prototype, 'some', p.some);
-  }(StringGenerator.prototype));
-
-  /*
-   * enumerate
-   */
-
-  function* enumerateGenerator(subject, opts) {
-    for (var key in subject) {
-      if (!opts.own || _.hasOwn(subject, key)) {
-        yield getYieldValue(opts, subject, key);
-      }
-    }
-  }
-
-  function EnumerateGenerator(subject) {
-    if (!(this instanceof EnumerateGenerator)) {
-      return new EnumerateGenerator(subject);
-    }
-
-    var opts = {
-      entries: true,
-      values: false,
-      keys: false,
-      own: false
-    };
-
-    _.setMethod(this, 'state', function () {
-      return {
-        entries: opts.entries,
-        values: opts.values,
-        keys: opts.keys,
-        own: opts.own
-      };
-    });
-
-    _.setMethod(this, Symbol.iterator, function () {
-      return enumerateGenerator(subject, this.state());
-    });
-
-    _.setMethod(this, 'entries', function () {
-      opts.entries = true;
-      opts.values = false;
-      opts.keys = false;
-      return this;
-    });
-
-    _.setMethod(this, 'values', function () {
-      opts.entries = false;
-      opts.values = true;
-      opts.keys = false;
-      return this;
-    });
-
-    _.setMethod(this, 'keys', function () {
-      opts.entries = false;
-      opts.values = false;
-      opts.keys = true;
-      return this;
-    });
-
-    _.setMethod(this, 'own', function () {
-      opts.own = !opts.own;
-      return this;
-    });
-  }
-
-  (function (prototype) {
-    _.setMethod(prototype, 'map', p.mapGenerator);
-    _.setMethod(prototype, 'filter', p.filterGenerator);
-    _.setMethod(prototype, 'toArray', p.toArray);
-    _.setMethod(prototype, 'then', p.then);
-    _.setMethod(prototype, 'unique', p.uniqueGenerator);
-    _.setMethod(prototype, 'flatten', p.flattenGenerator);
-    _.setMethod(prototype, 'stringify', p.stringify);
-    _.setMethod(prototype, 'reduce', p.reduce);
-    _.setMethod(prototype, 'each', p.each);
-    _.setMethod(prototype, 'every', p.every);
-    _.setMethod(prototype, 'some', p.some);
-  }(EnumerateGenerator.prototype));
 
   function* mapObjectGenerator() {
     if (true) {
@@ -1067,34 +1121,13 @@
     yield undefined;
   }
 
-  function* iterateGenerator(relaxed) {
-    var value,
-      tag;
-
-    /*jshint validthis:true */
-    for (value of this) {
-      if (_.isArray(value, relaxed)) {
-        yield * new ArrayGenerator(value);
-      } else if (_.isString(value)) {
-        yield * new StringGenerator(value);
-      } else {
-        tag = _.toStringTag(value);
-        if (tag === $.MAPTAG) {
-          yield * mapObjectGenerator(value);
-        } else if (tag === $.SETTAG) {
-          yield * setObjectGenerator(value);
-        }
-      }
-    }
-  }
-
   (function () {
     function addMethods(object) {
       _.setMethod(object, 'filter', p.filterGenerator);
       _.setMethod(object, 'map', p.mapGenerator);
       _.setMethod(object, 'unique', p.uniqueGenerator);
       _.setMethod(object, 'iterate', iterateGenerator);
-      _.setMethod(object, 'enumerate', EnumerateGenerator);
+      _.setMethod(object, 'enumerate', g.EnumerateGenerator);
       _.setMethod(object, 'then', p.then);
       _.setMethod(object, 'toArray', p.toArray);
       _.setMethod(object, 'flatten', p.flattenGenerator);
@@ -1111,56 +1144,58 @@
     addMethods(iterateGenerator.prototype);
   }());
 
-  function makeCounterGenerator(subject, to, by) {
-    var generator = new CounterGenerator();
+  return (function () {
+    function makeCounterGenerator(subject, to, by) {
+      var generator = new g.CounterGenerator();
 
-    if (_.isNumber(subject)) {
-      if (_.isNil(to)) {
-        generator.to(subject);
+      if (_.isNumber(subject)) {
+        if (_.isNil(to)) {
+          generator.to(subject);
+        } else {
+          generator.from(subject).to(to);
+        }
+
+        if (!_.isNil(by)) {
+          generator.by(by);
+        }
+      }
+
+      return generator;
+    }
+
+    function makeOtherGenerators(subject) {
+      var tag = _.toStringTag(subject),
+        generator;
+
+      if (tag === $.MAPTAG) {
+        generator = mapObjectGenerator(subject);
+      } else if (tag === $.SETTAG) {
+        generator = setObjectGenerator(subject);
       } else {
-        generator.from(subject).to(to);
+        generator = new g.EnumerateGenerator(subject);
       }
 
-      if (!_.isNil(by)) {
-        generator.by(by);
+      return generator;
+    }
+
+    return function Reiterate(subject, to, by) {
+      if (!(this instanceof Reiterate)) {
+        return new Reiterate(subject, to, by);
       }
-    }
 
-    return generator;
-  }
+      var generator;
 
-  function makeOtherGenerators(subject) {
-    var tag = _.toStringTag(subject),
-      generator;
+      if (_.isNil(subject) || _.isNumber(subject)) {
+        generator = makeCounterGenerator(subject, to, by);
+      } else if (_.isArray(subject, to)) {
+        generator = new g.ArrayGenerator(subject);
+      } else if (_.isString(subject)) {
+        generator = new g.StringGenerator(subject);
+      } else {
+        generator = makeOtherGenerators(subject);
+      }
 
-    if (tag === $.MAPTAG) {
-      generator = mapObjectGenerator(subject);
-    } else if (tag === $.SETTAG) {
-      generator = setObjectGenerator(subject);
-    } else {
-      generator = new EnumerateGenerator(subject);
-    }
-
-    return generator;
-  }
-
-  return function Reiterate(subject, to, by) {
-    if (!(this instanceof Reiterate)) {
-      return new Reiterate(subject, to, by);
-    }
-
-    var generator;
-
-    if (_.isNil(subject) || _.isNumber(subject)) {
-      generator = makeCounterGenerator(subject, to, by);
-    } else if (_.isArray(subject, to)) {
-      generator = new ArrayGenerator(subject);
-    } else if (_.isString(subject)) {
-      generator = new StringGenerator(subject);
-    } else {
-      generator = makeOtherGenerators(subject);
-    }
-
-    return generator;
-  };
+      return generator;
+    };
+  }());
 }));

@@ -154,5 +154,17 @@
       array = reiterate(e, true).values().flatten(true).toArray();
       expect(array).to.eql(d);
     });
+
+    it('Array-like state', function () {
+      var gen = reiterate({length: 0}, true).entries().reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        entries: true,
+        values: false,
+        keys: false
+      });
+    });
   });
 }());

@@ -71,5 +71,17 @@
         index -= 1;
       }
     });
+
+    it('String state', function () {
+      var gen = reiterate('').values().reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        entries: false,
+        values: true,
+        keys: false
+      });
+    });
   });
 }());

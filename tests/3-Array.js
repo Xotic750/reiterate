@@ -119,5 +119,17 @@
       array = reiterate(d).values().flatten().toArray();
       expect(array).to.eql(a);
     });
+
+    it('Array state', function () {
+      var gen = reiterate([]).keys().reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        entries: false,
+        values: false,
+        keys: true
+      });
+    });
   });
 }());

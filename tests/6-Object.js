@@ -113,5 +113,17 @@
       array = reiterate(c).own().values().flatten().toArray();
       expect(array).to.eql(b);
     });
+
+    it('Object state', function () {
+      var gen = reiterate({}).own(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        entries: true,
+        values: false,
+        keys: false,
+        own: true
+      });
+    });
   });
 }());

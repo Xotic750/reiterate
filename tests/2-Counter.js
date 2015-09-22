@@ -1065,5 +1065,17 @@
 
       expect(s).to.be(false);
     });
+
+    it('Counter state', function () {
+      var gen = reiterate().from(1).to(100).by(2).reverse(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        reversed: true,
+        from: 1,
+        to: 100,
+        by: 2
+      });
+    });
   });
 }());
