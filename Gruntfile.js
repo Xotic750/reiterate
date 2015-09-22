@@ -16,7 +16,14 @@
       pkg: grunt.file.readJSON('package.json'),
 
       clean: {
-        all: ['README.md', 'doc', 'lib', 'coverage', 'tests/browser/tests.js'],
+        all: [
+          'README.md',
+          'doc',
+          'lib',
+          'coverage',
+          'scripts/index.js',
+          'tests/browser/tests.js'
+        ],
         after: ['coverage'],
         coverage: ['coverage']
       },
@@ -28,8 +35,21 @@
         }
       },
 
+      buildIndexJs: {
+        readme: {
+          readme: 'templates/index.js.tpl',
+          dest: 'scripts/index.js'
+        }
+      },
+
       jshint: {
-        build: ['Gruntfile.js', 'src/*.js', 'tasks/**/*.js', 'tests/**/*.js'],
+        build: [
+          'Gruntfile.js',
+          'scripts/*.js',
+          'src/*.js',
+          'tasks/**/*.js',
+          'tests/**/*.js'
+        ],
         lib: ['lib/<%= pkg.name %>.js'],
         options: {
           bitwise: true,
@@ -180,6 +200,7 @@
     // Default task.
     grunt.registerTask('default', [
       'clean:all',
+      'buildIndexJs',
       'jshint:build',
       'replace:lib',
       'jshint:lib',
