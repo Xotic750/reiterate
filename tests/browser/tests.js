@@ -15,7 +15,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:19,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:18,
     maxcomplexity:6
 */
 
@@ -30,10 +30,10 @@
     clampToSafeIntegerRange, configurable, defineProperty, entries, enumerable,
     exports, floor, getYieldValue, has, hasOwn, hasOwnProperty, isArray,
     isArrayLike, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
-    isObject, isString, isSurrogatePair, isUndefined, keys, lastIndex, length,
-    max, min, mustBeFunction, mustBeFunctionIfDefined, prototype, reduce,
-    reverse, reversed, setMethod, setReverseIfOpt, sign, throwIfCircular,
-    toInteger, toSafeInteger, toString, toStringTag, value, values, writable
+    isString, isSurrogatePair, isUndefined, keys, lastIndex, length, max, min,
+    mustBeFunction, mustBeFunctionIfDefined, prototype, reduce, reverse,
+    reversed, setMethod, setReverseIfOpt, sign, throwIfCircular, toInteger,
+    toSafeInteger, toString, toStringTag, value, values, writable
 */
 
 /**
@@ -290,13 +290,9 @@
          * @param {numer} number The value to clamp if necessary.
          * @param {number} min The minimum value allowed.
          * @param {number} max The maximum value allowed
-         * @throws {TypeError} If params are not of number type.
          * @return {number} The clammped value.
          */
         clamp: function (number, min, max) {
-          if (!_.isNumber(number) || !_.isNumber(min) || !_.isNumber(max)) {
-            throw new TypeError('argument is not of type number');
-          }
           return Math.min(Math.max(number, min), max);
         },
 
@@ -418,17 +414,6 @@
         },
 
         /**
-         * Returns true if the operand subject is an Object.
-         *
-         * @private
-         * @param {*} subject The argument to test for validity.
-         * @return {boolean} true if an object, otherwise false.
-         */
-        isObject: function (subject) {
-          return Object(subject) === subject;
-        },
-
-        /**
          * Tests if the two character arguments combined are a valid UTF-16
          * surrogate pair.
          *
@@ -517,13 +502,12 @@
          * throw an error because it means there is a circular reference.
          *
          * @private
-         * @param {Object} thisArg The grandparent object, not in the stack.
-         * @param {Set} stack A set of parent objects ot check values against.
+         * @param {Set} stack A set of parent objects to check values against.
          * @throws {TypeError} If the a circular reference is found.
          * @return {boolean} Returns
          */
-        throwIfCircular: function (thisArg, stack, value) {
-          if (stack.has(thisArg) || stack.has(value)) {
+        throwIfCircular: function (stack, value) {
+          if (stack.has(value)) {
             throw new TypeError('circular object');
           }
 
@@ -555,28 +539,8 @@
          * @param {Object} target
          * @param {...Object} source
          * @return {Object}
-         * @see https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/
-         * Global_Objects/Object/assign
          */
         assign: (function () {
-          /**
-           * The abstract operation converts its argument to a value of type
-           * Object.
-           *
-           * @private
-           * @param {*} inputArg The argument to be converted to an object.
-           * @throws {TypeError} If inputArg is not coercible to an object.
-           * @return {Object} Value of inputArg as type Object.
-           * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
-           */
-          function toObject(inputArg) {
-            if (_.isNil(inputArg)) {
-              throw new TypeError('Cannot convert argument to object');
-            }
-
-            return Object(inputArg);
-          }
-
           /**
            * Iterate source own keys and assign then to the target.
            *
@@ -604,8 +568,7 @@
            * The assign function.
            */
           return function (target) {
-            var to = toObject(target),
-              length = arguments.length,
+            var length = arguments.length,
               index,
               arg;
 
@@ -614,14 +577,14 @@
               while (index < length) {
                 arg = arguments[index];
                 if (!_.isNil(arg)) {
-                  assignFromSource(toObject(arg), to);
+                  assignFromSource(arg, target);
                 }
 
                 index += 1;
               }
             }
 
-            return to;
+            return target;
           };
         }()),
 
@@ -784,7 +747,7 @@
                 } else {
                   value = object[tail.index];
                   if (_.isArray(value, relaxed)) {
-                    _.throwIfCircular(this, stack, value);
+                    _.throwIfCircular(stack, value);
                     setStack(stack, value, object);
                     object = value;
                   } else {
@@ -798,7 +761,14 @@
           };
         }()),
 
+        /*
+         * Future code
+         *
         walkOwnGenerator: (function () {
+          function isObject(subject) {
+            return Object(subject) === subject;
+          }
+
           function setStack(stack, current, previous) {
             return stack.set(current, {
               keys: Object.keys(current),
@@ -815,7 +785,7 @@
               key;
 
             for (object of this) {
-              if (_.isObject(object)) {
+              if (isObject(object)) {
                 stack = setStack(new Map(), object, null);
               } else {
                 yield object;
@@ -829,8 +799,8 @@
                 } else {
                   key = tail.keys[tail.index];
                   value = object[key];
-                  if (_.isObject(value)) {
-                    _.throwIfCircular(this, stack, value);
+                  if (isObject(value)) {
+                    _.throwIfCircular(stack, value);
                     setStack(stack, value, object);
                     object = value;
                   } else {
@@ -843,6 +813,7 @@
             }
           };
         }()),
+        */
 
         mapGenerator: function* (callback, thisArg) {
           _.mustBeFunction(callback);
@@ -4584,137 +4555,6 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:17,
-    maxcomplexity:5
-*/
-/*global require, describe, it */
-
-(function () {
-  'use strict';
-
-  var required = require('../scripts/'),
-    expect = required.expect,
-    reiterate = required.subject;
-
-  describe('Basic static tests', function () {
-    var a = {
-        0: 1,
-        1: 2,
-        2: 3,
-        3: 5,
-        4: 1,
-        5: 3,
-        6: 1,
-        7: 2,
-        8: 4
-      },
-      b = [1, 2, 3, 5, 1, 3, 1, 2, 4],
-      c = {
-        0: 1,
-        1: [2],
-        2: 3,
-        3: 5,
-        4: [1, 3, [1]],
-        5: 2,
-        6: [4]
-      },
-      index,
-      entry,
-      array;
-
-    it('Object enumerate, no length', function () {
-      // forward
-      index = 0;
-      for (entry of reiterate.enumerate(a)) {
-        expect(entry).to.eql([index, a[index]]);
-        index += 1;
-      }
-
-      index = 0;
-      for (entry of reiterate.enumerate(a).entries()) {
-        expect(entry).to.eql([index, a[index]]);
-        index += 1;
-      }
-
-      index = 0;
-      for (entry of reiterate.enumerate(a).values()) {
-        expect(entry).to.be(a[index]);
-        index += 1;
-      }
-
-      index = 0;
-      for (entry of reiterate.enumerate(a).keys()) {
-        expect(entry).to.eql(index);
-        index += 1;
-      }
-
-      // reverse
-      expect(function () {
-        reiterate.enumerate(a).reverse();
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-    });
-
-    it('Object enumerate own, no length', function () {
-      // forward
-      index = 0;
-      for (entry of reiterate.enumerate(a).own()) {
-        expect(entry).to.eql([index, a[index]]);
-        index += 1;
-      }
-
-      index = 0;
-      for (entry of reiterate.enumerate(a).own().entries()) {
-        expect(entry).to.eql([index, a[index]]);
-        index += 1;
-      }
-
-      index = 0;
-      for (entry of reiterate.enumerate(a).own().values()) {
-        expect(entry).to.be(a[index]);
-        index += 1;
-      }
-
-      index = 0;
-      for (entry of reiterate.enumerate(a).own().keys()) {
-        expect(entry).to.eql(index);
-        index += 1;
-      }
-
-      // reverse
-      expect(function () {
-        reiterate.enumerate(a).own().reverse();
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-    });
-
-    it('Object enumerate own flatten, no length', function () {
-      array = reiterate.enumerate(c).own().values().flatten().toArray();
-      expect(array).to.eql(b);
-    });
-
-    it('Object state', function () {
-      var gen = reiterate.enumerate({}).own(),
-        state = gen.state();
-
-      expect(state).to.eql({
-        entries: true,
-        values: false,
-        keys: false,
-        own: true
-      });
-    });
-  });
-}());
-
-},{"../scripts/":9}],12:[function(require,module,exports){
-/*jslint maxlen:80, es6:true, this:true */
-/*jshint
-    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
-    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
-    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:3, maxdepth:2, maxstatements:52,
     maxcomplexity:15
 */
@@ -5792,7 +5632,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],13:[function(require,module,exports){
+},{"../scripts/":9}],12:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -5929,7 +5769,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],14:[function(require,module,exports){
+},{"../scripts/":9}],13:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -6018,7 +5858,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],15:[function(require,module,exports){
+},{"../scripts/":9}],14:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -6190,7 +6030,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],16:[function(require,module,exports){
+},{"../scripts/":9}],15:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -6321,7 +6161,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],17:[function(require,module,exports){
+},{"../scripts/":9}],16:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -6458,7 +6298,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],18:[function(require,module,exports){
+},{"../scripts/":9}],17:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -6547,7 +6387,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],19:[function(require,module,exports){
+},{"../scripts/":9}],18:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -6721,4 +6561,186 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[11,10,12,13,14,15,16,17,18,19]);
+},{"../scripts/":9}],19:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:17,
+    maxcomplexity:5
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic static tests', function () {
+    var a = {
+        0: 1,
+        1: 2,
+        2: 3,
+        3: 5,
+        4: 1,
+        5: 3,
+        6: 1,
+        7: 2,
+        8: 4
+      },
+      b = [1, 2, 3, 5, 1, 3, 1, 2, 4],
+      c = {
+        0: 1,
+        1: [2],
+        2: 3,
+        3: 5,
+        4: [1, 3, [1]],
+        5: 2,
+        6: [4]
+      },
+      index,
+      entry,
+      array;
+
+    it('Object enumerate, no length', function () {
+      // forward
+      index = 0;
+      for (entry of reiterate.enumerate(a)) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate.enumerate(a).entries()) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate.enumerate(a).values()) {
+        expect(entry).to.be(a[index]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate.enumerate(a).keys()) {
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+
+      // reverse
+      expect(function () {
+        reiterate.enumerate(a).reverse();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('Object enumerate own, no length', function () {
+      // forward
+      index = 0;
+      for (entry of reiterate.enumerate(a).own()) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate.enumerate(a).own().entries()) {
+        expect(entry).to.eql([index, a[index]]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate.enumerate(a).own().values()) {
+        expect(entry).to.be(a[index]);
+        index += 1;
+      }
+
+      index = 0;
+      for (entry of reiterate.enumerate(a).own().keys()) {
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+
+      // reverse
+      expect(function () {
+        reiterate.enumerate(a).own().reverse();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('Object enumerate own flatten, no length', function () {
+      array = reiterate.enumerate(c).own().values().flatten().toArray();
+      expect(array).to.eql(b);
+    });
+
+    it('Object state', function () {
+      var gen = reiterate.enumerate({}).own(),
+        state = gen.state();
+
+      expect(state).to.eql({
+        entries: true,
+        values: false,
+        keys: false,
+        own: true
+      });
+    });
+  });
+}());
+
+},{"../scripts/":9}],20:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Array then defined but not a function', function () {
+      function noop() {}
+
+      expect(function () {
+        for (var entry of reiterate([]).then(null)) {
+          noop(entry);
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('Array circular', function () {
+      var a = [1];
+
+      a.push(a);
+
+      function noop() {}
+
+      expect(function () {
+        for (var entry of reiterate(a).flatten()) {
+          noop(entry);
+          //break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20]);

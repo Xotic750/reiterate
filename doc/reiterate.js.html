@@ -42,7 +42,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:19,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:18,
     maxcomplexity:6
 */
 
@@ -57,10 +57,10 @@
     clampToSafeIntegerRange, configurable, defineProperty, entries, enumerable,
     exports, floor, getYieldValue, has, hasOwn, hasOwnProperty, isArray,
     isArrayLike, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
-    isObject, isString, isSurrogatePair, isUndefined, keys, lastIndex, length,
-    max, min, mustBeFunction, mustBeFunctionIfDefined, prototype, reduce,
-    reverse, reversed, setMethod, setReverseIfOpt, sign, throwIfCircular,
-    toInteger, toSafeInteger, toString, toStringTag, value, values, writable
+    isString, isSurrogatePair, isUndefined, keys, lastIndex, length, max, min,
+    mustBeFunction, mustBeFunctionIfDefined, prototype, reduce, reverse,
+    reversed, setMethod, setReverseIfOpt, sign, throwIfCircular, toInteger,
+    toSafeInteger, toString, toStringTag, value, values, writable
 */
 
 /**
@@ -317,13 +317,9 @@
          * @param {numer} number The value to clamp if necessary.
          * @param {number} min The minimum value allowed.
          * @param {number} max The maximum value allowed
-         * @throws {TypeError} If params are not of number type.
          * @return {number} The clammped value.
          */
         clamp: function (number, min, max) {
-          if (!_.isNumber(number) || !_.isNumber(min) || !_.isNumber(max)) {
-            throw new TypeError('argument is not of type number');
-          }
           return Math.min(Math.max(number, min), max);
         },
 
@@ -445,17 +441,6 @@
         },
 
         /**
-         * Returns true if the operand subject is an Object.
-         *
-         * @private
-         * @param {*} subject The argument to test for validity.
-         * @return {boolean} true if an object, otherwise false.
-         */
-        isObject: function (subject) {
-          return Object(subject) === subject;
-        },
-
-        /**
          * Tests if the two character arguments combined are a valid UTF-16
          * surrogate pair.
          *
@@ -544,13 +529,12 @@
          * throw an error because it means there is a circular reference.
          *
          * @private
-         * @param {Object} thisArg The grandparent object, not in the stack.
-         * @param {Set} stack A set of parent objects ot check values against.
+         * @param {Set} stack A set of parent objects to check values against.
          * @throws {TypeError} If the a circular reference is found.
          * @return {boolean} Returns
          */
-        throwIfCircular: function (thisArg, stack, value) {
-          if (stack.has(thisArg) || stack.has(value)) {
+        throwIfCircular: function (stack, value) {
+          if (stack.has(value)) {
             throw new TypeError('circular object');
           }
 
@@ -582,28 +566,8 @@
          * @param {Object} target
          * @param {...Object} source
          * @return {Object}
-         * @see https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/
-         * Global_Objects/Object/assign
          */
         assign: (function () {
-          /**
-           * The abstract operation converts its argument to a value of type
-           * Object.
-           *
-           * @private
-           * @param {*} inputArg The argument to be converted to an object.
-           * @throws {TypeError} If inputArg is not coercible to an object.
-           * @return {Object} Value of inputArg as type Object.
-           * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
-           */
-          function toObject(inputArg) {
-            if (_.isNil(inputArg)) {
-              throw new TypeError('Cannot convert argument to object');
-            }
-
-            return Object(inputArg);
-          }
-
           /**
            * Iterate source own keys and assign then to the target.
            *
@@ -631,8 +595,7 @@
            * The assign function.
            */
           return function (target) {
-            var to = toObject(target),
-              length = arguments.length,
+            var length = arguments.length,
               index,
               arg;
 
@@ -641,14 +604,14 @@
               while (index &lt; length) {
                 arg = arguments[index];
                 if (!_.isNil(arg)) {
-                  assignFromSource(toObject(arg), to);
+                  assignFromSource(arg, target);
                 }
 
                 index += 1;
               }
             }
 
-            return to;
+            return target;
           };
         }()),
 
@@ -811,7 +774,7 @@
                 } else {
                   value = object[tail.index];
                   if (_.isArray(value, relaxed)) {
-                    _.throwIfCircular(this, stack, value);
+                    _.throwIfCircular(stack, value);
                     setStack(stack, value, object);
                     object = value;
                   } else {
@@ -825,7 +788,14 @@
           };
         }()),
 
+        /*
+         * Future code
+         *
         walkOwnGenerator: (function () {
+          function isObject(subject) {
+            return Object(subject) === subject;
+          }
+
           function setStack(stack, current, previous) {
             return stack.set(current, {
               keys: Object.keys(current),
@@ -842,7 +812,7 @@
               key;
 
             for (object of this) {
-              if (_.isObject(object)) {
+              if (isObject(object)) {
                 stack = setStack(new Map(), object, null);
               } else {
                 yield object;
@@ -856,8 +826,8 @@
                 } else {
                   key = tail.keys[tail.index];
                   value = object[key];
-                  if (_.isObject(value)) {
-                    _.throwIfCircular(this, stack, value);
+                  if (isObject(value)) {
+                    _.throwIfCircular(stack, value);
                     setStack(stack, value, object);
                     object = value;
                   } else {
@@ -870,6 +840,7 @@
             }
           };
         }()),
+        */
 
         mapGenerator: function* (callback, thisArg) {
           _.mustBeFunction(callback);
@@ -1349,7 +1320,7 @@
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.2</a> on Wed Sep 23 2015 00:13:15 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.2</a> on Wed Sep 23 2015 01:41:45 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>
