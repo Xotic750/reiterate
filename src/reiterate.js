@@ -998,7 +998,7 @@
           var prototype;
 
           function* arrayGenerator(subject, opts) {
-            var generator = new g.CounterGenerator(),
+            var generator = g.CounterGenerator(),
               key;
 
             _.setReverseIfOpt(opts, generator.to(_.lastIndex(subject)));
@@ -1082,7 +1082,7 @@
           }
 
           function* stringGenerator(subject, opts) {
-            var generator = new g.CounterGenerator(opts),
+            var generator = g.CounterGenerator(opts),
               next = true,
               char1,
               char2,
@@ -1256,7 +1256,7 @@
 
     return (function () {
       function makeCounterGenerator(subject, to, by) {
-        var generator = new g.CounterGenerator();
+        var generator = g.CounterGenerator();
 
         if (_.isNumber(subject)) {
           if (_.isNil(to)) {
@@ -1273,18 +1273,6 @@
         return generator;
       }
 
-      function makeOtherGenerators(subject) {
-        var generator;
-
-        if (subject[Symbol.iterator]) {
-          generator = subject[Symbol.iterator];
-        } else {
-          generator = new g.EnumerateGenerator(subject);
-        }
-
-        return generator;
-      }
-
       function Reiterate(subject, to, by) {
         if (!(this instanceof Reiterate)) {
           return new Reiterate(subject, to, by);
@@ -1295,11 +1283,11 @@
         if (_.isNil(subject) || _.isNumber(subject)) {
           generator = makeCounterGenerator(subject, to, by);
         } else if (_.isArray(subject, to)) {
-          generator = new g.ArrayGenerator(subject);
+          generator = g.ArrayGenerator(subject);
         } else if (_.isString(subject)) {
-          generator = new g.StringGenerator(subject);
+          generator = g.StringGenerator(subject);
         } else {
-          generator = makeOtherGenerators(subject);
+          generator = g.EnumerateGenerator(subject);
         }
 
         return generator;
