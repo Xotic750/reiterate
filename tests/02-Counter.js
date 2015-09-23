@@ -1066,6 +1066,18 @@
       expect(s).to.be(false);
     });
 
+    it('Counter join', function () {
+      var s;
+
+      // forward
+      s = reiterate().from(0).to(2).join();
+      expect(s).to.be('0,1,2');
+
+      // reverse
+      s = reiterate().from(0).to(2).reverse().join();
+      expect(s).to.be('2,1,0');
+    });
+
     it('Counter state', function () {
       var gen = reiterate().from(1).to(100).by(2).reverse(),
         state = gen.state();

@@ -32,7 +32,7 @@
           return item.codePointAt();
         }),
         array = reiterate(a).values().toArray(),
-        string = reiterate(a).values().stringify(),
+        string = reiterate(a).values().join(''),
         iterator = reiterate(a).values().map(function (item) {
           return item.codePointAt();
         }),
@@ -52,7 +52,7 @@
       }
 
       // reverse
-      string = reiterate(a).values().reverse().stringify();
+      string = reiterate(a).values().reverse().join('');
       b.reverse();
       expect(string).to.be(b.join(''));
       array = reiterate(a).values().reverse().toArray();

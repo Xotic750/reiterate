@@ -15,7 +15,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:18,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:17,
     maxcomplexity:6
 */
 
@@ -24,16 +24,19 @@
 */
 
 /*property
-    ARRAY, ENTRIES, FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR,
-    MIN_SAFE_INTEGER, NUMBER, OPTS, SET, STRING, STRINGTAG, TYPE, UNDEFINED,
-    VALUES, abs, amd, assign, bind, call, charCodeAt, clamp,
-    clampToSafeIntegerRange, configurable, defineProperty, entries, enumerable,
-    exports, floor, getYieldValue, has, hasOwn, hasOwnProperty, isArray,
-    isArrayLike, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
-    isString, isSurrogatePair, isUndefined, keys, lastIndex, length, max, min,
-    mustBeFunction, mustBeFunctionIfDefined, prototype, reduce, reverse,
-    reversed, setMethod, setReverseIfOpt, sign, throwIfCircular, toInteger,
-    toSafeInteger, toString, toStringTag, value, values, writable
+    ARRAY, ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator,
+    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR, MIN_SAFE_INTEGER,
+    NUMBER, OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
+    VALUES, abs, addMethods, amd, assign, bind, call, charCodeAt, clamp,
+    clampToSafeIntegerRange, configurable, defineProperty, each, entries,
+    enumerable, every, exports, filterGenerator, flattenGenerator, floor,
+    getYieldValue, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isFinite,
+    isFunction, isLength, isNaN, isNil, isNumber, isString, isSurrogatePair,
+    isUndefined, join, keys, lastIndex, length, mapGenerator, max, min,
+    mustBeFunction, mustBeFunctionIfDefined, populatePrototypes, prototype,
+    reduce, reverse, reversed, setMethod, setReverseIfOpt, sign, some, then,
+    throwIfCircular, toArray, toInteger, toSafeInteger, toString, toStringTag,
+    uniqueGenerator, value, values, writable
 */
 
 /**
@@ -613,6 +616,35 @@
           }
 
           return result;
+        },
+
+        addMethods: function (object) {
+          _.setMethod(object, 'filter', p.filterGenerator);
+          _.setMethod(object, 'map', p.mapGenerator);
+          _.setMethod(object, 'reduce', p.reduce);
+          _.setMethod(object, 'each', p.each);
+          _.setMethod(object, 'every', p.every);
+          _.setMethod(object, 'some', p.some);
+          _.setMethod(object, 'join', p.join);
+          _.setMethod(object, 'toArray', p.toArray);
+          _.setMethod(object, 'then', p.then);
+
+          if (object !== g.CounterGenerator.prototype) {
+            _.setMethod(object, 'enumerate', g.EnumerateGenerator);
+            _.setMethod(object, 'unique', p.uniqueGenerator);
+            _.setMethod(object, 'flatten', p.flattenGenerator);
+          }
+        },
+
+        populatePrototypes: function () {
+          _.addMethods(g.CounterGenerator.prototype);
+          _.addMethods(g.ArrayGenerator.prototype);
+          _.addMethods(g.StringGenerator.prototype);
+          _.addMethods(g.EnumerateGenerator.prototype);
+          _.addMethods(p.mapGenerator.prototype);
+          _.addMethods(p.filterGenerator.prototype);
+          _.addMethods(p.uniqueGenerator.prototype);
+          _.addMethods(p.flattenGenerator.prototype);
         }
 
       },
@@ -695,12 +727,24 @@
           return result;
         },
 
-        stringify: function () {
+        join: function (seperator) {
           var result = '',
-            item;
+            iterator = this[Symbol.iterator](),
+            item = iterator.next(),
+            next;
 
-          for (item of this) {
-            result += item;
+          if (_.isUndefined(seperator)) {
+            seperator = ',';
+          }
+
+          while (!item.done) {
+            result += item.value;
+            next = iterator.next();
+            if (!next.done) {
+              result += seperator;
+            }
+
+            item = next;
           }
 
           return result;
@@ -726,11 +770,33 @@
             });
           }
 
+          function* iterateStack(stack, object, relaxed) {
+            var tail,
+              value;
+
+            while (stack && stack.size) {
+              tail = stack.get(object);
+              if (tail.index >= object.length) {
+                stack.delete(object);
+                object = tail.prev;
+              } else {
+                value = object[tail.index];
+                if (_.isArray(value, relaxed)) {
+                  _.throwIfCircular(stack, value);
+                  setStack(stack, value, object);
+                  object = value;
+                } else {
+                  yield value;
+                }
+
+                tail.index += 1;
+              }
+            }
+          }
+
           return function* (relaxed) {
             var stack,
-              object,
-              value,
-              tail;
+              object;
 
             for (object of this) {
               if (_.isArray(object, relaxed)) {
@@ -739,24 +805,7 @@
                 yield object;
               }
 
-              while (stack && stack.size) {
-                tail = stack.get(object);
-                if (tail.index >= object.length) {
-                  stack.delete(object);
-                  object = tail.prev;
-                } else {
-                  value = object[tail.index];
-                  if (_.isArray(value, relaxed)) {
-                    _.throwIfCircular(stack, value);
-                    setStack(stack, value, object);
-                    object = value;
-                  } else {
-                    yield value;
-                  }
-
-                  tail.index += 1;
-                }
-              }
+              yield * iterateStack(stack, object, relaxed);
             }
           };
         }()),
@@ -839,18 +888,7 @@
             iterator = this;
           } else {
             iterator = generator(this);
-            _.setMethod(iterator, 'filter', p.filterGenerator);
-            _.setMethod(iterator, 'map', p.mapGenerator);
-            _.setMethod(iterator, 'unique', p.uniqueGenerator);
-            _.setMethod(iterator, 'enumerate', g.EnumerateGenerator);
-            _.setMethod(iterator, 'then', p.then);
-            _.setMethod(iterator, 'toArray', p.toArray);
-            _.setMethod(iterator, 'stringify', p.stringify);
-            _.setMethod(iterator, 'flatten', p.flattenGenerator);
-            _.setMethod(iterator, 'reduce', p.reduce);
-            _.setMethod(iterator, 'each', p.each);
-            _.setMethod(iterator, 'every', p.every);
-            _.setMethod(iterator, 'some', p.some);
+            _.addMethods(iterator);
           }
 
           return iterator;
@@ -866,8 +904,6 @@
       g = {
 
         CounterGenerator: (function () {
-          var prototype;
-
           function* countReverseGenerator(opts) {
             var count = opts.to;
 
@@ -953,22 +989,10 @@
             });
           }
 
-          prototype = CounterGenerator.prototype;
-          _.setMethod(prototype, 'map', p.mapGenerator);
-          _.setMethod(prototype, 'filter', p.filterGenerator);
-          _.setMethod(prototype, 'toArray', p.toArray);
-          _.setMethod(prototype, 'then', p.then);
-          _.setMethod(prototype, 'reduce', p.reduce);
-          _.setMethod(prototype, 'every', p.every);
-          _.setMethod(prototype, 'each', p.each);
-          _.setMethod(prototype, 'some', p.some);
-
           return CounterGenerator;
         }()),
 
         ArrayGenerator: (function () {
-          var prototype;
-
           function* arrayGenerator(subject, opts) {
             var generator = g.CounterGenerator(),
               key;
@@ -1017,24 +1041,10 @@
             });
           }
 
-          prototype = ArrayGenerator.prototype;
-          _.setMethod(prototype, 'map', p.mapGenerator);
-          _.setMethod(prototype, 'filter', p.filterGenerator);
-          _.setMethod(prototype, 'toArray', p.toArray);
-          _.setMethod(prototype, 'then', p.then);
-          _.setMethod(prototype, 'unique', p.uniqueGenerator);
-          _.setMethod(prototype, 'flatten', p.flattenGenerator);
-          _.setMethod(prototype, 'reduce', p.reduce);
-          _.setMethod(prototype, 'each', p.each);
-          _.setMethod(prototype, 'every', p.every);
-          _.setMethod(prototype, 'some', p.some);
-
           return ArrayGenerator;
         }()),
 
         StringGenerator: (function () {
-          var prototype;
-
           function getStringYieldValue(opts, character, key) {
             var value,
               result;
@@ -1123,24 +1133,10 @@
             });
           }
 
-          prototype = StringGenerator.prototype;
-          _.setMethod(prototype, 'map', p.mapGenerator);
-          _.setMethod(prototype, 'filter', p.filterGenerator);
-          _.setMethod(prototype, 'toArray', p.toArray);
-          _.setMethod(prototype, 'then', p.then);
-          _.setMethod(prototype, 'unique', p.uniqueGenerator);
-          _.setMethod(prototype, 'stringify', p.stringify);
-          _.setMethod(prototype, 'reduce', p.reduce);
-          _.setMethod(prototype, 'each', p.each);
-          _.setMethod(prototype, 'every', p.every);
-          _.setMethod(prototype, 'some', p.some);
-
           return StringGenerator;
         }()),
 
         EnumerateGenerator: (function () {
-          var prototype;
-
           function* enumerateGenerator(subject, opts) {
             for (var key in subject) {
               if (!opts.own || _.hasOwn(subject, key)) {
@@ -1187,44 +1183,12 @@
             });
           }
 
-          prototype = EnumerateGenerator.prototype;
-          _.setMethod(prototype, 'map', p.mapGenerator);
-          _.setMethod(prototype, 'filter', p.filterGenerator);
-          _.setMethod(prototype, 'toArray', p.toArray);
-          _.setMethod(prototype, 'then', p.then);
-          _.setMethod(prototype, 'unique', p.uniqueGenerator);
-          _.setMethod(prototype, 'flatten', p.flattenGenerator);
-          _.setMethod(prototype, 'stringify', p.stringify);
-          _.setMethod(prototype, 'reduce', p.reduce);
-          _.setMethod(prototype, 'each', p.each);
-          _.setMethod(prototype, 'every', p.every);
-          _.setMethod(prototype, 'some', p.some);
-
           return EnumerateGenerator;
         }())
 
       };
 
-    (function () {
-      function addMethods(object) {
-        _.setMethod(object, 'filter', p.filterGenerator);
-        _.setMethod(object, 'map', p.mapGenerator);
-        _.setMethod(object, 'unique', p.uniqueGenerator);
-        _.setMethod(object, 'enumerate', g.EnumerateGenerator);
-        _.setMethod(object, 'then', p.then);
-        _.setMethod(object, 'toArray', p.toArray);
-        _.setMethod(object, 'flatten', p.flattenGenerator);
-        _.setMethod(object, 'reduce', p.reduce);
-        _.setMethod(object, 'each', p.each);
-        _.setMethod(object, 'every', p.every);
-        _.setMethod(object, 'some', p.some);
-      }
-
-      addMethods(p.mapGenerator.prototype);
-      addMethods(p.filterGenerator.prototype);
-      addMethods(p.uniqueGenerator.prototype);
-      addMethods(p.flattenGenerator.prototype);
-    }());
+    _.populatePrototypes();
 
     return (function () {
       function makeCounterGenerator(subject, to, by) {
@@ -5618,6 +5582,18 @@ process.umask = function() { return 0; };
       expect(s).to.be(false);
     });
 
+    it('Counter join', function () {
+      var s;
+
+      // forward
+      s = reiterate().from(0).to(2).join();
+      expect(s).to.be('0,1,2');
+
+      // reverse
+      s = reiterate().from(0).to(2).reverse().join();
+      expect(s).to.be('2,1,0');
+    });
+
     it('Counter state', function () {
       var gen = reiterate().from(1).to(100).by(2).reverse(),
         state = gen.state();
@@ -5804,7 +5780,7 @@ process.umask = function() { return 0; };
           return item.codePointAt();
         }),
         array = reiterate(a).values().toArray(),
-        string = reiterate(a).values().stringify(),
+        string = reiterate(a).values().join(''),
         iterator = reiterate(a).values().map(function (item) {
           return item.codePointAt();
         }),
@@ -5824,7 +5800,7 @@ process.umask = function() { return 0; };
       }
 
       // reverse
-      string = reiterate(a).values().reverse().stringify();
+      string = reiterate(a).values().reverse().join('');
       b.reverse();
       expect(string).to.be(b.join(''));
       array = reiterate(a).values().reverse().toArray();
@@ -6333,7 +6309,7 @@ process.umask = function() { return 0; };
           return item.codePointAt();
         }),
         array = reiterate.string(a).values().toArray(),
-        string = reiterate.string(a).values().stringify(),
+        string = reiterate.string(a).values().join(''),
         iterator = reiterate.string(a).values().map(function (item) {
           return item.codePointAt();
         }),
@@ -6353,7 +6329,7 @@ process.umask = function() { return 0; };
       }
 
       // reverse
-      string = reiterate.string(a).values().reverse().stringify();
+      string = reiterate.string(a).values().reverse().join('');
       b.reverse();
       expect(string).to.be(b.join(''));
       array = reiterate.string(a).values().reverse().toArray();
