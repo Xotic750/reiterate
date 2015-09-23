@@ -4,7 +4,7 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:28,
-    maxcomplexity:4
+    maxcomplexity:5
 */
 /*global require, describe, it */
 
@@ -94,8 +94,21 @@
         index += 2;
       }
 
+      gen = reiterate(a).keys().indexes(-3);
+      for (entry of gen) {
+        expect(entry).to.eql(8);
+      }
+
+      gen = reiterate(a).keys().indexes(1, 3);
+      index = 2;
+      for (entry of gen) {
+        expect(entry).to.be.within(2, 4);
+        expect(entry).to.eql(index);
+        index += 2;
+      }
+
       // reverse
-      gen.reverse();
+      gen = reiterate(a).keys().indexes(1, -3).reverse();
       index = a.length - 4;
       for (entry of gen) {
         expect(entry).to.be.within(1, a.length - 4);

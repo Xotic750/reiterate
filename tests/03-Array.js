@@ -141,8 +141,21 @@
         index += 1;
       }
 
+      gen = reiterate(a).keys().indexes(-1);
+      for (entry of gen) {
+        expect(entry).to.eql(4);
+      }
+
+      gen = reiterate(a).keys().indexes(1, 3);
+      index = 1;
+      for (entry of gen) {
+        expect(entry).to.be.within(1, 3);
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+      
       // reverse
-      gen.reverse();
+      gen = reiterate(a).keys().indexes(1, -1).reverse();
       index = a.length - 2;
       for (entry of gen) {
         expect(entry).to.be.within(1, a.length - 2);
