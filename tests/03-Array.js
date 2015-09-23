@@ -3,8 +3,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
-    maxcomplexity:9
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:50,
+    maxcomplexity:10
 */
 /*global require, describe, it */
 
@@ -30,6 +30,13 @@
         expect(entry).to.eql([index, a[index]]);
         index += 1;
       }
+
+      index = 0;
+      for (entry of reiterate([]).values()) {
+        index += 1;
+      }
+
+      expect(index).to.be(0);
 
       index = 0;
       for (entry of reiterate(a).entries()) {
@@ -120,11 +127,39 @@
       expect(array).to.eql(a);
     });
 
+    it('Array indexes', function () {
+      var a = [1, 2, 3, 4, 5],
+        gen = reiterate(a).keys().indexes(1, -1),
+        entry,
+        index;
+
+      // forward
+      index = 1;
+      for (entry of gen) {
+        expect(entry).to.be.within(1, a.length - 2);
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+
+      // reverse
+      gen.reverse();
+      index = a.length - 2;
+      for (entry of gen) {
+        expect(entry).to.be.within(1, a.length - 2);
+        expect(entry).to.eql(index);
+        index -= 1;
+      }
+    });
+
     it('Array state', function () {
       var gen = reiterate([]).keys().reverse(),
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: false,
         values: false,

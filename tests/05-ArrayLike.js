@@ -160,6 +160,10 @@
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: true,
         values: false,

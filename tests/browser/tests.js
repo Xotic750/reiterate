@@ -15,8 +15,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:17,
-    maxcomplexity:6
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:22,
+    maxcomplexity:4
 */
 
 /*global
@@ -29,14 +29,14 @@
     NUMBER, OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
     VALUES, abs, addMethods, amd, assign, bind, call, charCodeAt, clamp,
     clampToSafeIntegerRange, configurable, defineProperty, each, entries,
-    enumerable, every, exports, filterGenerator, flattenGenerator, floor,
+    enumerable, every, exports, filterGenerator, flattenGenerator, floor, from,
     getYieldValue, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isFinite,
     isFunction, isLength, isNaN, isNil, isNumber, isString, isSurrogatePair,
-    isUndefined, join, keys, lastIndex, length, mapGenerator, max, min,
-    mustBeFunction, mustBeFunctionIfDefined, populatePrototypes, prototype,
-    reduce, reverse, reversed, setMethod, setReverseIfOpt, sign, some, then,
-    throwIfCircular, toArray, toInteger, toSafeInteger, toString, toStringTag,
-    uniqueGenerator, value, values, writable
+    isUndefined, join, keys, length, mapGenerator, max, min, mustBeFunction,
+    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce, reverse,
+    reversed, setIndexesOpts, setMethod, setReverseIfOpt, sign, some, then,
+    throwIfCircular, to, toArray, toInteger, toLength, toSafeInteger, toString,
+    toStringTag, uniqueGenerator, value, values, writable
 */
 
 /**
@@ -403,20 +403,6 @@
         },
 
         /**
-         * Get the last index of an array-like object.
-         *
-         * @private
-         * @param {*} subject The object to get the last index of.
-         * @return {number} Returns the last index number of the array-like
-         *                  or 0.
-         */
-        lastIndex: function (subject) {
-          return _.isArrayLike(subject) &&
-            _.toSafeInteger(subject.length - 1) ||
-            0;
-        },
-
-        /**
          * Tests if the two character arguments combined are a valid UTF-16
          * surrogate pair.
          *
@@ -498,6 +484,20 @@
           }
 
           return v;
+        },
+
+        /**
+         * The abstract operation ToLength converts its argument to an integer
+         * suitable for use as the length of an array-like object.
+         *
+         * @private
+         * @param {*} subject The object to be converted to a length.
+         * @return {number} If len <= +0 then +0 else if len is +INFINITY then
+         *                  2^53-1 else min(len, 2^53-1).
+         * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
+         */
+        toLength: function (subject) {
+          return _.clamp(_.toInteger(subject), 0, Number.MAX_SAFE_INTEGER);
         },
 
         /**
@@ -645,12 +645,35 @@
           _.addMethods(p.filterGenerator.prototype);
           _.addMethods(p.uniqueGenerator.prototype);
           _.addMethods(p.flattenGenerator.prototype);
+        },
+
+        setIndexesOpts: function (start, end, opts) {
+          opts.from = _.toInteger(start);
+          if (opts.from < 0) {
+            opts.from = Math.max(opts.length + opts.from, 0);
+          } else {
+            opts.from = Math.min(opts.from, opts.length);
+          }
+
+          if (_.isUndefined(end)) {
+            opts.to = opts.length;
+          } else {
+            opts.to = _.toInteger(end);
+          }
+
+          if (opts.to < 0) {
+            opts.to = Math.max(opts.length + opts.to, 0);
+          } else {
+            opts.to = Math.min(opts.to, opts.length);
+          }
+
+          opts.to = _.toLength(opts.to) - 1;
         }
 
       },
 
       /**
-       * The private namespace for common prottotype functions.
+       * The private namespace for common prototype functions.
        * @private
        * @namespace
        */
@@ -994,10 +1017,16 @@
 
         ArrayGenerator: (function () {
           function* arrayGenerator(subject, opts) {
-            var generator = g.CounterGenerator(),
+            var generator,
               key;
 
-            _.setReverseIfOpt(opts, generator.to(_.lastIndex(subject)));
+            if (!opts.length) {
+              return;
+            }
+
+            generator = g.CounterGenerator();
+            generator.from(opts.from).to(opts.to).by(opts.by);
+            _.setReverseIfOpt(opts, generator);
             for (key of generator) {
               yield _.getYieldValue(opts, subject, key);
             }
@@ -1008,9 +1037,14 @@
               return new ArrayGenerator(subject);
             }
 
-            var opts = _.assign({
-              reversed: false
-            }, $.OPTS.ENTRIES);
+            var length = _.isArrayLike(subject) ? subject.length : 0,
+              opts = _.assign({
+                length: length,
+                reversed: false,
+                from: 0,
+                to: length - 1,
+                by: 1
+              }, $.OPTS.ENTRIES);
 
             _.setMethod(this, 'state', function () {
               return _.assign({}, opts);
@@ -1039,6 +1073,11 @@
               opts.reversed = !opts.reversed;
               return this;
             });
+
+            _.setMethod(this, 'indexes', function (start, end) {
+              _.setIndexesOpts(start, end, opts);
+              return this;
+            });
           }
 
           return ArrayGenerator;
@@ -1052,7 +1091,7 @@
             if (opts.keys) {
               result = key;
             } else {
-              value = String.fromCodePoint(character.codePointAt(0));
+              value = String.fromCodePoint(character.codePointAt());
               if (opts.values) {
                 result = value;
               } else {
@@ -1064,13 +1103,21 @@
           }
 
           function* stringGenerator(subject, opts) {
-            var generator = g.CounterGenerator(opts),
-              next = true,
+            /*jshint maxcomplexity:7 */
+            var generator,
+              next,
               char1,
               char2,
               key;
 
-            _.setReverseIfOpt(opts, generator.to(_.lastIndex(subject)));
+            if (!opts.length) {
+              return;
+            }
+
+            next = true;
+            generator = g.CounterGenerator(opts);
+            generator.from(opts.from).to(opts.to).by(opts.by);
+            _.setReverseIfOpt(opts, generator);
             for (key of generator) {
               if (next) {
                 if (opts.reversed) {
@@ -1100,9 +1147,14 @@
               return new StringGenerator(subject);
             }
 
-            var opts = _.assign({
-              reversed: false
-            }, $.OPTS.ENTRIES);
+            var length = _.isArrayLike(subject) ? subject.length : 0,
+              opts = _.assign({
+                length: length,
+                reversed: false,
+                from: 0,
+                to: length - 1,
+                by: 1
+              }, $.OPTS.ENTRIES);
 
             _.setMethod(this, 'state', function () {
               return _.assign({}, opts);
@@ -1129,6 +1181,31 @@
 
             _.setMethod(this, 'reverse', function () {
               opts.reversed = !opts.reversed;
+              return this;
+            });
+
+            _.setMethod(this, 'indexes', function (start, end) {
+              /*jshint maxcomplexity:5 */
+              var char1,
+                char2;
+
+              _.setIndexesOpts(start, end, opts);
+              if (opts.from) {
+                char1 = subject[opts.from - 1];
+                char2 = subject[opts.from];
+                if(_.isSurrogatePair(char1, char2)) {
+                  opts.from += 1;
+                }
+              }
+
+              if (opts.to) {
+                char1 = subject[opts.to - 1];
+                char2 = subject[opts.to];
+                if(_.isSurrogatePair(char1, char2)) {
+                  opts.to -= 1;
+                }
+              }
+
               return this;
             });
           }
@@ -1210,6 +1287,7 @@
       }
 
       function Reiterate(subject, to, by) {
+        /*jshint maxcomplexity:6 */
         if (!(this instanceof Reiterate)) {
           return new Reiterate(subject, to, by);
         }
@@ -5614,8 +5692,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
-    maxcomplexity:9
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:50,
+    maxcomplexity:10
 */
 /*global require, describe, it */
 
@@ -5641,6 +5719,13 @@ process.umask = function() { return 0; };
         expect(entry).to.eql([index, a[index]]);
         index += 1;
       }
+
+      index = 0;
+      for (entry of reiterate([]).values()) {
+        index += 1;
+      }
+
+      expect(index).to.be(0);
 
       index = 0;
       for (entry of reiterate(a).entries()) {
@@ -5731,11 +5816,39 @@ process.umask = function() { return 0; };
       expect(array).to.eql(a);
     });
 
+    it('Array indexes', function () {
+      var a = [1, 2, 3, 4, 5],
+        gen = reiterate(a).keys().indexes(1, -1),
+        entry,
+        index;
+
+      // forward
+      index = 1;
+      for (entry of gen) {
+        expect(entry).to.be.within(1, a.length - 2);
+        expect(entry).to.eql(index);
+        index += 1;
+      }
+
+      // reverse
+      gen.reverse();
+      index = a.length - 2;
+      for (entry of gen) {
+        expect(entry).to.be.within(1, a.length - 2);
+        expect(entry).to.eql(index);
+        index -= 1;
+      }
+    });
+
     it('Array state', function () {
       var gen = reiterate([]).keys().reverse(),
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: false,
         values: false,
@@ -5751,8 +5864,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:24,
-    maxcomplexity:3
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:28,
+    maxcomplexity:4
 */
 /*global require, describe, it */
 
@@ -5788,6 +5901,13 @@ process.umask = function() { return 0; };
         entry;
 
       // forward
+      index = 0;
+      for (entry of reiterate('').values()) {
+        index += 1;
+      }
+
+      expect(index).to.be(0);
+
       expect(string).to.be(a);
       expect(array).to.eql(b);
       array = reiterate(a).keys().toArray();
@@ -5820,11 +5940,40 @@ process.umask = function() { return 0; };
       }
     });
 
+    it('String chars', function () {
+      var a =
+        '\uD835\uDC68\uD835\uDC69\uD835\uDC6A\uD835\uDC6B\uD835\uDC6C',
+        gen = reiterate(a).keys().indexes(1, -3),
+        entry,
+        index;
+
+      // forward
+      index = 2;
+      for (entry of gen) {
+        expect(entry).to.be.within(2, a.length - 4);
+        expect(entry).to.eql(index);
+        index += 2;
+      }
+
+      // reverse
+      gen.reverse();
+      index = a.length - 4;
+      for (entry of gen) {
+        expect(entry).to.be.within(1, a.length - 4);
+        expect(entry).to.eql(index);
+        index -= 2;
+      }
+    });
+
     it('String state', function () {
       var gen = reiterate('').values().reverse(),
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: false,
         values: true,
@@ -5997,6 +6146,10 @@ process.umask = function() { return 0; };
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: true,
         values: false,
@@ -6265,6 +6418,10 @@ process.umask = function() { return 0; };
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: false,
         values: false,
@@ -6354,6 +6511,10 @@ process.umask = function() { return 0; };
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: false,
         values: true,
@@ -6528,6 +6689,10 @@ process.umask = function() { return 0; };
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: true,
         values: false,

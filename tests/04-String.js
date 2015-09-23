@@ -3,8 +3,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:24,
-    maxcomplexity:3
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:28,
+    maxcomplexity:4
 */
 /*global require, describe, it */
 
@@ -40,6 +40,13 @@
         entry;
 
       // forward
+      index = 0;
+      for (entry of reiterate('').values()) {
+        index += 1;
+      }
+
+      expect(index).to.be(0);
+
       expect(string).to.be(a);
       expect(array).to.eql(b);
       array = reiterate(a).keys().toArray();
@@ -72,11 +79,40 @@
       }
     });
 
+    it('String chars', function () {
+      var a =
+        '\uD835\uDC68\uD835\uDC69\uD835\uDC6A\uD835\uDC6B\uD835\uDC6C',
+        gen = reiterate(a).keys().indexes(1, -3),
+        entry,
+        index;
+
+      // forward
+      index = 2;
+      for (entry of gen) {
+        expect(entry).to.be.within(2, a.length - 4);
+        expect(entry).to.eql(index);
+        index += 2;
+      }
+
+      // reverse
+      gen.reverse();
+      index = a.length - 4;
+      for (entry of gen) {
+        expect(entry).to.be.within(1, a.length - 4);
+        expect(entry).to.eql(index);
+        index -= 2;
+      }
+    });
+
     it('String state', function () {
       var gen = reiterate('').values().reverse(),
         state = gen.state();
 
       expect(state).to.eql({
+        length: 0,
+        from: 0,
+        to: -1,
+        by: 1,
         reversed: true,
         entries: false,
         values: true,
