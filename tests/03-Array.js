@@ -166,50 +166,36 @@
 
     it('Array drop', function () {
       var a = [1, 2, 3, 4, 5],
-        gen = reiterate(a).values().drop(2),
-        entry,
-        index;
+        array;
+
+      // zero
+      array = reiterate(a).values().drop().toArray();
+      expect(array).to.eql(a);
 
       // forward
-      index = 2;
-      for (entry of gen) {
-        expect(index).to.be.within(2, a.length - 1);
-        expect(entry).to.eql(a[index]);
-        index += 1;
-      }
+      array = reiterate(a).values().drop(2).toArray();
+      expect(array).to.eql([3, 4, 5]);
 
       // reverse
-      gen = reiterate(a).values().reverse().drop(2);
-      index = 2;
-      for (entry of gen) {
-        expect(index).to.be.within(0, 2);
-        expect(entry).to.eql(a[index]);
-        index -= 1;
-      }
+      array = reiterate(a).values().reverse().drop(2).toArray();
+      expect(array).to.eql([3, 2, 1]);
     });
 
     it('Array take', function () {
       var a = [1, 2, 3, 4, 5],
-        gen = reiterate(a).values().take(2),
-        entry,
-        index;
+        array;
+
+      // zero
+      array = reiterate(a).values().take().toArray();
+      expect(array).to.eql([]);
 
       // forward
-      index = 0;
-      for (entry of gen) {
-        expect(index).to.be.within(0, 1);
-        expect(entry).to.eql(a[index]);
-        index += 1;
-      }
+      array = reiterate(a).values().take(2).toArray();
+      expect(array).to.eql([1, 2]);
 
       // reverse
-      gen = reiterate(a).values().reverse().take(2);
-      index = a.length - 1;
-      for (entry of gen) {
-        expect(index).to.be.within(a.length - 3, a.length - 1);
-        expect(entry).to.eql(a[index]);
-        index -= 1;
-      }
+      array = reiterate(a).values().reverse().take(2).toArray();
+      expect(array).to.eql([5, 4]);
     });
 
     it('Array state', function () {
