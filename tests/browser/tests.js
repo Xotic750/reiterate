@@ -28,15 +28,16 @@
     FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR, MIN_SAFE_INTEGER,
     NUMBER, OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
     VALUES, abs, addMethods, amd, assign, bind, call, charCodeAt, clamp,
-    clampToSafeIntegerRange, configurable, defineProperty, each, entries,
-    enumerable, every, exports, filterGenerator, flattenGenerator, floor, from,
-    getYieldValue, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isFinite,
-    isFunction, isLength, isNaN, isNil, isNumber, isString, isSurrogatePair,
-    isUndefined, join, keys, length, mapGenerator, max, min, mustBeFunction,
-    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce, reverse,
-    reversed, setIndexesOpts, setMethod, setReverseIfOpt, sign, some, then,
-    throwIfCircular, to, toArray, toInteger, toLength, toSafeInteger, toString,
-    toStringTag, uniqueGenerator, value, values, writable
+    clampToSafeIntegerRange, configurable, defineProperty, dropGenerator,
+    entries, enumerable, every, exports, filterGenerator, flattenGenerator,
+    floor, from, getYieldValue, has, hasOwn, hasOwnProperty, isArray,
+    isArrayLike, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
+    isString, isSurrogatePair, isUndefined, join, keys, length, mapGenerator,
+    max, min, mustBeFunction, mustBeFunctionIfDefined, populatePrototypes,
+    prototype, reduce, repeatGenerator, reverse, reversed, setIndexesOpts,
+    setMethod, setReverseIfOpt, sign, some, takeGenerator, tapGenerator, tee,
+    then, throwIfCircular, to, toArray, toInteger, toLength, toSafeInteger,
+    toString, toStringTag, uniqueGenerator, value, values, writable
 */
 
 /**
@@ -619,18 +620,21 @@
         },
 
         addMethods: function (object) {
-          _.setMethod(object, 'filter', p.filterGenerator);
-          _.setMethod(object, 'map', p.mapGenerator);
-          _.setMethod(object, 'reduce', p.reduce);
-          _.setMethod(object, 'each', p.each);
-          _.setMethod(object, 'every', p.every);
-          _.setMethod(object, 'some', p.some);
-          _.setMethod(object, 'join', p.join);
-          _.setMethod(object, 'drop', p.dropGenerator);
+          if (object !== g.repeatGenerator.prototype) {
+            _.setMethod(object, 'filter', p.filterGenerator);
+            _.setMethod(object, 'map', p.mapGenerator);
+            _.setMethod(object, 'every', p.every);
+            _.setMethod(object, 'some', p.some);
+            _.setMethod(object, 'drop', p.dropGenerator);
+          }
+
           _.setMethod(object, 'take', p.takeGenerator);
+          _.setMethod(object, 'reduce', p.reduce);
+          _.setMethod(object, 'tap', p.tapGenerator);
+          _.setMethod(object, 'tee', p.tee);
+          _.setMethod(object, 'join', p.join);
           _.setMethod(object, 'toArray', p.toArray);
           _.setMethod(object, 'then', p.then);
-
           if (object !== g.CounterGenerator.prototype) {
             _.setMethod(object, 'enumerate', g.EnumerateGenerator);
             _.setMethod(object, 'unique', p.uniqueGenerator);
@@ -643,12 +647,14 @@
           _.addMethods(g.ArrayGenerator.prototype);
           _.addMethods(g.StringGenerator.prototype);
           _.addMethods(g.EnumerateGenerator.prototype);
+          _.addMethods(g.repeatGenerator.prototype);
           _.addMethods(p.mapGenerator.prototype);
           _.addMethods(p.filterGenerator.prototype);
           _.addMethods(p.uniqueGenerator.prototype);
           _.addMethods(p.flattenGenerator.prototype);
           _.addMethods(p.dropGenerator.prototype);
           _.addMethods(p.takeGenerator.prototype);
+          _.addMethods(p.tapGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -708,13 +714,15 @@
           return initialValue;
         },
 
-        each: function (callback, thisArg) {
-          var index;
+        tapGenerator: function* (callback, thisArg) {
+          var index,
+            element;
 
           _.mustBeFunction(callback);
           index = 0;
-          for (var element of this) {
+          for (element of this) {
             callback.call(thisArg, element, index, this);
+            yield element;
             index += 1;
           }
         },
@@ -834,10 +842,12 @@
 
           for (item of this) {
             if (!seen.has(item)) {
-              seen.add(item, true);
               yield item;
+              seen.add(item);
             }
           }
+
+          seen.clear();
         },
 
         flattenGenerator: (function () {
@@ -873,18 +883,20 @@
           }
 
           return function* (relaxed) {
-            var stack,
+            var stack = new Map(),
               object;
 
             for (object of this) {
               if (_.isArray(object, relaxed)) {
-                stack = setStack(new Map(), object, null);
+                setStack(stack, object, null);
               } else {
                 yield object;
               }
 
               yield * iterateStack(stack, object, relaxed);
             }
+
+            stack.clear();
           };
         }()),
 
@@ -905,7 +917,7 @@
           }
 
           return function* () {
-            var stack,
+            var stack = new Map(),
               object,
               value,
               tail,
@@ -913,7 +925,7 @@
 
             for (object of this) {
               if (isObject(object)) {
-                stack = setStack(new Map(), object, null);
+                setStack(stack, object, null);
               } else {
                 yield object;
               }
@@ -938,6 +950,8 @@
                 }
               }
             }
+
+            stack.clear();
           };
         }()),
         */
@@ -1316,7 +1330,25 @@
           }
 
           return EnumerateGenerator;
-        }())
+        }()),
+
+        repeatGenerator: function* (subject, number) {
+          var count,
+            howMany;
+
+          if (number === Infinity) {
+            while (true) {
+              yield subject;
+            }
+          } else {
+            count = 0;
+            howMany = _.toLength(number);
+            while (count < howMany) {
+              yield subject;
+              count += 1;
+            }
+          }
+        }
 
       };
 
@@ -1368,6 +1400,7 @@
       _.setMethod(Reiterate, 'array', g.ArrayGenerator);
       _.setMethod(Reiterate, 'string', g.StringGenerator);
       _.setMethod(Reiterate, 'enumerate', g.EnumerateGenerator);
+      _.setMethod(Reiterate, 'repeat', g.repeatGenerator);
 
       return Reiterate;
     }());
@@ -5449,13 +5482,14 @@ process.umask = function() { return 0; };
       }
     });
 
-    it('Counter each', function () {
-      var index = 10;
+    it('Counter tap', function () {
+      var index = 10,
+        array;
 
       expect(function () {
         var entry;
 
-        for (entry of reiterate().each()) {
+        for (entry of reiterate().tap()) {
           break;
         }
       }).to.throwException(function (e) {
@@ -5463,15 +5497,16 @@ process.umask = function() { return 0; };
       });
 
       // forward
-      reiterate().from(10).to(20).each(function (entry) {
+      array = reiterate().from(10).to(20).tap(function (entry) {
         expect(this).to.be(undefined);
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 1;
-      });
+      }).toArray();
 
+      expect(array).to.eql([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
       index = 10;
-      reiterate().from(10).to(20).each(function (entry, idx, object) {
+      reiterate().from(10).to(20).tap(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -5485,15 +5520,16 @@ process.umask = function() { return 0; };
 
       // reverse
       index = 20;
-      reiterate().from(10).to(20).reverse().each(function (entry) {
+      array = reiterate().from(10).to(20).reverse().tap(function (entry) {
         expect(this).to.be(undefined);
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index -= 1;
-      });
+      }).toArray();
 
+      expect(array).to.eql([20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10]);
       index = 20;
-      reiterate().from(10).to(20).reverse().each(function (entry, idx, object) {
+      reiterate().from(10).to(20).reverse().tap(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -7009,4 +7045,37 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20]);
+},{"../scripts/":9}],21:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic static tests', function () {
+    it('Repeat', function () {
+      var iterator = reiterate.repeat('a', 5);
+
+      expect(iterator.toArray()).to.eql(['a', 'a', 'a', 'a', 'a']);
+      iterator = reiterate.repeat('a', Infinity).take(5);
+      expect(iterator.toArray()).to.eql(['a', 'a', 'a', 'a', 'a']);
+      iterator = reiterate.repeat('a', 5);
+      expect(iterator.join('')).to.be('aaaaa');
+      iterator = reiterate.repeat('a');
+      expect(iterator.join('')).to.be('');
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21]);

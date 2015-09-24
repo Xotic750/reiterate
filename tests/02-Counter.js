@@ -800,13 +800,14 @@
       }
     });
 
-    it('Counter each', function () {
-      var index = 10;
+    it('Counter tap', function () {
+      var index = 10,
+        array;
 
       expect(function () {
         var entry;
 
-        for (entry of reiterate().each()) {
+        for (entry of reiterate().tap()) {
           break;
         }
       }).to.throwException(function (e) {
@@ -814,15 +815,16 @@
       });
 
       // forward
-      reiterate().from(10).to(20).each(function (entry) {
+      array = reiterate().from(10).to(20).tap(function (entry) {
         expect(this).to.be(undefined);
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 1;
-      });
+      }).toArray();
 
+      expect(array).to.eql([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
       index = 10;
-      reiterate().from(10).to(20).each(function (entry, idx, object) {
+      reiterate().from(10).to(20).tap(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -836,15 +838,16 @@
 
       // reverse
       index = 20;
-      reiterate().from(10).to(20).reverse().each(function (entry) {
+      array = reiterate().from(10).to(20).reverse().tap(function (entry) {
         expect(this).to.be(undefined);
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index -= 1;
-      });
+      }).toArray();
 
+      expect(array).to.eql([20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10]);
       index = 20;
-      reiterate().from(10).to(20).reverse().each(function (entry, idx, object) {
+      reiterate().from(10).to(20).reverse().tap(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');

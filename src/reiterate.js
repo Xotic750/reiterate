@@ -27,15 +27,16 @@
     FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR, MIN_SAFE_INTEGER,
     NUMBER, OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
     VALUES, abs, addMethods, amd, assign, bind, call, charCodeAt, clamp,
-    clampToSafeIntegerRange, configurable, defineProperty, each, entries,
-    enumerable, every, exports, filterGenerator, flattenGenerator, floor, from,
-    getYieldValue, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isFinite,
-    isFunction, isLength, isNaN, isNil, isNumber, isString, isSurrogatePair,
-    isUndefined, join, keys, length, mapGenerator, max, min, mustBeFunction,
-    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce, reverse,
-    reversed, setIndexesOpts, setMethod, setReverseIfOpt, sign, some, then,
-    throwIfCircular, to, toArray, toInteger, toLength, toSafeInteger, toString,
-    toStringTag, uniqueGenerator, value, values, writable
+    clampToSafeIntegerRange, configurable, defineProperty, dropGenerator,
+    entries, enumerable, every, exports, filterGenerator, flattenGenerator,
+    floor, from, getYieldValue, has, hasOwn, hasOwnProperty, isArray,
+    isArrayLike, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
+    isString, isSurrogatePair, isUndefined, join, keys, length, mapGenerator,
+    max, min, mustBeFunction, mustBeFunctionIfDefined, populatePrototypes,
+    prototype, reduce, repeatGenerator, reverse, reversed, setIndexesOpts,
+    setMethod, setReverseIfOpt, sign, some, takeGenerator, tapGenerator, tee,
+    then, throwIfCircular, to, toArray, toInteger, toLength, toSafeInteger,
+    toString, toStringTag, uniqueGenerator, value, values, writable
 */
 
 /**
@@ -618,18 +619,21 @@
         },
 
         addMethods: function (object) {
-          _.setMethod(object, 'filter', p.filterGenerator);
-          _.setMethod(object, 'map', p.mapGenerator);
-          _.setMethod(object, 'reduce', p.reduce);
-          _.setMethod(object, 'each', p.each);
-          _.setMethod(object, 'every', p.every);
-          _.setMethod(object, 'some', p.some);
-          _.setMethod(object, 'join', p.join);
-          _.setMethod(object, 'drop', p.dropGenerator);
+          if (object !== g.repeatGenerator.prototype) {
+            _.setMethod(object, 'filter', p.filterGenerator);
+            _.setMethod(object, 'map', p.mapGenerator);
+            _.setMethod(object, 'every', p.every);
+            _.setMethod(object, 'some', p.some);
+            _.setMethod(object, 'drop', p.dropGenerator);
+          }
+
           _.setMethod(object, 'take', p.takeGenerator);
+          _.setMethod(object, 'reduce', p.reduce);
+          _.setMethod(object, 'tap', p.tapGenerator);
+          _.setMethod(object, 'tee', p.tee);
+          _.setMethod(object, 'join', p.join);
           _.setMethod(object, 'toArray', p.toArray);
           _.setMethod(object, 'then', p.then);
-
           if (object !== g.CounterGenerator.prototype) {
             _.setMethod(object, 'enumerate', g.EnumerateGenerator);
             _.setMethod(object, 'unique', p.uniqueGenerator);
@@ -642,12 +646,14 @@
           _.addMethods(g.ArrayGenerator.prototype);
           _.addMethods(g.StringGenerator.prototype);
           _.addMethods(g.EnumerateGenerator.prototype);
+          _.addMethods(g.repeatGenerator.prototype);
           _.addMethods(p.mapGenerator.prototype);
           _.addMethods(p.filterGenerator.prototype);
           _.addMethods(p.uniqueGenerator.prototype);
           _.addMethods(p.flattenGenerator.prototype);
           _.addMethods(p.dropGenerator.prototype);
           _.addMethods(p.takeGenerator.prototype);
+          _.addMethods(p.tapGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -707,13 +713,15 @@
           return initialValue;
         },
 
-        each: function (callback, thisArg) {
-          var index;
+        tapGenerator: function* (callback, thisArg) {
+          var index,
+            element;
 
           _.mustBeFunction(callback);
           index = 0;
-          for (var element of this) {
+          for (element of this) {
             callback.call(thisArg, element, index, this);
+            yield element;
             index += 1;
           }
         },
@@ -833,10 +841,12 @@
 
           for (item of this) {
             if (!seen.has(item)) {
-              seen.add(item, true);
               yield item;
+              seen.add(item);
             }
           }
+
+          seen.clear();
         },
 
         flattenGenerator: (function () {
@@ -872,18 +882,20 @@
           }
 
           return function* (relaxed) {
-            var stack,
+            var stack = new Map(),
               object;
 
             for (object of this) {
               if (_.isArray(object, relaxed)) {
-                stack = setStack(new Map(), object, null);
+                setStack(stack, object, null);
               } else {
                 yield object;
               }
 
               yield * iterateStack(stack, object, relaxed);
             }
+
+            stack.clear();
           };
         }()),
 
@@ -904,7 +916,7 @@
           }
 
           return function* () {
-            var stack,
+            var stack = new Map(),
               object,
               value,
               tail,
@@ -912,7 +924,7 @@
 
             for (object of this) {
               if (isObject(object)) {
-                stack = setStack(new Map(), object, null);
+                setStack(stack, object, null);
               } else {
                 yield object;
               }
@@ -937,6 +949,8 @@
                 }
               }
             }
+
+            stack.clear();
           };
         }()),
         */
@@ -1315,7 +1329,25 @@
           }
 
           return EnumerateGenerator;
-        }())
+        }()),
+
+        repeatGenerator: function* (subject, number) {
+          var count,
+            howMany;
+
+          if (number === Infinity) {
+            while (true) {
+              yield subject;
+            }
+          } else {
+            count = 0;
+            howMany = _.toLength(number);
+            while (count < howMany) {
+              yield subject;
+              count += 1;
+            }
+          }
+        }
 
       };
 
@@ -1367,6 +1399,7 @@
       _.setMethod(Reiterate, 'array', g.ArrayGenerator);
       _.setMethod(Reiterate, 'string', g.StringGenerator);
       _.setMethod(Reiterate, 'enumerate', g.EnumerateGenerator);
+      _.setMethod(Reiterate, 'repeat', g.repeatGenerator);
 
       return Reiterate;
     }());
