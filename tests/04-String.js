@@ -82,7 +82,7 @@
     it('String chars', function () {
       var a =
         '\uD835\uDC68\uD835\uDC69\uD835\uDC6A\uD835\uDC6B\uD835\uDC6C',
-        gen = reiterate(a).keys().indexes(1, -3),
+        gen = reiterate(a).keys().slice(1, -3),
         entry,
         index;
 
@@ -94,12 +94,12 @@
         index += 2;
       }
 
-      gen = reiterate(a).keys().indexes(-3);
+      gen = reiterate(a).keys().slice(-3);
       for (entry of gen) {
         expect(entry).to.eql(8);
       }
 
-      gen = reiterate(a).keys().indexes(1, 3);
+      gen = reiterate(a).keys().slice(1, 3);
       index = 2;
       for (entry of gen) {
         expect(entry).to.be.within(2, 4);
@@ -108,7 +108,7 @@
       }
 
       // reverse
-      gen = reiterate(a).keys().indexes(1, -3).reverse();
+      gen = reiterate(a).keys().slice(1, -3).reverse();
       index = a.length - 4;
       for (entry of gen) {
         expect(entry).to.be.within(1, a.length - 4);

@@ -626,6 +626,8 @@
           _.setMethod(object, 'every', p.every);
           _.setMethod(object, 'some', p.some);
           _.setMethod(object, 'join', p.join);
+          _.setMethod(object, 'drop', p.drop);
+          _.setMethod(object, 'take', p.take);
           _.setMethod(object, 'toArray', p.toArray);
           _.setMethod(object, 'then', p.then);
 
@@ -680,60 +682,76 @@
       p = {
 
         reduce: function (callback, initialValue) {
-          _.mustBeFunction(callback);
-          var supplied,
+          var index,
+            supplied,
             assigned;
 
+          _.mustBeFunction(callback);
           if (arguments.length > 1) {
             supplied = true;
           }
 
+          index = 0;
           for (var element of this) {
             if (!supplied && !assigned) {
               initialValue = element;
               assigned = true;
             } else {
-              initialValue = callback(initialValue, element, this);
+              initialValue = callback(initialValue, element, index, this);
             }
           }
+
+          index += 1;
 
           return initialValue;
         },
 
         each: function (callback, thisArg) {
+          var index;
+
           _.mustBeFunction(callback);
+          index = 0;
           for (var element of this) {
-            callback.call(thisArg, element, this);
+            callback.call(thisArg, element, index, this);
+            index += 1;
           }
         },
 
         every: function (callback, thisArg) {
-          var result,
+          var index,
+            result,
             element;
 
           _.mustBeFunction(callback);
+          index = 0;
           result = true;
           for (element of this) {
-            if (!callback.call(thisArg, element, this)) {
+            if (!callback.call(thisArg, element, index, this)) {
               result = false;
               break;
             }
+
+            index += 1;
           }
 
           return result;
         },
 
         some: function (callback, thisArg) {
-          var result,
+          var index,
+            result,
             element;
 
           _.mustBeFunction(callback);
+          index = 0;
           result = false;
           for (element of this) {
-            if (callback.call(thisArg, element, this)) {
+            if (callback.call(thisArg, element, index, this)) {
               result = true;
               break;
             }
+
+            index += 1;
           }
 
           return result;
@@ -771,6 +789,40 @@
           }
 
           return result;
+        },
+
+        drop: function* (number) {
+          var index = 0,
+            length = _.toLength(number),
+            item;
+
+          for (item of this) {
+            if (index >= length) {
+              yield item;
+            }
+
+            index += 1;
+          }
+        },
+
+        take: function* (number) {
+          var length = _.toLength(number),
+            index,
+            item;
+
+          if (!length) {
+            return;
+          }
+
+          index = 0;
+          for (item of this) {
+            if (index < length) {
+              yield item;
+              break;
+            }
+
+            index += 1;
+          }
         },
 
         uniqueGenerator: function* () {
@@ -1074,7 +1126,7 @@
               return this;
             });
 
-            _.setMethod(this, 'indexes', function (start, end) {
+            _.setMethod(this, 'slice', function (start, end) {
               _.setIndexesOpts(start, end, opts);
               return this;
             });
@@ -1184,7 +1236,7 @@
               return this;
             });
 
-            _.setMethod(this, 'indexes', function (start, end) {
+            _.setMethod(this, 'slice', function (start, end) {
               /*jshint maxcomplexity:5 */
               var char1,
                 char2;
@@ -1193,7 +1245,7 @@
               if (opts.from) {
                 char1 = subject[opts.from - 1];
                 char2 = subject[opts.from];
-                if(_.isSurrogatePair(char1, char2)) {
+                if (_.isSurrogatePair(char1, char2)) {
                   opts.from += 1;
                 }
               }
@@ -1201,7 +1253,7 @@
               if (opts.to) {
                 char1 = subject[opts.to - 1];
                 char2 = subject[opts.to];
-                if(_.isSurrogatePair(char1, char2)) {
+                if (_.isSurrogatePair(char1, char2)) {
                   opts.to -= 1;
                 }
               }
@@ -4597,7 +4649,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:2, maxstatements:52,
+    esnext:true, plusplus:true, maxparams:4, maxdepth:2, maxstatements:52,
     maxcomplexity:15
 */
 /*global require, describe, it */
@@ -5416,7 +5468,7 @@ process.umask = function() { return 0; };
       });
 
       index = 10;
-      reiterate().from(10).to(20).each(function (entry, object) {
+      reiterate().from(10).to(20).each(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -5438,7 +5490,7 @@ process.umask = function() { return 0; };
       });
 
       index = 20;
-      reiterate().from(10).to(20).reverse().each(function (entry, object) {
+      reiterate().from(10).to(20).reverse().each(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -5473,7 +5525,7 @@ process.umask = function() { return 0; };
 
       expect(e).to.be(true);
       index = 10;
-      e = reiterate().from(10).to(20).every(function (entry, object) {
+      e = reiterate().from(10).to(20).every(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -5500,15 +5552,18 @@ process.umask = function() { return 0; };
 
       expect(e).to.be(true);
       index = 20;
-      e = reiterate().from(10).to(20).reverse().every(function (entry, object) {
-        expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry >= 15;
-      }, true);
+      e = reiterate().from(10).to(20).reverse().every(
+        function (entry, idx, object) {
+          expect(this).to.be(true);
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          expect(entry).to.be.within(10, 20);
+          expect(entry).to.be(index);
+          index -= 1;
+          return entry >= 15;
+        },
+        true
+      );
 
       expect(e).to.be(false);
     });
@@ -5548,19 +5603,21 @@ process.umask = function() { return 0; };
 
       expect(r).to.be(10);
       index = 10;
-      r = reiterate().from(10).to(20).reduce(function (acc, entry, object) {
-        expect(acc).to.be.an('array');
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        var arr = object.toArray();
+      r = reiterate().from(10).to(20).reduce(
+        function (acc, entry, idx, object) {
+          expect(acc).to.be.an('array');
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          var arr = object.toArray();
 
-        expect(entry).to.be(arr[index - 10]);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        acc.push(entry);
-        return acc;
-      }, []);
+          expect(entry).to.be(arr[index - 10]);
+          expect(entry).to.be.within(10, 20);
+          expect(entry).to.be(index);
+          index += 1;
+          acc.push(entry);
+          return acc;
+        }, []
+      );
 
       expect(r).to.eql(reiterate().from(10).to(20).toArray());
 
@@ -5582,15 +5639,17 @@ process.umask = function() { return 0; };
       });
 
       index = 19;
-      r = reiterate().to(20).reverse().reduce(function (acc, entry, object) {
-        expect(acc).to.be.a('number');
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        expect(entry).to.be.within(0, 19);
-        expect(entry).to.be(index);
-        index -= 1;
-        return acc + entry;
-      });
+      r = reiterate().to(20).reverse().reduce(
+        function (acc, entry, idx, object) {
+          expect(acc).to.be.a('number');
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          expect(entry).to.be.within(0, 19);
+          expect(entry).to.be(index);
+          index -= 1;
+          return acc + entry;
+        }
+      );
 
       expect(r).to.be(210);
     }, 0);
@@ -5620,7 +5679,7 @@ process.umask = function() { return 0; };
 
       expect(s).to.be(true);
       index = 10;
-      s = reiterate().from(10).to(20).some(function (entry, object) {
+      s = reiterate().from(10).to(20).some(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -5647,15 +5706,18 @@ process.umask = function() { return 0; };
 
       expect(s).to.be(true);
       index = 20;
-      s = reiterate().from(10).to(20).reverse().some(function (entry, object) {
-        expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry === 21;
-      }, true);
+      s = reiterate().from(10).to(20).reverse().some(
+        function (entry, idx, object) {
+          expect(this).to.be(true);
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          expect(entry).to.be.within(10, 20);
+          expect(entry).to.be(index);
+          index -= 1;
+          return entry === 21;
+        },
+        true
+      );
 
       expect(s).to.be(false);
     });
@@ -5816,9 +5878,9 @@ process.umask = function() { return 0; };
       expect(array).to.eql(a);
     });
 
-    it('Array indexes', function () {
+    it('Array slice', function () {
       var a = [1, 2, 3, 4, 5],
-        gen = reiterate(a).keys().indexes(1, -1),
+        gen = reiterate(a).keys().slice(1, -1),
         entry,
         index;
 
@@ -5830,25 +5892,73 @@ process.umask = function() { return 0; };
         index += 1;
       }
 
-      gen = reiterate(a).keys().indexes(-1);
+      gen = reiterate(a).keys().slice(-1);
       for (entry of gen) {
         expect(entry).to.eql(4);
       }
 
-      gen = reiterate(a).keys().indexes(1, 3);
+      gen = reiterate(a).keys().slice(1, 3);
       index = 1;
       for (entry of gen) {
         expect(entry).to.be.within(1, 3);
         expect(entry).to.eql(index);
         index += 1;
       }
-      
+
       // reverse
-      gen = reiterate(a).keys().indexes(1, -1).reverse();
+      gen = reiterate(a).keys().slice(1, -1).reverse();
       index = a.length - 2;
       for (entry of gen) {
         expect(entry).to.be.within(1, a.length - 2);
         expect(entry).to.eql(index);
+        index -= 1;
+      }
+    });
+
+    it('Array drop', function () {
+      var a = [1, 2, 3, 4, 5],
+        gen = reiterate(a).values().drop(2),
+        entry,
+        index;
+
+      // forward
+      index = 2;
+      for (entry of gen) {
+        expect(index).to.be.within(2, a.length - 1);
+        expect(entry).to.eql(a[index]);
+        index += 1;
+      }
+
+      // reverse
+      gen = reiterate(a).values().reverse().drop(2);
+      index = 2;
+      for (entry of gen) {
+        expect(index).to.be.within(0, 2);
+        expect(entry).to.eql(a[index]);
+        index -= 1;
+      }
+    });
+
+    it('Array take', function () {
+      var a = [1, 2, 3, 4, 5],
+        gen = reiterate(a).values().take(2),
+        entry,
+        index;
+
+      // forward
+      index = 0;
+      for (entry of gen) {
+        expect(index).to.be.within(0, 1);
+        expect(entry).to.eql(a[index]);
+        index += 1;
+      }
+
+      // reverse
+      gen = reiterate(a).values().reverse().take(2);
+      index = a.length - 1;
+      for (entry of gen) {
+        expect(index).to.be.within(a.length - 3, a.length - 1);
+        expect(entry).to.eql(a[index]);
         index -= 1;
       }
     });
@@ -5956,7 +6066,7 @@ process.umask = function() { return 0; };
     it('String chars', function () {
       var a =
         '\uD835\uDC68\uD835\uDC69\uD835\uDC6A\uD835\uDC6B\uD835\uDC6C',
-        gen = reiterate(a).keys().indexes(1, -3),
+        gen = reiterate(a).keys().slice(1, -3),
         entry,
         index;
 
@@ -5968,12 +6078,12 @@ process.umask = function() { return 0; };
         index += 2;
       }
 
-      gen = reiterate(a).keys().indexes(-3);
+      gen = reiterate(a).keys().slice(-3);
       for (entry of gen) {
         expect(entry).to.eql(8);
       }
 
-      gen = reiterate(a).keys().indexes(1, 3);
+      gen = reiterate(a).keys().slice(1, 3);
       index = 2;
       for (entry of gen) {
         expect(entry).to.be.within(2, 4);
@@ -5982,7 +6092,7 @@ process.umask = function() { return 0; };
       }
 
       // reverse
-      gen = reiterate(a).keys().indexes(1, -3).reverse();
+      gen = reiterate(a).keys().slice(1, -3).reverse();
       index = a.length - 4;
       for (entry of gen) {
         expect(entry).to.be.within(1, a.length - 4);

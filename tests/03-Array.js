@@ -127,9 +127,9 @@
       expect(array).to.eql(a);
     });
 
-    it('Array indexes', function () {
+    it('Array slice', function () {
       var a = [1, 2, 3, 4, 5],
-        gen = reiterate(a).keys().indexes(1, -1),
+        gen = reiterate(a).keys().slice(1, -1),
         entry,
         index;
 
@@ -141,25 +141,73 @@
         index += 1;
       }
 
-      gen = reiterate(a).keys().indexes(-1);
+      gen = reiterate(a).keys().slice(-1);
       for (entry of gen) {
         expect(entry).to.eql(4);
       }
 
-      gen = reiterate(a).keys().indexes(1, 3);
+      gen = reiterate(a).keys().slice(1, 3);
       index = 1;
       for (entry of gen) {
         expect(entry).to.be.within(1, 3);
         expect(entry).to.eql(index);
         index += 1;
       }
-      
+
       // reverse
-      gen = reiterate(a).keys().indexes(1, -1).reverse();
+      gen = reiterate(a).keys().slice(1, -1).reverse();
       index = a.length - 2;
       for (entry of gen) {
         expect(entry).to.be.within(1, a.length - 2);
         expect(entry).to.eql(index);
+        index -= 1;
+      }
+    });
+
+    it('Array drop', function () {
+      var a = [1, 2, 3, 4, 5],
+        gen = reiterate(a).values().drop(2),
+        entry,
+        index;
+
+      // forward
+      index = 2;
+      for (entry of gen) {
+        expect(index).to.be.within(2, a.length - 1);
+        expect(entry).to.eql(a[index]);
+        index += 1;
+      }
+
+      // reverse
+      gen = reiterate(a).values().reverse().drop(2);
+      index = 2;
+      for (entry of gen) {
+        expect(index).to.be.within(0, 2);
+        expect(entry).to.eql(a[index]);
+        index -= 1;
+      }
+    });
+
+    it('Array take', function () {
+      var a = [1, 2, 3, 4, 5],
+        gen = reiterate(a).values().take(2),
+        entry,
+        index;
+
+      // forward
+      index = 0;
+      for (entry of gen) {
+        expect(index).to.be.within(0, 1);
+        expect(entry).to.eql(a[index]);
+        index += 1;
+      }
+
+      // reverse
+      gen = reiterate(a).values().reverse().take(2);
+      index = a.length - 1;
+      for (entry of gen) {
+        expect(index).to.be.within(a.length - 3, a.length - 1);
+        expect(entry).to.eql(a[index]);
         index -= 1;
       }
     });

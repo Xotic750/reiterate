@@ -3,7 +3,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:2, maxstatements:52,
+    esnext:true, plusplus:true, maxparams:4, maxdepth:2, maxstatements:52,
     maxcomplexity:15
 */
 /*global require, describe, it */
@@ -822,7 +822,7 @@
       });
 
       index = 10;
-      reiterate().from(10).to(20).each(function (entry, object) {
+      reiterate().from(10).to(20).each(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -844,7 +844,7 @@
       });
 
       index = 20;
-      reiterate().from(10).to(20).reverse().each(function (entry, object) {
+      reiterate().from(10).to(20).reverse().each(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -879,7 +879,7 @@
 
       expect(e).to.be(true);
       index = 10;
-      e = reiterate().from(10).to(20).every(function (entry, object) {
+      e = reiterate().from(10).to(20).every(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -906,15 +906,18 @@
 
       expect(e).to.be(true);
       index = 20;
-      e = reiterate().from(10).to(20).reverse().every(function (entry, object) {
-        expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry >= 15;
-      }, true);
+      e = reiterate().from(10).to(20).reverse().every(
+        function (entry, idx, object) {
+          expect(this).to.be(true);
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          expect(entry).to.be.within(10, 20);
+          expect(entry).to.be(index);
+          index -= 1;
+          return entry >= 15;
+        },
+        true
+      );
 
       expect(e).to.be(false);
     });
@@ -954,19 +957,21 @@
 
       expect(r).to.be(10);
       index = 10;
-      r = reiterate().from(10).to(20).reduce(function (acc, entry, object) {
-        expect(acc).to.be.an('array');
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        var arr = object.toArray();
+      r = reiterate().from(10).to(20).reduce(
+        function (acc, entry, idx, object) {
+          expect(acc).to.be.an('array');
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          var arr = object.toArray();
 
-        expect(entry).to.be(arr[index - 10]);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        acc.push(entry);
-        return acc;
-      }, []);
+          expect(entry).to.be(arr[index - 10]);
+          expect(entry).to.be.within(10, 20);
+          expect(entry).to.be(index);
+          index += 1;
+          acc.push(entry);
+          return acc;
+        }, []
+      );
 
       expect(r).to.eql(reiterate().from(10).to(20).toArray());
 
@@ -988,15 +993,17 @@
       });
 
       index = 19;
-      r = reiterate().to(20).reverse().reduce(function (acc, entry, object) {
-        expect(acc).to.be.a('number');
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        expect(entry).to.be.within(0, 19);
-        expect(entry).to.be(index);
-        index -= 1;
-        return acc + entry;
-      });
+      r = reiterate().to(20).reverse().reduce(
+        function (acc, entry, idx, object) {
+          expect(acc).to.be.a('number');
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          expect(entry).to.be.within(0, 19);
+          expect(entry).to.be(index);
+          index -= 1;
+          return acc + entry;
+        }
+      );
 
       expect(r).to.be(210);
     }, 0);
@@ -1026,7 +1033,7 @@
 
       expect(s).to.be(true);
       index = 10;
-      s = reiterate().from(10).to(20).some(function (entry, object) {
+      s = reiterate().from(10).to(20).some(function (entry, idx, object) {
         expect(this).to.be(true);
         expect(object).to.be.a(Object);
         expect(object[Symbol.iterator]).to.be.a('function');
@@ -1053,15 +1060,18 @@
 
       expect(s).to.be(true);
       index = 20;
-      s = reiterate().from(10).to(20).reverse().some(function (entry, object) {
-        expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry === 21;
-      }, true);
+      s = reiterate().from(10).to(20).reverse().some(
+        function (entry, idx, object) {
+          expect(this).to.be(true);
+          expect(object).to.be.a(Object);
+          expect(object[Symbol.iterator]).to.be.a('function');
+          expect(entry).to.be.within(10, 20);
+          expect(entry).to.be(index);
+          index -= 1;
+          return entry === 21;
+        },
+        true
+      );
 
       expect(s).to.be(false);
     });
