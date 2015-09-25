@@ -15,17 +15,14 @@
     expect = required.expect,
     reiterate = required.subject;
 
-  describe('Basic static tests', function () {
-    it('Repeat', function () {
-      expect(reiterate.repeat('a').take(5).toArray()).to.eql([
-        'a',
-        'a',
-        'a',
-        'a',
-        'a'
-      ]);
+  describe('Basic tests', function () {
+    it('takeWhile', function () {
+      var a = [1, 2, 3, 4, 1, 2, 3, 4],
+        array = reiterate(a).values().takeWhile(function (item) {
+          return item < 4;
+        }).toArray();
 
-      expect(reiterate.repeat('a').take(5).join('')).to.be('aaaaa');
+      expect(array).to.eql([1, 2, 3]);
     });
   });
 }());

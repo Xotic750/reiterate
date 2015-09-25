@@ -824,13 +824,8 @@
 
       expect(array).to.eql([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
       index = 10;
-      reiterate().from(10).to(20).tap(function (entry, idx, object) {
+      reiterate().from(10).to(20).tap(function (entry) {
         expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        var arr = object.toArray();
-
-        expect(entry).to.be(arr[index - 10]);
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 1;
@@ -847,10 +842,8 @@
 
       expect(array).to.eql([20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10]);
       index = 20;
-      reiterate().from(10).to(20).reverse().tap(function (entry, idx, object) {
+      reiterate().from(10).to(20).reverse().tap(function (entry) {
         expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index -= 1;
@@ -882,13 +875,8 @@
 
       expect(e).to.be(true);
       index = 10;
-      e = reiterate().from(10).to(20).every(function (entry, idx, object) {
+      e = reiterate().from(10).to(20).every(function (entry) {
         expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        var arr = object.toArray();
-
-        expect(entry).to.be(arr[index - 10]);
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 1;
@@ -910,10 +898,8 @@
       expect(e).to.be(true);
       index = 20;
       e = reiterate().from(10).to(20).reverse().every(
-        function (entry, idx, object) {
+        function (entry) {
           expect(this).to.be(true);
-          expect(object).to.be.a(Object);
-          expect(object[Symbol.iterator]).to.be.a('function');
           expect(entry).to.be.within(10, 20);
           expect(entry).to.be(index);
           index -= 1;
@@ -961,13 +947,8 @@
       expect(r).to.be(10);
       index = 10;
       r = reiterate().from(10).to(20).reduce(
-        function (acc, entry, idx, object) {
+        function (acc, entry) {
           expect(acc).to.be.an('array');
-          expect(object).to.be.a(Object);
-          expect(object[Symbol.iterator]).to.be.a('function');
-          var arr = object.toArray();
-
-          expect(entry).to.be(arr[index - 10]);
           expect(entry).to.be.within(10, 20);
           expect(entry).to.be(index);
           index += 1;
@@ -997,10 +978,8 @@
 
       index = 19;
       r = reiterate().to(20).reverse().reduce(
-        function (acc, entry, idx, object) {
+        function (acc, entry) {
           expect(acc).to.be.a('number');
-          expect(object).to.be.a(Object);
-          expect(object[Symbol.iterator]).to.be.a('function');
           expect(entry).to.be.within(0, 19);
           expect(entry).to.be(index);
           index -= 1;
@@ -1036,13 +1015,8 @@
 
       expect(s).to.be(true);
       index = 10;
-      s = reiterate().from(10).to(20).some(function (entry, idx, object) {
+      s = reiterate().from(10).to(20).some(function (entry) {
         expect(this).to.be(true);
-        expect(object).to.be.a(Object);
-        expect(object[Symbol.iterator]).to.be.a('function');
-        var arr = object.toArray();
-
-        expect(entry).to.be(arr[index - 10]);
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 1;
@@ -1064,10 +1038,8 @@
       expect(s).to.be(true);
       index = 20;
       s = reiterate().from(10).to(20).reverse().some(
-        function (entry, idx, object) {
+        function (entry) {
           expect(this).to.be(true);
-          expect(object).to.be.a(Object);
-          expect(object[Symbol.iterator]).to.be.a('function');
           expect(entry).to.be.within(10, 20);
           expect(entry).to.be(index);
           index -= 1;
