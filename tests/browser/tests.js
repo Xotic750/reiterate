@@ -15,8 +15,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:22,
-    maxcomplexity:4
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:26,
+    maxcomplexity:7
 */
 
 /*global
@@ -25,19 +25,21 @@
 
 /*property
     ARRAY, ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator,
-    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, METHODDESCRIPTOR, MIN_SAFE_INTEGER,
+    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, VALUEDESCRIPTOR, MIN_SAFE_INTEGER,
     NUMBER, OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
-    VALUES, abs, addMethods, amd, assign, bind, call, charCodeAt, clamp,
-    clampToSafeIntegerRange, configurable, defineProperty, dropGenerator,
-    entries, enumerable, every, exports, filterGenerator, flattenGenerator,
-    floor, from, getYieldValue, has, hasOwn, hasOwnProperty, isArray,
-    isArrayLike, isFinite, isFunction, isLength, isNaN, isNil, isNumber,
-    isString, isSurrogatePair, isUndefined, join, keys, length, mapGenerator,
-    max, min, mustBeFunction, mustBeFunctionIfDefined, populatePrototypes,
-    prototype, reduce, repeatGenerator, reverse, reversed, setIndexesOpts,
-    setMethod, setReverseIfOpt, sign, some, takeGenerator, tapGenerator, tee,
-    then, throwIfCircular, to, toArray, toInteger, toLength, toSafeInteger,
-    toString, toStringTag, uniqueGenerator, value, values, writable
+    VALUES, abs, addMethods, amd, asMap, asObject, asString, assign, bind,
+    call, charCodeAt, chunkGenerator, clamp, clampToSafeIntegerRange,
+    compactGenerator, configurable, defineProperty, differenceGenerator,
+    dropGenerator, dropWhileGenerator, entries, enumerable, every, exports,
+    filterGenerator, flattenGenerator, floor, from, getYieldValue, has, hasOwn,
+    hasOwnProperty, isArray, isArrayLike, isFinite, isFunction, isLength,
+    isNaN, isNil, isNumber, isString, isSurrogatePair, isUndefined, join, keys,
+    length, mapGenerator, max, min, mustBeFunction, mustBeFunctionIfDefined,
+    populatePrototypes, prototype, reduce, repeatGenerator, reverse, reversed,
+    setIndexesOpts, setValue, setReverseIfOpt, sign, some, takeGenerator,
+    takeWhileGenerator, tapGenerator, then, throwIfCircular, to, toInteger,
+    toLength, toSafeInteger, toString, toStringTag, uniqueGenerator, value,
+    valueOf, values, writable
 */
 
 /**
@@ -93,13 +95,13 @@
     'use strict';
 
     /* constants */
-    var
+    var Reiterate,
 
-    /**
-     * The private namespace for common values.
-     * @private
-     * @namespace
-     */
+      /**
+       * The private namespace for common values.
+       * @private
+       * @namespace
+       */
       $ = {
 
         /**
@@ -126,14 +128,14 @@
         },
 
         /**
-         * The private namespace for method desciptor.
+         * The private namespace for value desciptor.
          * @private
          * @namespace
          */
-        METHODDESCRIPTOR: {
+        VALUEDESCRIPTOR: {
           enumerable: false,
           writable: true,
-          configurable: false
+          configurable: true,
         },
 
         /**
@@ -221,20 +223,20 @@
          * @private
          * @param {Object} object The object on which to defined the property.
          * @param {string} property The property name.
-         * @param {function} method The value of the property.
+         * @param {function} value The value of the property.
          * @throws {Error} If the property already exists.
          * @return {Object}
          * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
          * Reference/Global_Objects/Object/defineProperty
          */
-        setMethod: function (object, property, method) {
+        setValue: function (object, property, value) {
           if (_.hasOwn(object, property)) {
             throw new Error('property already exists on object');
           }
 
-          var descriptor = _.assign({}, $.METHODDESCRIPTOR);
+          var descriptor = _.assign({}, $.VALUEDESCRIPTOR);
 
-          descriptor.value = method;
+          descriptor.value = value;
           return Object.defineProperty(object, property, descriptor);
         },
 
@@ -621,26 +623,37 @@
 
         addMethods: function (object) {
           if (object !== g.repeatGenerator.prototype) {
-            _.setMethod(object, 'filter', p.filterGenerator);
-            _.setMethod(object, 'map', p.mapGenerator);
-            _.setMethod(object, 'every', p.every);
-            _.setMethod(object, 'some', p.some);
-            _.setMethod(object, 'drop', p.dropGenerator);
-            _.setMethod(object, 'dropWhile', p.dropWhileGenerator);
+            _.setValue(object, 'filter', p.filterGenerator);
+            _.setValue(object, 'map', p.mapGenerator);
+            _.setValue(object, 'every', p.every);
+            _.setValue(object, 'some', p.some);
+            _.setValue(object, 'drop', p.dropGenerator);
+            _.setValue(object, 'dropWhile', p.dropWhileGenerator);
+            _.setValue(object, 'difference', p.differenceGenerator);
           }
 
-          _.setMethod(object, 'take', p.takeGenerator);
-          _.setMethod(object, 'takeWhile', p.takeWhileGenerator);
-          _.setMethod(object, 'reduce', p.reduce);
-          _.setMethod(object, 'tap', p.tapGenerator);
-          _.setMethod(object, 'tee', p.tee);
-          _.setMethod(object, 'join', p.join);
-          _.setMethod(object, 'toArray', p.toArray);
-          _.setMethod(object, 'then', p.then);
+          _.setValue(object, 'take', p.takeGenerator);
+          _.setValue(object, 'takeWhile', p.takeWhileGenerator);
+          _.setValue(object, 'reduce', p.reduce);
+          _.setValue(object, 'tap', p.tapGenerator);
+          _.setValue(object, 'join', p.join);
+          _.setValue(object, 'then', p.then);
+          _.setValue(object, 'chunk', p.chunkGenerator);
+          _.setValue(object, 'valueOf', p.valueOf);
+          _.setValue(object, 'toString', p.toString);
+          _.setValue(object, 'asString', p.asString);
+          _.setValue(object, 'asObject', p.asObject);
+          _.setValue(object, 'asMap', p.asMap);
           if (object !== g.CounterGenerator.prototype) {
-            _.setMethod(object, 'enumerate', g.EnumerateGenerator);
-            _.setMethod(object, 'unique', p.uniqueGenerator);
-            _.setMethod(object, 'flatten', p.flattenGenerator);
+            _.setValue(object, 'enumerate', g.EnumerateGenerator);
+            _.setValue(object, 'unique', p.uniqueGenerator);
+            _.setValue(object, 'flatten', p.flattenGenerator);
+          }
+
+          if (object !== g.repeatGenerator.prototype &&
+            object !== g.CounterGenerator.prototype) {
+
+            _.setValue(object, 'compact', p.compactGenerator);
           }
         },
 
@@ -659,6 +672,9 @@
           _.addMethods(p.takeGenerator.prototype);
           _.addMethods(p.takeWhileGenerator.prototype);
           _.addMethods(p.tapGenerator.prototype);
+          _.addMethods(p.chunkGenerator.prototype);
+          _.addMethods(p.compactGenerator.prototype);
+          _.addMethods(p.differenceGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -696,7 +712,8 @@
         reduce: function (callback, initialValue) {
           var index,
             supplied,
-            assigned;
+            assigned,
+            element;
 
           _.mustBeFunction(callback);
           if (arguments.length > 1) {
@@ -704,16 +721,17 @@
           }
 
           index = 0;
-          for (var element of this) {
+          for (element of this) {
             if (!supplied && !assigned) {
               initialValue = element;
               assigned = true;
             } else {
               initialValue = callback(initialValue, element, index);
             }
+
+            index += 1;
           }
 
-          index += 1;
 
           return initialValue;
         },
@@ -771,7 +789,7 @@
           return result;
         },
 
-        toArray: function () {
+        valueOf: function () {
           var result = [],
             item;
 
@@ -800,6 +818,40 @@
             }
 
             item = next;
+          }
+
+          return result;
+        },
+
+        toString: function () {
+          return this.join();
+        },
+
+        asString: function () {
+          return this.join('');
+        },
+
+        asObject: function () {
+          var result = {},
+            index = 0,
+            item;
+
+          for (item of this) {
+            result[index] = item;
+            index += 1;
+          }
+
+          return _.setValue(result, 'length', index);
+        },
+
+        asMap: function () {
+          var result = new Map(),
+            index = 0,
+            item;
+
+          for (item of this) {
+            result.set(index, item);
+            index += 1;
           }
 
           return result;
@@ -882,6 +934,50 @@
 
             index += 1;
           }
+        },
+
+        chunkGenerator: function* (size) {
+          var length = _.toLength(size) || 1,
+            chunk = [],
+            item;
+
+          for (item of this) {
+            if (chunk.length < length) {
+              chunk.push(item);
+            } else {
+              yield chunk;
+              chunk = [item];
+            }
+          }
+
+          if (chunk) {
+            yield chunk;
+          }
+        },
+
+        compactGenerator: function* () {
+          for (var item of this) {
+            if (item) {
+              yield item;
+            }
+          }
+        },
+
+        differenceGenerator: function* (values) {
+          var vals = new Set(),
+            item;
+
+          for (item of new Reiterate(values).values()) {
+            vals.add(item);
+          }
+
+          for (item of this) {
+            if (!vals.has(item)) {
+              yield item;
+            }
+          }
+
+          vals.clear();
         },
 
         uniqueGenerator: function* () {
@@ -1097,11 +1193,11 @@
               },
               iterator;
 
-            _.setMethod(this, 'state', function () {
+            _.setValue(this, 'state', function () {
               return _.assign({}, opts);
             });
 
-            _.setMethod(this, Symbol.iterator, function () {
+            _.setValue(this, Symbol.iterator, function () {
               if (!iterator) {
                 iterator = countGenerator(_.assign({}, opts));
               }
@@ -1109,17 +1205,17 @@
               return iterator;
             });
 
-            _.setMethod(this, 'from', function (number) {
+            _.setValue(this, 'from', function (number) {
               opts.from = _.clampToSafeIntegerRange(number);
               return this;
             });
 
-            _.setMethod(this, 'to', function (number) {
+            _.setValue(this, 'to', function (number) {
               opts.to = _.clampToSafeIntegerRange(number);
               return this;
             });
 
-            _.setMethod(this, 'by', function (number) {
+            _.setValue(this, 'by', function (number) {
               opts.by = Math.abs(_.clampToSafeIntegerRange(number));
               if (!opts.by) {
                 throw new TypeError('can not count by zero');
@@ -1128,7 +1224,7 @@
               return this;
             });
 
-            _.setMethod(this, 'reverse', function () {
+            _.setValue(this, 'reverse', function () {
               opts.reversed = !opts.reversed;
               return this;
             });
@@ -1169,11 +1265,11 @@
               }, $.OPTS.ENTRIES),
               iterator;
 
-            _.setMethod(this, 'state', function () {
+            _.setValue(this, 'state', function () {
               return _.assign({}, opts);
             });
 
-            _.setMethod(this, Symbol.iterator, function () {
+            _.setValue(this, Symbol.iterator, function () {
               if (!iterator) {
                 iterator = arrayGenerator(subject, _.assign({}, opts));
               }
@@ -1181,27 +1277,27 @@
               return iterator;
             });
 
-            _.setMethod(this, 'entries', function () {
+            _.setValue(this, 'entries', function () {
               _.assign(opts, $.OPTS.ENTRIES);
               return this;
             });
 
-            _.setMethod(this, 'values', function () {
+            _.setValue(this, 'values', function () {
               _.assign(opts, $.OPTS.VALUES);
               return this;
             });
 
-            _.setMethod(this, 'keys', function () {
+            _.setValue(this, 'keys', function () {
               _.assign(opts, $.OPTS.KEYS);
               return this;
             });
 
-            _.setMethod(this, 'reverse', function () {
+            _.setValue(this, 'reverse', function () {
               opts.reversed = !opts.reversed;
               return this;
             });
 
-            _.setMethod(this, 'slice', function (start, end) {
+            _.setValue(this, 'slice', function (start, end) {
               _.setIndexesOpts(start, end, opts);
               return this;
             });
@@ -1230,7 +1326,6 @@
           }
 
           function* stringGenerator(subject, opts) {
-            /*jshint maxcomplexity:7 */
             var generator,
               next,
               char1,
@@ -1284,11 +1379,11 @@
               }, $.OPTS.ENTRIES),
               iterator;
 
-            _.setMethod(this, 'state', function () {
+            _.setValue(this, 'state', function () {
               return _.assign({}, opts);
             });
 
-            _.setMethod(this, Symbol.iterator, function () {
+            _.setValue(this, Symbol.iterator, function () {
               if (!iterator) {
                 iterator = stringGenerator(subject, _.assign({}, opts));
               }
@@ -1296,28 +1391,27 @@
               return iterator;
             });
 
-            _.setMethod(this, 'entries', function () {
+            _.setValue(this, 'entries', function () {
               _.assign(opts, $.OPTS.ENTRIES);
               return this;
             });
 
-            _.setMethod(this, 'values', function () {
+            _.setValue(this, 'values', function () {
               _.assign(opts, $.OPTS.VALUES);
               return this;
             });
 
-            _.setMethod(this, 'keys', function () {
+            _.setValue(this, 'keys', function () {
               _.assign(opts, $.OPTS.KEYS);
               return this;
             });
 
-            _.setMethod(this, 'reverse', function () {
+            _.setValue(this, 'reverse', function () {
               opts.reversed = !opts.reversed;
               return this;
             });
 
-            _.setMethod(this, 'slice', function (start, end) {
-              /*jshint maxcomplexity:5 */
+            _.setValue(this, 'slice', function (start, end) {
               var char1,
                 char2;
 
@@ -1364,11 +1458,11 @@
               }, $.OPTS.ENTRIES),
               iterator;
 
-            _.setMethod(this, 'state', function () {
+            _.setValue(this, 'state', function () {
               return _.assign({}, opts);
             });
 
-            _.setMethod(this, Symbol.iterator, function () {
+            _.setValue(this, Symbol.iterator, function () {
               if (!iterator) {
                 iterator = enumerateGenerator(subject, _.assign({}, opts));
               }
@@ -1376,22 +1470,22 @@
               return iterator;
             });
 
-            _.setMethod(this, 'entries', function () {
+            _.setValue(this, 'entries', function () {
               _.assign(opts, $.OPTS.ENTRIES);
               return this;
             });
 
-            _.setMethod(this, 'values', function () {
+            _.setValue(this, 'values', function () {
               _.assign(opts, $.OPTS.VALUES);
               return this;
             });
 
-            _.setMethod(this, 'keys', function () {
+            _.setValue(this, 'keys', function () {
               _.assign(opts, $.OPTS.KEYS);
               return this;
             });
 
-            _.setMethod(this, 'own', function () {
+            _.setValue(this, 'own', function () {
               opts.own = !opts.own;
               return this;
             });
@@ -1429,8 +1523,7 @@
         return generator;
       }
 
-      function Reiterate(subject, to, by) {
-        /*jshint maxcomplexity:6 */
+      Reiterate = function (subject, to, by) {
         if (!(this instanceof Reiterate)) {
           return new Reiterate(subject, to, by);
         }
@@ -1448,15 +1541,15 @@
         }
 
         return generator;
-      }
+      };
 
       /*
        * Static methods
        */
-      _.setMethod(Reiterate, 'array', g.ArrayGenerator);
-      _.setMethod(Reiterate, 'string', g.StringGenerator);
-      _.setMethod(Reiterate, 'enumerate', g.EnumerateGenerator);
-      _.setMethod(Reiterate, 'repeat', g.repeatGenerator);
+      _.setValue(Reiterate, 'array', g.ArrayGenerator);
+      _.setValue(Reiterate, 'string', g.StringGenerator);
+      _.setValue(Reiterate, 'enumerate', g.EnumerateGenerator);
+      _.setValue(Reiterate, 'repeat', g.repeatGenerator);
 
       return Reiterate;
     }());
@@ -5350,53 +5443,53 @@ process.umask = function() { return 0; };
       }
     });
 
-    it('Counter toArray', function () {
+    it('Counter valueOf', function () {
       var array;
 
       expect(function () {
-        array = reiterate().to(3).toArray();
+        array = reiterate().to(3).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([0, 1, 2, 3]);
     });
 
-    it('Counter map toArray', function () {
+    it('Counter map valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(65).to(68).map(function (value) {
           return String.fromCharCode(value);
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql(['A', 'B', 'C', 'D']);
     });
 
-    it('Counter filter toArray', function () {
+    it('Counter filter valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().to(10).filter(function (value) {
           return value >= 4 && value <= 6;
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([4, 5, 6]);
     });
 
-    it('Counter map unique toArray', function () {
+    it('Counter map unique valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(0).to(10).map(function () {
           return 'a';
-        }).unique().toArray();
+        }).unique().valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql(['a']);
     });
 
-    it('Counter map filter unique toArray', function () {
+    it('Counter map filter unique valueOf', function () {
       var array;
 
       expect(function () {
@@ -5404,7 +5497,7 @@ process.umask = function() { return 0; };
           return 'a';
         }).filter(function () {
           return true;
-        }).unique().toArray();
+        }).unique().valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql(['a']);
@@ -5442,35 +5535,35 @@ process.umask = function() { return 0; };
       }
     });
 
-    it('Counter then toArray', function () {
+    it('Counter then valueOf', function () {
       var array;
 
       expect(function () {
-        array = reiterate().from(0).to(3).then(times2).toArray();
+        array = reiterate().from(0).to(3).then(times2).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([0, 2, 4, 6]);
     });
 
-    it('Counter then map toArray', function () {
+    it('Counter then map valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(0).to(3).then(times2).map(function (value) {
           return value * 2;
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([0, 4, 8, 12]);
     });
 
-    it('Counter then filter toArray', function () {
+    it('Counter then filter valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(0).to(3).then(times2).filter(function (value) {
           return value >= 2 && value <= 4;
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([2, 4]);
@@ -5558,7 +5651,7 @@ process.umask = function() { return 0; };
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
       index = 10;
@@ -5576,7 +5669,7 @@ process.umask = function() { return 0; };
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index -= 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql([20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10]);
       index = 20;
@@ -5695,7 +5788,7 @@ process.umask = function() { return 0; };
         }, []
       );
 
-      expect(r).to.eql(reiterate().from(10).to(20).toArray());
+      expect(r).to.eql(reiterate().from(10).to(20).valueOf());
 
       // reverse
       index = 12;
@@ -5900,16 +5993,16 @@ process.umask = function() { return 0; };
       }
 
       // unique
-      array = reiterate(a).values().unique().toArray();
+      array = reiterate(a).values().unique().valueOf();
       expect(array).to.eql(b);
 
-      array = reiterate(a).values().reverse().unique().toArray();
+      array = reiterate(a).values().reverse().unique().valueOf();
       expect(array).to.eql(c);
 
       // map
       array = reiterate(a).values().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.map(function (item) {
         return String(item);
@@ -5917,7 +6010,7 @@ process.umask = function() { return 0; };
 
       array = reiterate(a).values().reverse().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.slice().reverse().map(function (item) {
         return String(item);
@@ -5926,7 +6019,7 @@ process.umask = function() { return 0; };
       // filter
       array = reiterate(a).values().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.filter(function (item) {
         return item === 1;
@@ -5934,14 +6027,14 @@ process.umask = function() { return 0; };
 
       array = reiterate(a).values().reverse().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.slice().reverse().filter(function (item) {
         return item === 1;
       }));
 
       // flatten
-      array = reiterate(d).values().flatten().toArray();
+      array = reiterate(d).values().flatten().valueOf();
       expect(array).to.eql(a);
     });
 
@@ -5987,15 +6080,15 @@ process.umask = function() { return 0; };
         array;
 
       // zero
-      array = reiterate(a).values().drop().toArray();
+      array = reiterate(a).values().drop().valueOf();
       expect(array).to.eql(a);
 
       // forward
-      array = reiterate(a).values().drop(2).toArray();
+      array = reiterate(a).values().drop(2).valueOf();
       expect(array).to.eql([3, 4, 5]);
 
       // reverse
-      array = reiterate(a).values().reverse().drop(2).toArray();
+      array = reiterate(a).values().reverse().drop(2).valueOf();
       expect(array).to.eql([3, 2, 1]);
     });
 
@@ -6004,15 +6097,15 @@ process.umask = function() { return 0; };
         array;
 
       // zero
-      array = reiterate(a).values().take().toArray();
+      array = reiterate(a).values().take().valueOf();
       expect(array).to.eql([]);
 
       // forward
-      array = reiterate(a).values().take(2).toArray();
+      array = reiterate(a).values().take(2).valueOf();
       expect(array).to.eql([1, 2]);
 
       // reverse
-      array = reiterate(a).values().reverse().take(2).toArray();
+      array = reiterate(a).values().reverse().take(2).valueOf();
       expect(array).to.eql([5, 4]);
     });
 
@@ -6068,8 +6161,8 @@ process.umask = function() { return 0; };
         e = b.map(function (item) {
           return item.codePointAt();
         }),
-        array = reiterate(a).values().toArray(),
-        string = reiterate(a).values().join(''),
+        array = reiterate(a).values().valueOf(),
+        string = reiterate(a).values().asString(),
         iterator = reiterate(a).values().map(function (item) {
           return item.codePointAt();
         }),
@@ -6086,9 +6179,9 @@ process.umask = function() { return 0; };
 
       expect(string).to.be(a);
       expect(array).to.eql(b);
-      array = reiterate(a).keys().toArray();
+      array = reiterate(a).keys().valueOf();
       expect(array).to.eql(c);
-      array = reiterate(a).entries().toArray();
+      array = reiterate(a).entries().valueOf();
       expect(array).to.eql(d);
       for (entry of iterator) {
         expect(entry).to.be(e[index]);
@@ -6096,14 +6189,14 @@ process.umask = function() { return 0; };
       }
 
       // reverse
-      string = reiterate(a).values().reverse().join('');
+      string = reiterate(a).values().reverse().asString();
       b.reverse();
       expect(string).to.be(b.join(''));
-      array = reiterate(a).values().reverse().toArray();
+      array = reiterate(a).values().reverse().valueOf();
       expect(array).to.eql(b);
-      array = reiterate(a).keys().reverse().toArray();
+      array = reiterate(a).keys().reverse().valueOf();
       expect(array).to.eql(c.reverse());
-      array = reiterate(a).entries().reverse().toArray();
+      array = reiterate(a).entries().reverse().valueOf();
       expect(array).to.eql(d.reverse());
       iterator = reiterate(a).values().reverse().map(function (item) {
         return item.codePointAt();
@@ -6285,16 +6378,16 @@ process.umask = function() { return 0; };
       }
 
       // unique
-      array = reiterate(a, true).values().unique().toArray();
+      array = reiterate(a, true).values().unique().valueOf();
       expect(array).to.eql(b);
 
-      array = reiterate(a, true).values().reverse().unique().toArray();
+      array = reiterate(a, true).values().reverse().unique().valueOf();
       expect(array).to.eql(c);
 
       // map
       array = reiterate(a, true).values().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.map(function (item) {
         return String(item);
@@ -6302,7 +6395,7 @@ process.umask = function() { return 0; };
 
       array = reiterate(a, true).values().reverse().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.slice().reverse().map(function (item) {
         return String(item);
@@ -6311,7 +6404,7 @@ process.umask = function() { return 0; };
       // filter
       array = reiterate(a, true).values().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.filter(function (item) {
         return item === 1;
@@ -6319,14 +6412,14 @@ process.umask = function() { return 0; };
 
       array = reiterate(a, true).values().reverse().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.slice().reverse().filter(function (item) {
         return item === 1;
       }));
 
       // flatten
-      array = reiterate(e, true).values().flatten(true).toArray();
+      array = reiterate(e, true).values().flatten(true).valueOf();
       expect(array).to.eql(d);
     });
 
@@ -6461,7 +6554,7 @@ process.umask = function() { return 0; };
     });
 
     it('Object enumerate own flatten, no length', function () {
-      array = reiterate(c).own().values().flatten().toArray();
+      array = reiterate(c).own().values().flatten().valueOf();
       expect(array).to.eql(b);
     });
 
@@ -6557,16 +6650,16 @@ process.umask = function() { return 0; };
       }
 
       // unique
-      array = reiterate.array(a).values().unique().toArray();
+      array = reiterate.array(a).values().unique().valueOf();
       expect(array).to.eql(b);
 
-      array = reiterate.array(a).values().reverse().unique().toArray();
+      array = reiterate.array(a).values().reverse().unique().valueOf();
       expect(array).to.eql(c);
 
       // map
       array = reiterate.array(a).values().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.map(function (item) {
         return String(item);
@@ -6574,7 +6667,7 @@ process.umask = function() { return 0; };
 
       array = reiterate.array(a).values().reverse().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.slice().reverse().map(function (item) {
         return String(item);
@@ -6583,7 +6676,7 @@ process.umask = function() { return 0; };
       // filter
       array = reiterate(a).values().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.filter(function (item) {
         return item === 1;
@@ -6591,14 +6684,14 @@ process.umask = function() { return 0; };
 
       array = reiterate.array(a).values().reverse().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.slice().reverse().filter(function (item) {
         return item === 1;
       }));
 
       // flatten
-      array = reiterate.array(d).values().flatten().toArray();
+      array = reiterate.array(d).values().flatten().valueOf();
       expect(array).to.eql(a);
     });
 
@@ -6654,8 +6747,8 @@ process.umask = function() { return 0; };
         e = b.map(function (item) {
           return item.codePointAt();
         }),
-        array = reiterate.string(a).values().toArray(),
-        string = reiterate.string(a).values().join(''),
+        array = reiterate.string(a).values().valueOf(),
+        string = reiterate.string(a).values().asString(),
         iterator = reiterate.string(a).values().map(function (item) {
           return item.codePointAt();
         }),
@@ -6665,9 +6758,9 @@ process.umask = function() { return 0; };
       // forward
       expect(string).to.be(a);
       expect(array).to.eql(b);
-      array = reiterate.string(a).keys().toArray();
+      array = reiterate.string(a).keys().valueOf();
       expect(array).to.eql(c);
-      array = reiterate.string(a).entries().toArray();
+      array = reiterate.string(a).entries().valueOf();
       expect(array).to.eql(d);
       for (entry of iterator) {
         expect(entry).to.be(e[index]);
@@ -6675,14 +6768,14 @@ process.umask = function() { return 0; };
       }
 
       // reverse
-      string = reiterate.string(a).values().reverse().join('');
+      string = reiterate.string(a).values().reverse().asString();
       b.reverse();
       expect(string).to.be(b.join(''));
-      array = reiterate.string(a).values().reverse().toArray();
+      array = reiterate.string(a).values().reverse().valueOf();
       expect(array).to.eql(b);
-      array = reiterate.string(a).keys().reverse().toArray();
+      array = reiterate.string(a).keys().reverse().valueOf();
       expect(array).to.eql(c.reverse());
-      array = reiterate.string(a).entries().reverse().toArray();
+      array = reiterate.string(a).entries().reverse().valueOf();
       expect(array).to.eql(d.reverse());
       iterator = reiterate.string(a).values().reverse().map(function (item) {
         return item.codePointAt();
@@ -6826,16 +6919,16 @@ process.umask = function() { return 0; };
       }
 
       // unique
-      array = reiterate.array(a).values().unique().toArray();
+      array = reiterate.array(a).values().unique().valueOf();
       expect(array).to.eql(b);
 
-      array = reiterate.array(a).values().reverse().unique().toArray();
+      array = reiterate.array(a).values().reverse().unique().valueOf();
       expect(array).to.eql(c);
 
       // map
       array = reiterate.array(a).values().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.map(function (item) {
         return String(item);
@@ -6843,7 +6936,7 @@ process.umask = function() { return 0; };
 
       array = reiterate.array(a).values().reverse().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.slice().reverse().map(function (item) {
         return String(item);
@@ -6852,7 +6945,7 @@ process.umask = function() { return 0; };
       // filter
       array = reiterate.array(a).values().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.filter(function (item) {
         return item === 1;
@@ -6860,14 +6953,14 @@ process.umask = function() { return 0; };
 
       array = reiterate.array(a).values().reverse().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(d.slice().reverse().filter(function (item) {
         return item === 1;
       }));
 
       // flatten
-      array = reiterate.array(e).values().flatten(true).toArray();
+      array = reiterate.array(e).values().flatten(true).valueOf();
       expect(array).to.eql(d);
     });
 
@@ -7004,7 +7097,7 @@ process.umask = function() { return 0; };
     });
 
     it('Object enumerate own flatten, no length', function () {
-      array = reiterate.enumerate(c).own().values().flatten().toArray();
+      array = reiterate.enumerate(c).own().values().flatten().valueOf();
       expect(array).to.eql(b);
     });
 
@@ -7093,7 +7186,7 @@ process.umask = function() { return 0; };
 
   describe('Basic static tests', function () {
     it('Repeat', function () {
-      expect(reiterate.repeat('a').take(5).toArray()).to.eql([
+      expect(reiterate.repeat('a').take(5).valueOf()).to.eql([
         'a',
         'a',
         'a',
@@ -7101,7 +7194,7 @@ process.umask = function() { return 0; };
         'a'
       ]);
 
-      expect(reiterate.repeat('a').take(5).join('')).to.be('aaaaa');
+      expect(reiterate.repeat('a').take(5).asString()).to.be('aaaaa');
     });
   });
 }());
@@ -7129,7 +7222,7 @@ process.umask = function() { return 0; };
       var a = [1, 2, 3, 4, 1, 2, 3, 4],
         array = reiterate(a).values().takeWhile(function (item) {
           return item < 4;
-        }).toArray();
+        }).valueOf();
 
       expect(array).to.eql([1, 2, 3]);
     });
@@ -7159,11 +7252,120 @@ process.umask = function() { return 0; };
       var a = [1, 2, 3, 4, 1, 2, 3, 4],
         array = reiterate(a).values().dropWhile(function (item) {
           return item < 4;
-        }).toArray();
+        }).valueOf();
 
       expect(array).to.eql([4, 1, 2, 3, 4]);
     });
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23]);
+},{"../scripts/":9}],24:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Chunk', function () {
+      var array = reiterate().to(10).chunk(3).valueOf();
+
+      expect(array).to.eql([[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10]]);
+    });
+  });
+}());
+
+},{"../scripts/":9}],25:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Compact', function () {
+      var a = [0, 1, false, 2, '', 3, undefined, 4, null, 5, NaN, 6],
+        array = reiterate(a).values().compact().valueOf();
+
+      expect(array).to.eql([1, 2, 3, 4, 5, 6]);
+    });
+  });
+}());
+
+},{"../scripts/":9}],26:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Difference', function () {
+      var a = [1, 2, 3, 4, 5],
+        array = reiterate(a).values().difference([4, 2]).valueOf();
+
+      expect(array).to.eql([1, 3, 5]);
+      array = reiterate(a).values().difference([4, 2]).asObject();
+      expect(array).to.eql({
+        0: 1,
+        1: 3,
+        2: 5
+      });
+
+      expect(array.length).to.be(3);
+      array = reiterate(a).values().difference([4, 2]).asMap();
+      expect(array.size).to.be(3);
+      expect(array.get(0)).to.be(1);
+      expect(array.get(1)).to.be(3);
+      expect(array.get(2)).to.be(5);
+      array = reiterate(a).values().difference({
+        'a': 4,
+        'b': 2
+      }).valueOf();
+
+      expect(array).to.eql([1, 3, 5]);
+      a = 'A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6A';
+      array = reiterate(a).values().difference('A\uD835\uDC69B').asString();
+      expect(array).to.be('\uD835\uDC68C\uD835\uDC6A');
+      array = reiterate(a).values().difference('A\uD835\uDC69B').valueOf();
+      expect(array).to.eql(['\uD835\uDC68', 'C', '\uD835\uDC6A']);
+      array = reiterate(a).values().difference('A\uD835\uDC69B').toString();
+      expect(array).to.be('\uD835\uDC68,C,\uD835\uDC6A');
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]);

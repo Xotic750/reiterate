@@ -82,16 +82,16 @@
       }
 
       // unique
-      array = reiterate(a).values().unique().toArray();
+      array = reiterate(a).values().unique().valueOf();
       expect(array).to.eql(b);
 
-      array = reiterate(a).values().reverse().unique().toArray();
+      array = reiterate(a).values().reverse().unique().valueOf();
       expect(array).to.eql(c);
 
       // map
       array = reiterate(a).values().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.map(function (item) {
         return String(item);
@@ -99,7 +99,7 @@
 
       array = reiterate(a).values().reverse().map(function (item) {
         return String(item);
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.slice().reverse().map(function (item) {
         return String(item);
@@ -108,7 +108,7 @@
       // filter
       array = reiterate(a).values().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.filter(function (item) {
         return item === 1;
@@ -116,14 +116,14 @@
 
       array = reiterate(a).values().reverse().filter(function (item) {
         return item === 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql(a.slice().reverse().filter(function (item) {
         return item === 1;
       }));
 
       // flatten
-      array = reiterate(d).values().flatten().toArray();
+      array = reiterate(d).values().flatten().valueOf();
       expect(array).to.eql(a);
     });
 
@@ -169,15 +169,15 @@
         array;
 
       // zero
-      array = reiterate(a).values().drop().toArray();
+      array = reiterate(a).values().drop().valueOf();
       expect(array).to.eql(a);
 
       // forward
-      array = reiterate(a).values().drop(2).toArray();
+      array = reiterate(a).values().drop(2).valueOf();
       expect(array).to.eql([3, 4, 5]);
 
       // reverse
-      array = reiterate(a).values().reverse().drop(2).toArray();
+      array = reiterate(a).values().reverse().drop(2).valueOf();
       expect(array).to.eql([3, 2, 1]);
     });
 
@@ -186,15 +186,15 @@
         array;
 
       // zero
-      array = reiterate(a).values().take().toArray();
+      array = reiterate(a).values().take().valueOf();
       expect(array).to.eql([]);
 
       // forward
-      array = reiterate(a).values().take(2).toArray();
+      array = reiterate(a).values().take(2).valueOf();
       expect(array).to.eql([1, 2]);
 
       // reverse
-      array = reiterate(a).values().reverse().take(2).toArray();
+      array = reiterate(a).values().reverse().take(2).valueOf();
       expect(array).to.eql([5, 4]);
     });
 

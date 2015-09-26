@@ -39,7 +39,7 @@
   "devDependencies": {
     "google-closure-compiler": "latest",
     "grunt": "latest",
-    "jsdoc": "latest",
+    "jsdoc": "3.3.2",
     "mocha": "latest",
     "mocha-lcov-reporter": "latest",
     "expect.js": "latest",
@@ -58,7 +58,7 @@
   "optionalDependencies": {
     "google-closure-compiler": "latest",
     "grunt": "latest",
-    "jsdoc": "latest",
+    "jsdoc": "3.3.2",
     "mocha": "latest",
     "mocha-lcov-reporter": "latest",
     "expect.js": "latest",

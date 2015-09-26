@@ -17,7 +17,7 @@
 
   describe('Basic static tests', function () {
     it('Repeat', function () {
-      expect(reiterate.repeat('a').take(5).toArray()).to.eql([
+      expect(reiterate.repeat('a').take(5).valueOf()).to.eql([
         'a',
         'a',
         'a',
@@ -25,7 +25,7 @@
         'a'
       ]);
 
-      expect(reiterate.repeat('a').take(5).join('')).to.be('aaaaa');
+      expect(reiterate.repeat('a').take(5).asString()).to.be('aaaaa');
     });
   });
 }());

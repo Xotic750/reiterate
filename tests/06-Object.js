@@ -110,7 +110,7 @@
     });
 
     it('Object enumerate own flatten, no length', function () {
-      array = reiterate(c).own().values().flatten().toArray();
+      array = reiterate(c).own().values().flatten().valueOf();
       expect(array).to.eql(b);
     });
 

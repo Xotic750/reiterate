@@ -16,13 +16,11 @@
     reiterate = required.subject;
 
   describe('Basic tests', function () {
-    it('takeWhile', function () {
-      var a = [1, 2, 3, 4, 1, 2, 3, 4],
-        array = reiterate(a).values().takeWhile(function (item) {
-          return item < 4;
-        }).valueOf();
+    it('Compact', function () {
+      var a = [0, 1, false, 2, '', 3, undefined, 4, null, 5, NaN, 6],
+        array = reiterate(a).values().compact().valueOf();
 
-      expect(array).to.eql([1, 2, 3]);
+      expect(array).to.eql([1, 2, 3, 4, 5, 6]);
     });
   });
 }());

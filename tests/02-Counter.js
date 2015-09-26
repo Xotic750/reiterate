@@ -612,53 +612,53 @@
       }
     });
 
-    it('Counter toArray', function () {
+    it('Counter valueOf', function () {
       var array;
 
       expect(function () {
-        array = reiterate().to(3).toArray();
+        array = reiterate().to(3).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([0, 1, 2, 3]);
     });
 
-    it('Counter map toArray', function () {
+    it('Counter map valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(65).to(68).map(function (value) {
           return String.fromCharCode(value);
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql(['A', 'B', 'C', 'D']);
     });
 
-    it('Counter filter toArray', function () {
+    it('Counter filter valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().to(10).filter(function (value) {
           return value >= 4 && value <= 6;
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([4, 5, 6]);
     });
 
-    it('Counter map unique toArray', function () {
+    it('Counter map unique valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(0).to(10).map(function () {
           return 'a';
-        }).unique().toArray();
+        }).unique().valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql(['a']);
     });
 
-    it('Counter map filter unique toArray', function () {
+    it('Counter map filter unique valueOf', function () {
       var array;
 
       expect(function () {
@@ -666,7 +666,7 @@
           return 'a';
         }).filter(function () {
           return true;
-        }).unique().toArray();
+        }).unique().valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql(['a']);
@@ -704,35 +704,35 @@
       }
     });
 
-    it('Counter then toArray', function () {
+    it('Counter then valueOf', function () {
       var array;
 
       expect(function () {
-        array = reiterate().from(0).to(3).then(times2).toArray();
+        array = reiterate().from(0).to(3).then(times2).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([0, 2, 4, 6]);
     });
 
-    it('Counter then map toArray', function () {
+    it('Counter then map valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(0).to(3).then(times2).map(function (value) {
           return value * 2;
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([0, 4, 8, 12]);
     });
 
-    it('Counter then filter toArray', function () {
+    it('Counter then filter valueOf', function () {
       var array;
 
       expect(function () {
         array = reiterate().from(0).to(3).then(times2).filter(function (value) {
           return value >= 2 && value <= 4;
-        }).toArray();
+        }).valueOf();
       }).to.not.throwException();
 
       expect(array).to.eql([2, 4]);
@@ -820,7 +820,7 @@
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
       index = 10;
@@ -838,7 +838,7 @@
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index -= 1;
-      }).toArray();
+      }).valueOf();
 
       expect(array).to.eql([20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10]);
       index = 20;
@@ -957,7 +957,7 @@
         }, []
       );
 
-      expect(r).to.eql(reiterate().from(10).to(20).toArray());
+      expect(r).to.eql(reiterate().from(10).to(20).valueOf());
 
       // reverse
       index = 12;

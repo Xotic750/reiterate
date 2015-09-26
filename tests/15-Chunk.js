@@ -16,13 +16,10 @@
     reiterate = required.subject;
 
   describe('Basic tests', function () {
-    it('takeWhile', function () {
-      var a = [1, 2, 3, 4, 1, 2, 3, 4],
-        array = reiterate(a).values().takeWhile(function (item) {
-          return item < 4;
-        }).valueOf();
+    it('Chunk', function () {
+      var array = reiterate().to(10).chunk(3).valueOf();
 
-      expect(array).to.eql([1, 2, 3]);
+      expect(array).to.eql([[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10]]);
     });
   });
 }());
