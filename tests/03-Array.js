@@ -88,6 +88,15 @@
       array = reiterate(a).values().reverse().unique().valueOf();
       expect(array).to.eql(c);
 
+      array = reiterate(a).values().unique().valueOf();
+      expect(array).to.eql(b);
+
+      array = reiterate(a).values().unique().asSet();
+      expect(array.size).to.be(b.length);
+      array.forEach(function (item) {
+        expect(b.indexOf(item)).to.not.be(-1);
+      });
+
       // map
       array = reiterate(a).values().map(function (item) {
         return String(item);
