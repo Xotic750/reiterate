@@ -593,7 +593,9 @@
         array = reiterate().from(0).to(10).map(function () {
           return 'a';
         }).unique().valueOf();
-      }).to.not.throwException();
+      }).to.not.throwException(function (e) {
+        expect(e).to.be(undefined);
+      });
 
       expect(array).to.eql(['a']);
     });

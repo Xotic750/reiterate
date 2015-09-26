@@ -15,8 +15,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:32,
-    maxcomplexity:7
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:33,
+    maxcomplexity:9
 */
 
 /*global
@@ -24,24 +24,24 @@
 */
 
 /*property
-    ARRAY, ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator,
-    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, NUMBER, OBJECT,
-    OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
-    VALUEDESCRIPTOR, VALUES, abs, addMethods, amd, asMap, asObject, asSet,
-    asString, assign, bind, call, charCodeAt, chunkGenerator, clamp,
-    clampToSafeIntegerRange, compactGenerator, configurable, defineProperty,
-    differenceGenerator, dropGenerator, dropWhileGenerator, entries,
-    enumerable, every, exports, filterGenerator, first, flattenGenerator,
-    floor, from, getYieldValue, has, hasOwn, hasOwnProperty, initialGenerator,
-    isArray, isArrayLike, isFinite, isFunction, isLength, isNaN, isNil,
-    isNumber, isObject, isString, isSurrogatePair, isUndefined, join, keys,
-    last, length, mapGenerator, max, min, mustBeFunction,
-    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce,
-    repeatGenerator, restGenerator, reverse, reversed, setIndexesOpts,
-    setReverseIfOpt, setValue, sign, some, takeGenerator, takeWhileGenerator,
-    tapGenerator, then, throwIfCircular, to, toInteger, toLength,
-    toSafeInteger, toString, toStringTag, uniqueGenerator, value, valueOf,
-    values, writable
+    ARRAY, ASSET, ArrayGenerator, CounterGenerator, ENTRIES,
+    EnumerateGenerator, FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER,
+    MIN_SAFE_INTEGER, NUMBER, OBJECT, OPTS, SET, STRING, STRINGTAG, SYMBOL,
+    StringGenerator, TYPE, UNDEFINED, VALUEDESCRIPTOR, VALUES, abs, addMethods,
+    amd, asMap, asObject, asSet, asString, assign, bind, call, charCodeAt,
+    chunkGenerator, clamp, clampToSafeIntegerRange, compactGenerator,
+    configurable, defineProperty, differenceGenerator, dropGenerator,
+    dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
+    first, flattenGenerator, floor, for, from, getYieldValue, has, hasOwn,
+    hasOwnProperty, initialGenerator, isArray, isArrayLike, isFinite,
+    isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
+    isSurrogatePair, isUndefined, join, keys, last, length, mapGenerator, max,
+    min, mustBeFunction, mustBeFunctionIfDefined, populatePrototypes,
+    prototype, reduce, repeatGenerator, restGenerator, reverse, reversed,
+    setIndexesOpts, setReverseIfOpt, setValue, sign, some, takeGenerator,
+    takeWhileGenerator, tapGenerator, then, throwIfCircular, to, toInteger,
+    toLength, toSafeInteger, toString, toStringTag, unionGenerator,
+    uniqueGenerator, value, valueOf, values, writable
 */
 
 /**
@@ -128,6 +128,15 @@
           OBJECT: typeof Object.prototype,
           FUNCTION: typeof Function,
           UNDEFINED: typeof undefined
+        },
+
+        /**
+         * The private namespace for local symbols.
+         * @private
+         * @namespace
+         */
+        SYMBOL: {
+          ASSET: Symbol.for('asSet')
         },
 
         /**
@@ -669,11 +678,14 @@
             _.setValue(object, 'reduce', p.reduce);
             _.setValue(object, 'difference', p.differenceGenerator);
             _.setValue(object, 'join', p.join);
+            _.setValue(object, 'union', p.unionGenerator);
           } else {
             _.setValue(object, 'take', p.takeGenerator);
           }
 
-          if (object === p.uniqueGenerator.prototype) {
+          if (object === p.uniqueGenerator.prototype ||
+            object === p.unionGenerator.prototype) {
+
             _.setValue(object, 'asSet', p.asSet);
           }
 
@@ -702,6 +714,7 @@
           _.addMethods(p.differenceGenerator.prototype);
           _.addMethods(p.initialGenerator.prototype);
           _.addMethods(p.restGenerator.prototype);
+          _.addMethods(p.unionGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -884,17 +897,6 @@
           return result;
         },
 
-        asSet: function () {
-          var result = new Set(),
-            item;
-
-          for (item of this) {
-            result.add(item);
-          }
-
-          return result;
-        },
-
         dropGenerator: function* (number) {
           var index = 0,
             length = _.toLength(number),
@@ -1062,16 +1064,77 @@
 
         uniqueGenerator: function* () {
           var seen = new Set(),
-            item;
+            item,
+            give;
 
           for (item of this) {
             if (!seen.has(item)) {
-              yield item;
+              if (give !== $.SYMBOL.ASSET) {
+                give = yield item;
+              }
+
               seen.add(item);
             }
           }
 
-          seen.clear();
+          if (give !== $.SYMBOL.ASSET) {
+            seen.clear();
+          } else {
+            return seen;
+          }
+        },
+
+        unionGenerator: function* () {
+          var seen = new Set(),
+            give,
+            item,
+            arg;
+
+          for (item of this) {
+            if (!seen.has(item)) {
+              if (give !== $.SYMBOL.ASSET) {
+                give = yield item;
+              }
+
+              seen.add(item);
+            }
+          }
+
+          for (arg of new g.ArrayGenerator(arguments).values()) {
+            for (item of new Reiterate(arg)) {
+              if (!seen.has(item)) {
+                if (give !== $.SYMBOL.ASSET) {
+                  give = yield item;
+                }
+
+                seen.add(item);
+              }
+            }
+          }
+
+          if (give !== $.SYMBOL.ASSET) {
+            seen.clear();
+          } else {
+            return seen;
+          }
+        },
+
+        asSet: function () {
+          var iterator = this[Symbol.iterator](),
+            next = iterator.next(),
+            value;
+
+          if (!next.done) {
+            do {
+              next = iterator.next($.SYMBOL.ASSET);
+            } while (!next.done);
+
+            value = next.value;
+          } else {
+            value = new Set();
+          }
+
+          return value;
         },
 
         flattenGenerator: (function () {
@@ -5485,7 +5548,9 @@ process.umask = function() { return 0; };
         array = reiterate().from(0).to(10).map(function () {
           return 'a';
         }).unique().valueOf();
-      }).to.not.throwException();
+      }).to.not.throwException(function (e) {
+        expect(e).to.be(undefined);
+      });
 
       expect(array).to.eql(['a']);
     });
@@ -7650,4 +7715,62 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]);
+},{"../scripts/":9}],32:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Union', function () {
+      var a = reiterate().to(3),
+        b = reiterate().from(3).to(6),
+        c = reiterate().from(6).to(9),
+        d = reiterate().to(10),
+        value = reiterate(a).union(b, c, d).valueOf();
+
+      expect(value).to.eql(reiterate().to(10).valueOf());
+      a = reiterate([0, 1, 2]).values();
+      b = reiterate([4, 5, 6]).values();
+      c = reiterate([8, 9]).values();
+      d = reiterate([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).values();
+      value = reiterate(a).union(b, c, d).valueOf();
+      expect(value).to.eql([0, 1, 2, 4, 5, 6, 8, 9, 3, 7, 10]);
+      a = reiterate().to(3);
+      b = reiterate().from(3).to(6);
+      c = reiterate().from(6).to(9);
+      d = reiterate().to(10);
+      value = reiterate(a).union(b, c, d).asSet();
+      expect(value.size).to.be(11);
+      expect(value.has(0)).to.be(true);
+      expect(value.has(1)).to.be(true);
+      expect(value.has(2)).to.be(true);
+      expect(value.has(3)).to.be(true);
+      expect(value.has(4)).to.be(true);
+      expect(value.has(5)).to.be(true);
+      expect(value.has(6)).to.be(true);
+      expect(value.has(7)).to.be(true);
+      expect(value.has(8)).to.be(true);
+      expect(value.has(9)).to.be(true);
+      expect(value.has(10)).to.be(true);
+      value = reiterate([]).union().asSet();
+      expect(value.size).to.be(0);
+      value = reiterate([1]).union().asSet();
+      expect(value.size).to.be(1);
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]);
