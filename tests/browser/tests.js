@@ -15,7 +15,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:28,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:29,
     maxcomplexity:7
 */
 
@@ -662,6 +662,7 @@
           _.setValue(object, 'asString', p.asString);
           _.setValue(object, 'asObject', p.asObject);
           _.setValue(object, 'asMap', p.asMap);
+          _.setValue(object, 'initial', p.initialGenerator);
           if (object !== g.CounterGenerator.prototype) {
             _.setValue(object, 'enumerate', g.EnumerateGenerator);
             _.setValue(object, 'unique', p.uniqueGenerator);
@@ -697,6 +698,7 @@
           _.addMethods(p.chunkGenerator.prototype);
           _.addMethods(p.compactGenerator.prototype);
           _.addMethods(p.differenceGenerator.prototype);
+          _.addMethods(p.initialGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -1013,6 +1015,21 @@
           vals.clear();
         },
 
+        initialGenerator: function* () {
+          var iterator = this[Symbol.iterator](),
+            item = iterator.next(),
+            next;
+
+          while (!item.done) {
+            next = iterator.next();
+            if (!next.done) {
+              yield item.value;
+            }
+
+            item = next;
+          }
+        },
+
         uniqueGenerator: function* () {
           var seen = new Set(),
             item;
@@ -1215,11 +1232,11 @@
             }
 
             var opts = {
-                reversed: false,
-                from: 0,
-                to: Number.MAX_SAFE_INTEGER,
-                by: 1
-              };
+              reversed: false,
+              from: 0,
+              to: Number.MAX_SAFE_INTEGER,
+              by: 1
+            };
 
             _.setValue(this, 'state', function () {
               return _.assign({}, opts);
@@ -1468,8 +1485,8 @@
             }
 
             var opts = _.assign({
-                own: false
-              }, $.OPTS.ENTRIES);
+              own: false
+            }, $.OPTS.ENTRIES);
 
             _.setValue(this, 'state', function () {
               return _.assign({}, opts);
