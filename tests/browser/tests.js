@@ -25,21 +25,22 @@
 
 /*property
     ARRAY, ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator,
-    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, VALUEDESCRIPTOR, MIN_SAFE_INTEGER,
-    NUMBER, OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
-    VALUES, abs, addMethods, amd, asMap, asObject, asString, assign, bind,
-    call, charCodeAt, chunkGenerator, clamp, clampToSafeIntegerRange,
-    compactGenerator, configurable, defineProperty, differenceGenerator,
-    dropGenerator, dropWhileGenerator, entries, enumerable, every, exports,
-    filterGenerator, flattenGenerator, floor, from, getYieldValue, has, hasOwn,
-    hasOwnProperty, isArray, isArrayLike, isFinite, isFunction, isLength,
-    isNaN, isNil, isNumber, isString, isSurrogatePair, isUndefined, join, keys,
-    length, mapGenerator, max, min, mustBeFunction, mustBeFunctionIfDefined,
-    populatePrototypes, prototype, reduce, repeatGenerator, reverse, reversed,
-    setIndexesOpts, setValue, setReverseIfOpt, sign, some, takeGenerator,
-    takeWhileGenerator, tapGenerator, then, throwIfCircular, to, toInteger,
-    toLength, toSafeInteger, toString, toStringTag, uniqueGenerator, value,
-    valueOf, values, writable
+    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, NUMBER, OBJECT,
+    OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED,
+    VALUEDESCRIPTOR, VALUES, abs, addMethods, amd, asMap, asObject, asSet,
+    asString, assign, bind, call, charCodeAt, chunkGenerator, clamp,
+    clampToSafeIntegerRange, compactGenerator, configurable, defineProperty,
+    differenceGenerator, dropGenerator, dropWhileGenerator, entries,
+    enumerable, every, exports, filterGenerator, flattenGenerator, floor, from,
+    getYieldValue, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isFinite,
+    isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
+    isSurrogatePair, isUndefined, join, keys, length, mapGenerator, max, min,
+    mustBeFunction, mustBeFunctionIfDefined, populatePrototypes, prototype,
+    reduce, repeatGenerator, reverse, reversed, setIndexesOpts,
+    setReverseIfOpt, setValue, sign, some, takeGenerator, takeWhileGenerator,
+    tapGenerator, then, throwIfCircular, to, toInteger, toLength,
+    toSafeInteger, toString, toStringTag, uniqueGenerator, value, valueOf,
+    values, writable
 */
 
 /**
@@ -136,7 +137,7 @@
         VALUEDESCRIPTOR: {
           enumerable: false,
           writable: true,
-          configurable: true,
+          configurable: true
         },
 
         /**
