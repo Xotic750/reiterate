@@ -123,6 +123,7 @@
          * @namespace
          */
         TYPE: {
+          OBJECT: typeof Object.prototype,
           FUNCTION: typeof Function,
           UNDEFINED: typeof undefined
         },
@@ -352,27 +353,27 @@
         },
 
         /**
-         * Checks if `value` is a valid array-like length.
+         * Checks if value is a valid array-like length.
          *
          * @private
          * @param {*} subject The value to check.
-         * @return {boolean} Returns `true` if `value` is a valid length,
-         *                   else `false`.
+         * @return {boolean} Returns true if value is a valid length,
+         *                   else false.
          */
         isLength: function (subject) {
           return _.toSafeInteger(subject) === subject && subject >= 0;
         },
 
         /**
-         * Checks if `value` is array-like. A value is considered array-like if
-         * it's  not a function and has a `value.length` that's an integer
-         * greater than or equal to `0` and less than or equal to
-         * `Number.MAX_SAFE_INTEGER`.
+         * Checks if value is array-like. A value is considered array-like if
+         * it's  not a function and has a value.length that's an integer
+         * greater than or equal to 0 and less than or equal to
+         * Number.MAX_SAFE_INTEGER.
          *
          * @private
          * @param {*} subject The object to be tested.
-         * @return {boolean} Returns `true` if `subject` is array-like,
-         *                   else `false`.
+         * @return {boolean} Returns true if subject is array-like,
+         *                   else false.
          */
         isArrayLike: function (subject) {
           return !_.isNil(subject) &&
@@ -501,6 +502,22 @@
          */
         toLength: function (subject) {
           return _.clamp(_.toInteger(subject), 0, Number.MAX_SAFE_INTEGER);
+        },
+
+        /**
+         * Checks if value is the language type of Object.
+         * (e.g. arrays, functions, objects, regexes, new Number(0),
+         * and new String('')).
+         *
+         * @private
+         * @param {*} subject The value to check.
+         * @return {boolean} Returns true if value is an object, else false.
+         */
+        isObject: function (subject) {
+          var type = typeof subject;
+
+          return !!subject &&
+            (type === $.TYPE.OBJECT || type === $.TYPE.FUNCTION);
         },
 
         /**
@@ -1063,10 +1080,6 @@
          * Future code
          *
         walkOwnGenerator: (function () {
-          function isObject(subject) {
-            return Object(subject) === subject;
-          }
-
           function setStack(stack, current, previous) {
             return stack.set(current, {
               keys: Object.keys(current),
@@ -1083,7 +1096,7 @@
               key;
 
             for (object of this) {
-              if (isObject(object)) {
+              if (_.isObject(object)) {
                 setStack(stack, object, null);
               } else {
                 yield object;
@@ -1097,7 +1110,7 @@
                 } else {
                   key = tail.keys[tail.index];
                   value = object[key];
-                  if (isObject(value)) {
+                  if (_.isObject(value)) {
                     _.throwIfCircular(stack, value);
                     setStack(stack, value, object);
                     object = value;
@@ -1551,6 +1564,11 @@
           generator = g.ArrayGenerator(subject);
         } else if (_.isString(subject)) {
           generator = g.StringGenerator(subject);
+        } else if (_.isObject(Symbol) &&
+          _.isFunction(subject[Symbol.iterator])) {
+
+          generator = subject[Symbol.iterator]();
+          _.addMethods(generator);
         } else {
           generator = g.EnumerateGenerator(subject);
         }
@@ -5929,7 +5947,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:50,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:55,
     maxcomplexity:10
 */
 /*global require, describe, it */
@@ -6013,6 +6031,15 @@ process.umask = function() { return 0; };
 
       array = reiterate(a).values().reverse().unique().valueOf();
       expect(array).to.eql(c);
+
+      array = reiterate(a).values().unique().valueOf();
+      expect(array).to.eql(b);
+
+      array = reiterate(a).values().unique().asSet();
+      expect(array.size).to.be(b.length);
+      array.forEach(function (item) {
+        expect(b.indexOf(item)).to.not.be(-1);
+      });
 
       // map
       array = reiterate(a).values().map(function (item) {
@@ -7383,4 +7410,77 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]);
+},{"../scripts/":9}],27:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Other iterables', function () {
+      var a = new Map().set(0, 1).set(1, 2).set(2, 3),
+        array = reiterate(a).valueOf();
+
+      expect(array).to.eql([
+        [0, 1],
+        [1, 2],
+        [2, 3]
+      ]);
+      array = reiterate(a.values()).valueOf();
+      expect(array).to.eql([1, 2, 3]);
+      array = reiterate(a.keys()).valueOf();
+      expect(array).to.eql([0, 1, 2]);
+      a = new Set().add(0).add(1).add(2);
+      array = reiterate(a).valueOf();
+      expect(array).to.eql([0, 1, 2]);
+
+      a = {
+        a: 1,
+        b: 2,
+        c: 3
+      };
+
+      a[Symbol.iterator] = function* () {
+        for (var key in this) {
+          if (this.hasOwnProperty(key)) {
+            yield this[key];
+          }
+        }
+      };
+
+      array = reiterate(a).valueOf();
+      expect(array).to.eql([1, 2, 3]);
+
+      a[Symbol.iterator] = function* () {
+        for (var key in this) {
+          if (this.hasOwnProperty(key)) {
+            yield key;
+          }
+        }
+      };
+
+      array = reiterate(a).valueOf();
+      expect(array).to.eql(['a', 'b', 'c']);
+
+      array = reiterate(a).toString();
+      expect(array).to.be('a,b,c');
+
+      array = reiterate(a).asString();
+      expect(array).to.be('abc');
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]);

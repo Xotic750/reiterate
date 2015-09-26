@@ -122,6 +122,7 @@
          * @namespace
          */
         TYPE: {
+          OBJECT: typeof Object.prototype,
           FUNCTION: typeof Function,
           UNDEFINED: typeof undefined
         },
@@ -351,27 +352,27 @@
         },
 
         /**
-         * Checks if `value` is a valid array-like length.
+         * Checks if value is a valid array-like length.
          *
          * @private
          * @param {*} subject The value to check.
-         * @return {boolean} Returns `true` if `value` is a valid length,
-         *                   else `false`.
+         * @return {boolean} Returns true if value is a valid length,
+         *                   else false.
          */
         isLength: function (subject) {
           return _.toSafeInteger(subject) === subject && subject >= 0;
         },
 
         /**
-         * Checks if `value` is array-like. A value is considered array-like if
-         * it's  not a function and has a `value.length` that's an integer
-         * greater than or equal to `0` and less than or equal to
-         * `Number.MAX_SAFE_INTEGER`.
+         * Checks if value is array-like. A value is considered array-like if
+         * it's  not a function and has a value.length that's an integer
+         * greater than or equal to 0 and less than or equal to
+         * Number.MAX_SAFE_INTEGER.
          *
          * @private
          * @param {*} subject The object to be tested.
-         * @return {boolean} Returns `true` if `subject` is array-like,
-         *                   else `false`.
+         * @return {boolean} Returns true if subject is array-like,
+         *                   else false.
          */
         isArrayLike: function (subject) {
           return !_.isNil(subject) &&
@@ -500,6 +501,22 @@
          */
         toLength: function (subject) {
           return _.clamp(_.toInteger(subject), 0, Number.MAX_SAFE_INTEGER);
+        },
+
+        /**
+         * Checks if value is the language type of Object.
+         * (e.g. arrays, functions, objects, regexes, new Number(0),
+         * and new String('')).
+         *
+         * @private
+         * @param {*} subject The value to check.
+         * @return {boolean} Returns true if value is an object, else false.
+         */
+        isObject: function (subject) {
+          var type = typeof subject;
+
+          return !!subject &&
+            (type === $.TYPE.OBJECT || type === $.TYPE.FUNCTION);
         },
 
         /**
@@ -1062,10 +1079,6 @@
          * Future code
          *
         walkOwnGenerator: (function () {
-          function isObject(subject) {
-            return Object(subject) === subject;
-          }
-
           function setStack(stack, current, previous) {
             return stack.set(current, {
               keys: Object.keys(current),
@@ -1082,7 +1095,7 @@
               key;
 
             for (object of this) {
-              if (isObject(object)) {
+              if (_.isObject(object)) {
                 setStack(stack, object, null);
               } else {
                 yield object;
@@ -1096,7 +1109,7 @@
                 } else {
                   key = tail.keys[tail.index];
                   value = object[key];
-                  if (isObject(value)) {
+                  if (_.isObject(value)) {
                     _.throwIfCircular(stack, value);
                     setStack(stack, value, object);
                     object = value;
@@ -1550,6 +1563,11 @@
           generator = g.ArrayGenerator(subject);
         } else if (_.isString(subject)) {
           generator = g.StringGenerator(subject);
+        } else if (_.isObject(Symbol) &&
+          _.isFunction(subject[Symbol.iterator])) {
+
+          generator = subject[Symbol.iterator]();
+          _.addMethods(generator);
         } else {
           generator = g.EnumerateGenerator(subject);
         }
