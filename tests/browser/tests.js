@@ -15,7 +15,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:29,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:32,
     maxcomplexity:7
 */
 
@@ -31,12 +31,13 @@
     asString, assign, bind, call, charCodeAt, chunkGenerator, clamp,
     clampToSafeIntegerRange, compactGenerator, configurable, defineProperty,
     differenceGenerator, dropGenerator, dropWhileGenerator, entries,
-    enumerable, every, exports, filterGenerator, flattenGenerator, floor, from,
-    getYieldValue, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isFinite,
-    isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
-    isSurrogatePair, isUndefined, join, keys, length, mapGenerator, max, min,
-    mustBeFunction, mustBeFunctionIfDefined, populatePrototypes, prototype,
-    reduce, repeatGenerator, reverse, reversed, setIndexesOpts,
+    enumerable, every, exports, filterGenerator, first, flattenGenerator,
+    floor, from, getYieldValue, has, hasOwn, hasOwnProperty, initialGenerator,
+    isArray, isArrayLike, isFinite, isFunction, isLength, isNaN, isNil,
+    isNumber, isObject, isString, isSurrogatePair, isUndefined, join, keys,
+    last, length, mapGenerator, max, min, mustBeFunction,
+    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce,
+    repeatGenerator, restGenerator, reverse, reversed, setIndexesOpts,
     setReverseIfOpt, setValue, sign, some, takeGenerator, takeWhileGenerator,
     tapGenerator, then, throwIfCircular, to, toInteger, toLength,
     toSafeInteger, toString, toStringTag, uniqueGenerator, value, valueOf,
@@ -641,43 +642,44 @@
 
         addMethods: function (object) {
           if (object !== g.repeatGenerator.prototype) {
-            _.setValue(object, 'filter', p.filterGenerator);
+            if (object !== g.CounterGenerator.prototype) {
+              _.setValue(object, 'first', p.first);
+              _.setValue(object, 'last', p.last);
+              _.setValue(object, 'enumerate', g.EnumerateGenerator);
+              _.setValue(object, 'unique', p.uniqueGenerator);
+              _.setValue(object, 'flatten', p.flattenGenerator);
+              _.setValue(object, 'compact', p.compactGenerator);
+              _.setValue(object, 'initial', p.initialGenerator);
+              _.setValue(object, 'rest', p.restGenerator);
+              _.setValue(object, 'drop', p.dropGenerator);
+              _.setValue(object, 'dropWhile', p.dropWhileGenerator);
+              _.setValue(object, 'take', p.takeGenerator);
+              _.setValue(object, 'takeWhile', p.takeWhileGenerator);
+              _.setValue(object, 'every', p.every);
+              _.setValue(object, 'some', p.some);
+              _.setValue(object, 'filter', p.filterGenerator);
+            }
+
+            _.setValue(object, 'valueOf', p.valueOf);
+            _.setValue(object, 'toString', p.toString);
+            _.setValue(object, 'asString', p.asString);
+            _.setValue(object, 'asObject', p.asObject);
+            _.setValue(object, 'asMap', p.asMap);
             _.setValue(object, 'map', p.mapGenerator);
-            _.setValue(object, 'every', p.every);
-            _.setValue(object, 'some', p.some);
-            _.setValue(object, 'drop', p.dropGenerator);
-            _.setValue(object, 'dropWhile', p.dropWhileGenerator);
+            _.setValue(object, 'reduce', p.reduce);
             _.setValue(object, 'difference', p.differenceGenerator);
-          }
-
-          _.setValue(object, 'take', p.takeGenerator);
-          _.setValue(object, 'takeWhile', p.takeWhileGenerator);
-          _.setValue(object, 'reduce', p.reduce);
-          _.setValue(object, 'tap', p.tapGenerator);
-          _.setValue(object, 'join', p.join);
-          _.setValue(object, 'then', p.then);
-          _.setValue(object, 'chunk', p.chunkGenerator);
-          _.setValue(object, 'valueOf', p.valueOf);
-          _.setValue(object, 'toString', p.toString);
-          _.setValue(object, 'asString', p.asString);
-          _.setValue(object, 'asObject', p.asObject);
-          _.setValue(object, 'asMap', p.asMap);
-          _.setValue(object, 'initial', p.initialGenerator);
-          if (object !== g.CounterGenerator.prototype) {
-            _.setValue(object, 'enumerate', g.EnumerateGenerator);
-            _.setValue(object, 'unique', p.uniqueGenerator);
-            _.setValue(object, 'flatten', p.flattenGenerator);
-          }
-
-          if (object !== g.repeatGenerator.prototype &&
-            object !== g.CounterGenerator.prototype) {
-
-            _.setValue(object, 'compact', p.compactGenerator);
+            _.setValue(object, 'join', p.join);
+          } else {
+            _.setValue(object, 'take', p.takeGenerator);
           }
 
           if (object === p.uniqueGenerator.prototype) {
             _.setValue(object, 'asSet', p.asSet);
           }
+
+          _.setValue(object, 'chunk', p.chunkGenerator);
+          _.setValue(object, 'tap', p.tapGenerator);
+          _.setValue(object, 'then', p.then);
         },
 
         populatePrototypes: function () {
@@ -699,6 +701,7 @@
           _.addMethods(p.compactGenerator.prototype);
           _.addMethods(p.differenceGenerator.prototype);
           _.addMethods(p.initialGenerator.prototype);
+          _.addMethods(p.restGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -906,6 +909,10 @@
           }
         },
 
+        restGenerator: function* () {
+          yield * this.drop(1);
+        },
+
         dropWhileGenerator: function* (callback, thisArg) {
           var index,
             item,
@@ -1024,6 +1031,29 @@
             next = iterator.next();
             if (!next.done) {
               yield item.value;
+            }
+
+            item = next;
+          }
+        },
+
+        first: function () {
+          var item = this[Symbol.iterator]().next();
+
+          if (!item.done) {
+            return item.value;
+          }
+        },
+
+        last: function () {
+          var iterator = this[Symbol.iterator](),
+            item = iterator.next(),
+            next;
+
+          while (!item.done) {
+            next = iterator.next();
+            if (next.done) {
+              return item.value;
             }
 
             item = next;
@@ -5405,54 +5435,6 @@ process.umask = function() { return 0; };
       }
     });
 
-    it('Counter filter', function () {
-      var index,
-        entry,
-        counter;
-
-      expect(function () {
-        for (entry of reiterate().filter()) {
-          break;
-        }
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        counter = reiterate().to(10).filter(function (value) {
-          return value >= 4 && value <= 6;
-        });
-      }).to.not.throwException();
-
-      index = 4;
-      for (entry of counter) {
-        expect(entry).to.be.within(4, 6);
-        expect(entry).to.be(index);
-        index += 1;
-      }
-    });
-
-    it('Counter filter map', function () {
-      var index,
-        entry,
-        counter;
-
-      expect(function () {
-        counter = reiterate().from(65).to(90).filter(function (value) {
-          return value >= 80 && value <= 85;
-        }).map(function (value) {
-          return String.fromCharCode(value);
-        });
-      }).to.not.throwException();
-
-      index = 80;
-      for (entry of counter) {
-        expect(index).to.be.within(80, 85);
-        expect(entry).to.be(String.fromCharCode(index));
-        index += 1;
-      }
-    });
-
     it('Counter map filter', function () {
       var index,
         entry,
@@ -5494,18 +5476,6 @@ process.umask = function() { return 0; };
       }).to.not.throwException();
 
       expect(array).to.eql(['A', 'B', 'C', 'D']);
-    });
-
-    it('Counter filter valueOf', function () {
-      var array;
-
-      expect(function () {
-        array = reiterate().to(10).filter(function (value) {
-          return value >= 4 && value <= 6;
-        }).valueOf();
-      }).to.not.throwException();
-
-      expect(array).to.eql([4, 5, 6]);
     });
 
     it('Counter map unique valueOf', function () {
@@ -5712,67 +5682,6 @@ process.umask = function() { return 0; };
       }, true);
     });
 
-    it('Counter every', function () {
-      var index = 10,
-        e;
-
-      expect(function () {
-        var entry;
-
-        for (entry of reiterate().every()) {
-          break;
-        }
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      // forward
-      e = reiterate().from(10).to(20).every(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return typeof entry === 'number';
-      });
-
-      expect(e).to.be(true);
-      index = 10;
-      e = reiterate().from(10).to(20).every(function (entry) {
-        expect(this).to.be(true);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return typeof entry === 'string';
-      }, true);
-
-      expect(e).to.be(false);
-
-      // reverse
-      index = 20;
-      e = reiterate().from(10).to(20).reverse().every(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry >= 10 && entry <= 20;
-      });
-
-      expect(e).to.be(true);
-      index = 20;
-      e = reiterate().from(10).to(20).reverse().every(
-        function (entry) {
-          expect(this).to.be(true);
-          expect(entry).to.be.within(10, 20);
-          expect(entry).to.be(index);
-          index -= 1;
-          return entry >= 15;
-        },
-        true
-      );
-
-      expect(e).to.be(false);
-    });
-
     it('Counter reduce', function () {
       var index = 10,
         r;
@@ -5851,67 +5760,6 @@ process.umask = function() { return 0; };
 
       expect(r).to.be(210);
     }, 0);
-
-    it('Counter some', function () {
-      var index = 10,
-        s;
-
-      expect(function () {
-        var entry;
-
-        for (entry of reiterate().some()) {
-          break;
-        }
-      }).to.throwException(function (s) {
-        expect(s).to.be.a(TypeError);
-      });
-
-      // forward
-      s = reiterate().from(10).to(20).some(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return entry === 15;
-      });
-
-      expect(s).to.be(true);
-      index = 10;
-      s = reiterate().from(10).to(20).some(function (entry) {
-        expect(this).to.be(true);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return entry === 0;
-      }, true);
-
-      expect(s).to.be(false);
-
-      // reverse
-      index = 20;
-      s = reiterate().from(10).to(20).reverse().some(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry === 15;
-      });
-
-      expect(s).to.be(true);
-      index = 20;
-      s = reiterate().from(10).to(20).reverse().some(
-        function (entry) {
-          expect(this).to.be(true);
-          expect(entry).to.be.within(10, 20);
-          expect(entry).to.be(index);
-          index -= 1;
-          return entry === 21;
-        },
-        true
-      );
-
-      expect(s).to.be(false);
-    });
 
     it('Counter join', function () {
       var s;
@@ -6113,6 +5961,142 @@ process.umask = function() { return 0; };
         expect(entry).to.eql(index);
         index -= 1;
       }
+    });
+
+    it('Array filter', function () {
+      var a = [1, 2, 3, 4, 5],
+        index,
+        entry,
+        counter;
+
+      expect(function () {
+        for (entry of reiterate(a).filter()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        counter = reiterate(a).filter(function (value) {
+          return value >= 2 && value <= 4;
+        });
+      }).to.not.throwException();
+
+      index = 3;
+      for (entry of counter) {
+        expect(entry).to.be.within(2, 4);
+        expect(entry).to.be(index);
+        index += 1;
+      }
+    });
+
+    it('Array filter map', function () {
+      var a = reiterate().from(65).to(90).valueOf(),
+        index,
+        entry,
+        counter;
+
+      expect(function () {
+        counter = reiterate(a).filter(function (value) {
+          return value >= 80 && value <= 85;
+        }).map(function (value) {
+          return String.fromCharCode(value);
+        });
+      }).to.not.throwException();
+
+      index = 80;
+      for (entry of counter) {
+        expect(index).to.be.within(80, 85);
+        expect(entry).to.be(String.fromCharCode(index));
+        index += 1;
+      }
+    });
+
+    it('Array filter valueOf', function () {
+      var a = reiterate().to(10).valueOf(),
+        array;
+
+      expect(function () {
+        array = reiterate(a).values().filter(function (value) {
+          return value >= 4 && value <= 6;
+        }).valueOf();
+      }).to.not.throwException();
+
+      expect(array).to.eql([4, 5, 6]);
+    });
+
+    it('Counter every', function () {
+      var index = 10,
+        a = reiterate().from(10).to(20).valueOf(),
+        e;
+
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate(a).every()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+
+      e = reiterate(a).values().every(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return typeof entry === 'number';
+      });
+
+      expect(e).to.be(true);
+      index = 10;
+      e = reiterate(a).values().every(function (entry) {
+        expect(this).to.be(true);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return typeof entry === 'string';
+      }, true);
+
+      expect(e).to.be(false);
+    });
+
+    it('Array some', function () {
+      var a = reiterate().from(10).to(20).valueOf(),
+        index = 10,
+        s;
+
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate(a).some()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      s = reiterate(a).values().some(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return entry === 15;
+      });
+
+      expect(s).to.be(true);
+      index = 10;
+      s = reiterate(a).values().some(function (entry) {
+        expect(this).to.be(true);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return entry === 0;
+      }, true);
+
+      expect(s).to.be(false);
     });
 
     it('Array drop', function () {
@@ -7481,4 +7465,132 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]);
+},{"../scripts/":9}],28:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Initial', function () {
+      var a = [1, 2, 3, 4, 5],
+        array = reiterate(a).values().initial().valueOf();
+
+      expect(array).to.eql([1, 2, 3, 4]);
+      array = reiterate(a).values().initial().asObject();
+      expect(array).to.eql({
+        0: 1,
+        1: 2,
+        2: 3,
+        3: 4
+      });
+
+      expect(array.length).to.be(4);
+      array = reiterate(a).values().initial().asMap();
+      expect(array.size).to.be(4);
+      expect(array.get(0)).to.be(1);
+      expect(array.get(1)).to.be(2);
+      expect(array.get(2)).to.be(3);
+      expect(array.get(3)).to.be(4);
+      a = 'A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6A';
+      array = reiterate(a).values().initial().asString();
+      expect(array).to.be('A\uD835\uDC68B\uD835\uDC69C');
+      array = reiterate(a).values().initial().valueOf();
+      expect(array).to.eql([
+        'A',
+        '\uD835\uDC68',
+        'B',
+        '\uD835\uDC69',
+        'C'
+      ]);
+
+      array = reiterate(a).values().initial().toString();
+      expect(array).to.be('A,\uD835\uDC68,B,\uD835\uDC69,C');
+    });
+  });
+}());
+
+},{"../scripts/":9}],29:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('First', function () {
+      var a = [
+          [
+            ['a', 'b', 'c', 'd', 'e'], 1, 2, 3, 4, 5
+          ], 1, 2, 3, 4, 5
+        ],
+        value = reiterate(a).values().flatten().first();
+
+      expect(value).to.be('a');
+      a = 'A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6A';
+      value = reiterate(a).values().first();
+      expect(value).to.be('A');
+    });
+  });
+}());
+
+},{"../scripts/":9}],30:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Last', function () {
+      var a = [
+          [
+            ['a', 'b', 'c', 'd', 'e'], 1, 2, 3, 4, 5
+          ],
+          1, 2, 3, 4, 5, ['a', 'b', 'c', 'd', 'e']
+        ],
+        value = reiterate(a).values().flatten().last();
+
+      expect(value).to.be('e');
+      a = 'A\uD835\uDC6A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6A';
+      value = reiterate(a).values().unique().last();
+      expect(value).to.be('C');
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]);

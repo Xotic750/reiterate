@@ -543,54 +543,6 @@
       }
     });
 
-    it('Counter filter', function () {
-      var index,
-        entry,
-        counter;
-
-      expect(function () {
-        for (entry of reiterate().filter()) {
-          break;
-        }
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        counter = reiterate().to(10).filter(function (value) {
-          return value >= 4 && value <= 6;
-        });
-      }).to.not.throwException();
-
-      index = 4;
-      for (entry of counter) {
-        expect(entry).to.be.within(4, 6);
-        expect(entry).to.be(index);
-        index += 1;
-      }
-    });
-
-    it('Counter filter map', function () {
-      var index,
-        entry,
-        counter;
-
-      expect(function () {
-        counter = reiterate().from(65).to(90).filter(function (value) {
-          return value >= 80 && value <= 85;
-        }).map(function (value) {
-          return String.fromCharCode(value);
-        });
-      }).to.not.throwException();
-
-      index = 80;
-      for (entry of counter) {
-        expect(index).to.be.within(80, 85);
-        expect(entry).to.be(String.fromCharCode(index));
-        index += 1;
-      }
-    });
-
     it('Counter map filter', function () {
       var index,
         entry,
@@ -632,18 +584,6 @@
       }).to.not.throwException();
 
       expect(array).to.eql(['A', 'B', 'C', 'D']);
-    });
-
-    it('Counter filter valueOf', function () {
-      var array;
-
-      expect(function () {
-        array = reiterate().to(10).filter(function (value) {
-          return value >= 4 && value <= 6;
-        }).valueOf();
-      }).to.not.throwException();
-
-      expect(array).to.eql([4, 5, 6]);
     });
 
     it('Counter map unique valueOf', function () {
@@ -850,67 +790,6 @@
       }, true);
     });
 
-    it('Counter every', function () {
-      var index = 10,
-        e;
-
-      expect(function () {
-        var entry;
-
-        for (entry of reiterate().every()) {
-          break;
-        }
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      // forward
-      e = reiterate().from(10).to(20).every(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return typeof entry === 'number';
-      });
-
-      expect(e).to.be(true);
-      index = 10;
-      e = reiterate().from(10).to(20).every(function (entry) {
-        expect(this).to.be(true);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return typeof entry === 'string';
-      }, true);
-
-      expect(e).to.be(false);
-
-      // reverse
-      index = 20;
-      e = reiterate().from(10).to(20).reverse().every(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry >= 10 && entry <= 20;
-      });
-
-      expect(e).to.be(true);
-      index = 20;
-      e = reiterate().from(10).to(20).reverse().every(
-        function (entry) {
-          expect(this).to.be(true);
-          expect(entry).to.be.within(10, 20);
-          expect(entry).to.be(index);
-          index -= 1;
-          return entry >= 15;
-        },
-        true
-      );
-
-      expect(e).to.be(false);
-    });
-
     it('Counter reduce', function () {
       var index = 10,
         r;
@@ -989,67 +868,6 @@
 
       expect(r).to.be(210);
     }, 0);
-
-    it('Counter some', function () {
-      var index = 10,
-        s;
-
-      expect(function () {
-        var entry;
-
-        for (entry of reiterate().some()) {
-          break;
-        }
-      }).to.throwException(function (s) {
-        expect(s).to.be.a(TypeError);
-      });
-
-      // forward
-      s = reiterate().from(10).to(20).some(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return entry === 15;
-      });
-
-      expect(s).to.be(true);
-      index = 10;
-      s = reiterate().from(10).to(20).some(function (entry) {
-        expect(this).to.be(true);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index += 1;
-        return entry === 0;
-      }, true);
-
-      expect(s).to.be(false);
-
-      // reverse
-      index = 20;
-      s = reiterate().from(10).to(20).reverse().some(function (entry) {
-        expect(this).to.be(undefined);
-        expect(entry).to.be.within(10, 20);
-        expect(entry).to.be(index);
-        index -= 1;
-        return entry === 15;
-      });
-
-      expect(s).to.be(true);
-      index = 20;
-      s = reiterate().from(10).to(20).reverse().some(
-        function (entry) {
-          expect(this).to.be(true);
-          expect(entry).to.be.within(10, 20);
-          expect(entry).to.be(index);
-          index -= 1;
-          return entry === 21;
-        },
-        true
-      );
-
-      expect(s).to.be(false);
-    });
 
     it('Counter join', function () {
       var s;

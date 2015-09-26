@@ -14,7 +14,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:29,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:32,
     maxcomplexity:7
 */
 
@@ -30,12 +30,13 @@
     asString, assign, bind, call, charCodeAt, chunkGenerator, clamp,
     clampToSafeIntegerRange, compactGenerator, configurable, defineProperty,
     differenceGenerator, dropGenerator, dropWhileGenerator, entries,
-    enumerable, every, exports, filterGenerator, flattenGenerator, floor, from,
-    getYieldValue, has, hasOwn, hasOwnProperty, isArray, isArrayLike, isFinite,
-    isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
-    isSurrogatePair, isUndefined, join, keys, length, mapGenerator, max, min,
-    mustBeFunction, mustBeFunctionIfDefined, populatePrototypes, prototype,
-    reduce, repeatGenerator, reverse, reversed, setIndexesOpts,
+    enumerable, every, exports, filterGenerator, first, flattenGenerator,
+    floor, from, getYieldValue, has, hasOwn, hasOwnProperty, initialGenerator,
+    isArray, isArrayLike, isFinite, isFunction, isLength, isNaN, isNil,
+    isNumber, isObject, isString, isSurrogatePair, isUndefined, join, keys,
+    last, length, mapGenerator, max, min, mustBeFunction,
+    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce,
+    repeatGenerator, restGenerator, reverse, reversed, setIndexesOpts,
     setReverseIfOpt, setValue, sign, some, takeGenerator, takeWhileGenerator,
     tapGenerator, then, throwIfCircular, to, toInteger, toLength,
     toSafeInteger, toString, toStringTag, uniqueGenerator, value, valueOf,
@@ -640,43 +641,44 @@
 
         addMethods: function (object) {
           if (object !== g.repeatGenerator.prototype) {
-            _.setValue(object, 'filter', p.filterGenerator);
+            if (object !== g.CounterGenerator.prototype) {
+              _.setValue(object, 'first', p.first);
+              _.setValue(object, 'last', p.last);
+              _.setValue(object, 'enumerate', g.EnumerateGenerator);
+              _.setValue(object, 'unique', p.uniqueGenerator);
+              _.setValue(object, 'flatten', p.flattenGenerator);
+              _.setValue(object, 'compact', p.compactGenerator);
+              _.setValue(object, 'initial', p.initialGenerator);
+              _.setValue(object, 'rest', p.restGenerator);
+              _.setValue(object, 'drop', p.dropGenerator);
+              _.setValue(object, 'dropWhile', p.dropWhileGenerator);
+              _.setValue(object, 'take', p.takeGenerator);
+              _.setValue(object, 'takeWhile', p.takeWhileGenerator);
+              _.setValue(object, 'every', p.every);
+              _.setValue(object, 'some', p.some);
+              _.setValue(object, 'filter', p.filterGenerator);
+            }
+
+            _.setValue(object, 'valueOf', p.valueOf);
+            _.setValue(object, 'toString', p.toString);
+            _.setValue(object, 'asString', p.asString);
+            _.setValue(object, 'asObject', p.asObject);
+            _.setValue(object, 'asMap', p.asMap);
             _.setValue(object, 'map', p.mapGenerator);
-            _.setValue(object, 'every', p.every);
-            _.setValue(object, 'some', p.some);
-            _.setValue(object, 'drop', p.dropGenerator);
-            _.setValue(object, 'dropWhile', p.dropWhileGenerator);
+            _.setValue(object, 'reduce', p.reduce);
             _.setValue(object, 'difference', p.differenceGenerator);
-          }
-
-          _.setValue(object, 'take', p.takeGenerator);
-          _.setValue(object, 'takeWhile', p.takeWhileGenerator);
-          _.setValue(object, 'reduce', p.reduce);
-          _.setValue(object, 'tap', p.tapGenerator);
-          _.setValue(object, 'join', p.join);
-          _.setValue(object, 'then', p.then);
-          _.setValue(object, 'chunk', p.chunkGenerator);
-          _.setValue(object, 'valueOf', p.valueOf);
-          _.setValue(object, 'toString', p.toString);
-          _.setValue(object, 'asString', p.asString);
-          _.setValue(object, 'asObject', p.asObject);
-          _.setValue(object, 'asMap', p.asMap);
-          _.setValue(object, 'initial', p.initialGenerator);
-          if (object !== g.CounterGenerator.prototype) {
-            _.setValue(object, 'enumerate', g.EnumerateGenerator);
-            _.setValue(object, 'unique', p.uniqueGenerator);
-            _.setValue(object, 'flatten', p.flattenGenerator);
-          }
-
-          if (object !== g.repeatGenerator.prototype &&
-            object !== g.CounterGenerator.prototype) {
-
-            _.setValue(object, 'compact', p.compactGenerator);
+            _.setValue(object, 'join', p.join);
+          } else {
+            _.setValue(object, 'take', p.takeGenerator);
           }
 
           if (object === p.uniqueGenerator.prototype) {
             _.setValue(object, 'asSet', p.asSet);
           }
+
+          _.setValue(object, 'chunk', p.chunkGenerator);
+          _.setValue(object, 'tap', p.tapGenerator);
+          _.setValue(object, 'then', p.then);
         },
 
         populatePrototypes: function () {
@@ -698,6 +700,7 @@
           _.addMethods(p.compactGenerator.prototype);
           _.addMethods(p.differenceGenerator.prototype);
           _.addMethods(p.initialGenerator.prototype);
+          _.addMethods(p.restGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -905,6 +908,10 @@
           }
         },
 
+        restGenerator: function* () {
+          yield * this.drop(1);
+        },
+
         dropWhileGenerator: function* (callback, thisArg) {
           var index,
             item,
@@ -1023,6 +1030,29 @@
             next = iterator.next();
             if (!next.done) {
               yield item.value;
+            }
+
+            item = next;
+          }
+        },
+
+        first: function () {
+          var item = this[Symbol.iterator]().next();
+
+          if (!item.done) {
+            return item.value;
+          }
+        },
+
+        last: function () {
+          var iterator = this[Symbol.iterator](),
+            item = iterator.next(),
+            next;
+
+          while (!item.done) {
+            next = iterator.next();
+            if (next.done) {
+              return item.value;
             }
 
             item = next;

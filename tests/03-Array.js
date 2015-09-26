@@ -173,6 +173,142 @@
       }
     });
 
+    it('Array filter', function () {
+      var a = [1, 2, 3, 4, 5],
+        index,
+        entry,
+        counter;
+
+      expect(function () {
+        for (entry of reiterate(a).filter()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        counter = reiterate(a).filter(function (value) {
+          return value >= 2 && value <= 4;
+        });
+      }).to.not.throwException();
+
+      index = 3;
+      for (entry of counter) {
+        expect(entry).to.be.within(2, 4);
+        expect(entry).to.be(index);
+        index += 1;
+      }
+    });
+
+    it('Array filter map', function () {
+      var a = reiterate().from(65).to(90).valueOf(),
+        index,
+        entry,
+        counter;
+
+      expect(function () {
+        counter = reiterate(a).filter(function (value) {
+          return value >= 80 && value <= 85;
+        }).map(function (value) {
+          return String.fromCharCode(value);
+        });
+      }).to.not.throwException();
+
+      index = 80;
+      for (entry of counter) {
+        expect(index).to.be.within(80, 85);
+        expect(entry).to.be(String.fromCharCode(index));
+        index += 1;
+      }
+    });
+
+    it('Array filter valueOf', function () {
+      var a = reiterate().to(10).valueOf(),
+        array;
+
+      expect(function () {
+        array = reiterate(a).values().filter(function (value) {
+          return value >= 4 && value <= 6;
+        }).valueOf();
+      }).to.not.throwException();
+
+      expect(array).to.eql([4, 5, 6]);
+    });
+
+    it('Counter every', function () {
+      var index = 10,
+        a = reiterate().from(10).to(20).valueOf(),
+        e;
+
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate(a).every()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+
+      e = reiterate(a).values().every(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return typeof entry === 'number';
+      });
+
+      expect(e).to.be(true);
+      index = 10;
+      e = reiterate(a).values().every(function (entry) {
+        expect(this).to.be(true);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return typeof entry === 'string';
+      }, true);
+
+      expect(e).to.be(false);
+    });
+
+    it('Array some', function () {
+      var a = reiterate().from(10).to(20).valueOf(),
+        index = 10,
+        s;
+
+      expect(function () {
+        var entry;
+
+        for (entry of reiterate(a).some()) {
+          break;
+        }
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      s = reiterate(a).values().some(function (entry) {
+        expect(this).to.be(undefined);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return entry === 15;
+      });
+
+      expect(s).to.be(true);
+      index = 10;
+      s = reiterate(a).values().some(function (entry) {
+        expect(this).to.be(true);
+        expect(entry).to.be.within(10, 20);
+        expect(entry).to.be(index);
+        index += 1;
+        return entry === 0;
+      }, true);
+
+      expect(s).to.be(false);
+    });
+
     it('Array drop', function () {
       var a = [1, 2, 3, 4, 5],
         array;
