@@ -15,7 +15,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:false, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:35,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:36,
     maxcomplexity:8
 */
 
@@ -26,7 +26,7 @@
 /*property
     ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator, KEYS,
     MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS, StringGenerator, VALUES, abs,
-    amd, asMap, asObject, asSet, asString, assign, bind, call, charCodeAt,
+    amd, asMap, asObject, asSet, asString, bind, call, charCodeAt,
     chunkGenerator, compactGenerator, configurable, defineProperty,
     differenceGenerator, dropGenerator, dropWhileGenerator, entries,
     enumerable, every, exports, filterGenerator, first, flattenGenerator,
@@ -35,7 +35,7 @@
     mapGenerator, max, min, prototype, reduce, repeatGenerator, restGenerator,
     reverse, reversed, sign, some, takeGenerator, takeWhileGenerator,
     tapGenerator, then, to, toString, unionGenerator, uniqueGenerator, value,
-    valueOf, values, writable
+    valueOf, values, writable, zipGenerator
 */
 
 /**
@@ -627,6 +627,7 @@
         setValue(object, 'chunk', p.chunkGenerator);
         setValue(object, 'tap', p.tapGenerator);
         setValue(object, 'then', p.then);
+        setValue(object, 'zip', p.zipGenerator);
       },
 
       populatePrototypes = function () {
@@ -651,6 +652,7 @@
         addMethods(p.restGenerator.prototype);
         addMethods(p.unionGenerator.prototype);
         addMethods(p.intersectionGenerator.prototype);
+        addMethods(p.zipGenerator.prototype);
       },
 
       setIndexesOpts = function (start, end, opts) {
@@ -1075,6 +1077,40 @@
           }
 
           return seen;
+        },
+
+        zipGenerator: function* () {
+          var iterators = [this[Symbol.iterator]()],
+            done,
+            zip,
+            arg;
+
+          for (arg of new g.ArrayGenerator(arguments)) {
+            if (isArrayLike(arg) || isFunction(arg[Symbol.iterator])) {
+              iterators.push(new Reiterate(arg)[Symbol.iterator]());
+            }
+          }
+
+          function ofNext(iterator) {
+            var next = iterator.next();
+
+            /*jshint validthis:true */
+            if (next.done) {
+              this.push(undefined);
+            } else {
+              this.push(next.value);
+              done = false;
+            }
+          }
+
+          while (!done) {
+            zip = [];
+            done = true;
+            iterators.forEach(ofNext, zip);
+            if (!done) {
+              yield zip;
+            }
+          }
         },
 
         hasOwnAsSet: function () {
@@ -7815,4 +7851,100 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33]);
+},{"../scripts/":9}],34:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    maxcomplexity:9
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    it('Zip', function () {
+      var a = [30, 40],
+        b = [true, false],
+        array = reiterate(['fred', 'barney']).zip(a, b).valueOf();
+
+      expect(array).to.eql([
+        ['fred', 30, true],
+        ['barney', 40, false]
+      ]);
+
+      a = reiterate([30, 40]);
+      b = reiterate([true, false]);
+      array = reiterate(['fred', 'barney']).zip(a, b).valueOf();
+      expect(array).to.eql([
+        ['fred', 30, true],
+        ['barney', 40, false]
+      ]);
+
+      a = reiterate([30]);
+      b = reiterate([true, false]);
+      array = reiterate(['fred', 'barney', 'wilma']).zip(a, b).valueOf();
+      expect(array).to.eql([
+        ['fred', 30, true],
+        ['barney', undefined, false],
+        ['wilma', undefined, undefined]
+      ]);
+
+      a = reiterate([30]);
+      b = {
+        a: true,
+        b: false
+      };
+
+      array = reiterate(['fred', 'barney', 'wilma']).zip(a, b).valueOf();
+      expect(array).to.eql([
+        ['fred', 30],
+        ['barney', undefined],
+        ['wilma', undefined]
+      ]);
+
+      a = reiterate([30]);
+      b = reiterate({
+        a: true,
+        b: false
+      });
+
+      array = reiterate(['fred', 'barney', 'wilma']).zip(a, b).valueOf();
+      expect(array).to.eql([
+        ['fred', 30, true],
+        ['barney', undefined, false],
+        ['wilma', undefined, undefined]
+      ]);
+
+      a = [30, 40];
+      b = [];
+      array = reiterate(['fred', 'barney']).zip(a, b).valueOf();
+      expect(array).to.eql([
+        ['fred', 30, undefined],
+        ['barney', 40, undefined]
+      ]);
+
+      a = [30, 40];
+      b = [true, false];
+      array = reiterate([]).zip(a, b).valueOf();
+      expect(array).to.eql([
+        [undefined, 30, true],
+        [undefined, 40, false]
+      ]);
+
+      a = [];
+      b = [];
+      array = reiterate([]).zip(a, b).valueOf();
+      expect(array).to.eql([]);
+    });
+  });
+}());
+
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34]);
