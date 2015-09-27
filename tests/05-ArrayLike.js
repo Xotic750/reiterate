@@ -169,6 +169,19 @@
         values: false,
         keys: false
       });
+
+      gen = reiterate({length: Number.MAX_SAFE_INTEGER}, true);
+      state = gen.state();
+      expect(state).to.eql({
+        length: Number.MAX_SAFE_INTEGER,
+        from: 0,
+        to: Number.MAX_SAFE_INTEGER - 1,
+        by: 1,
+        reversed: false,
+        entries: false,
+        values: true,
+        keys: false
+      });
     });
   });
 }());

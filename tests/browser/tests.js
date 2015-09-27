@@ -543,7 +543,7 @@
        * @param {...Object} source
        * @return {Object}
        */
-      assign = Object.assign || function (target) {
+      assign = function (target) {
         function copy(key) {
           /*jshint validthis:true */
           target[key] = this[key];
@@ -5232,7 +5232,14 @@ process.umask = function() { return 0; };
       var index = 0,
         entry;
 
+      // NaN
+      for (entry of reiterate().from(NaN).to(NaN).by(1)) {
+        expect(entry).to.be(0);
+        index += 1;
+      }
+
       // forward
+      index = 0;
       for (entry of reiterate().from(0).to(10).by(1)) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.eql(index);
@@ -5336,6 +5343,12 @@ process.umask = function() { return 0; };
 
       expect(function () {
         reiterate().by(0);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate().by(NaN);
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -5794,6 +5807,16 @@ process.umask = function() { return 0; };
         from: 1,
         to: 100,
         by: 2
+      });
+
+      gen = reiterate().from(-Infinity).to(Infinity).by(Infinity);
+      state = gen.state();
+
+      expect(state).to.eql({
+        reversed: false,
+        from: Number.MIN_SAFE_INTEGER,
+        to: Number.MAX_SAFE_INTEGER,
+        by: Number.MAX_SAFE_INTEGER
       });
     });
   });
@@ -6471,6 +6494,19 @@ process.umask = function() { return 0; };
         reversed: true,
         entries: true,
         values: false,
+        keys: false
+      });
+
+      gen = reiterate({length: Number.MAX_SAFE_INTEGER}, true);
+      state = gen.state();
+      expect(state).to.eql({
+        length: Number.MAX_SAFE_INTEGER,
+        from: 0,
+        to: Number.MAX_SAFE_INTEGER - 1,
+        by: 1,
+        reversed: false,
+        entries: false,
+        values: true,
         keys: false
       });
     });

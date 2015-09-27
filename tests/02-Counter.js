@@ -330,7 +330,14 @@
       var index = 0,
         entry;
 
+      // NaN
+      for (entry of reiterate().from(NaN).to(NaN).by(1)) {
+        expect(entry).to.be(0);
+        index += 1;
+      }
+
       // forward
+      index = 0;
       for (entry of reiterate().from(0).to(10).by(1)) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.eql(index);
@@ -434,6 +441,12 @@
 
       expect(function () {
         reiterate().by(0);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate().by(NaN);
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -892,6 +905,16 @@
         from: 1,
         to: 100,
         by: 2
+      });
+
+      gen = reiterate().from(-Infinity).to(Infinity).by(Infinity);
+      state = gen.state();
+
+      expect(state).to.eql({
+        reversed: false,
+        from: Number.MIN_SAFE_INTEGER,
+        to: Number.MAX_SAFE_INTEGER,
+        by: Number.MAX_SAFE_INTEGER
       });
     });
   });
