@@ -1036,8 +1036,6 @@
               yield item;
             }
           }
-
-          vals.clear();
         },
 
         initialGenerator: function* () {
@@ -1089,9 +1087,7 @@
             }
           }
 
-          if (give !== $.SYMBOL.ASSET) {
-            seen.clear();
-          } else {
+          if (give === $.SYMBOL.ASSET) {
             return seen;
           }
         },
@@ -1103,18 +1099,26 @@
           }
 
           return function* () {
-            var seens = [],
-              seen = new Set(),
+            var argsLength = arguments.length,
+              index = 0,
               length,
-              item,
-              arg;
+              seens,
+              seen,
+              item;
 
             for (item of this) {
-              if (!seen.has(item)) {
+              if (!seen || !seen.has(item)) {
                 if (!length) {
-                  for (arg of new g.ArrayGenerator(arguments).values()) {
-                    length = seens.push(new Set(new Reiterate(arg)));
+                  seens = [];
+                  while (index < argsLength) {
+                    length = seens.push(
+                      new Set(new Reiterate(arguments[index]))
+                    );
+
+                    index += 1;
                   }
+
+                  seen = new Set();
                 }
 
                 if (!length || seens.every(has, item)) {
@@ -1124,18 +1128,15 @@
                 seen.add(item);
               }
             }
-
-            seens.forEach(function (item) {
-              item.clear();
-            });
           };
         }()),
 
         unionGenerator: function* () {
-          var seen = new Set(this),
+          var argsLength = arguments.length,
+            seen = new Set(this),
+            index = 0,
             give,
-            item,
-            arg;
+            item;
 
           for (item of seen) {
             if (give !== $.SYMBOL.ASSET) {
@@ -1143,8 +1144,8 @@
             }
           }
 
-          for (arg of new g.ArrayGenerator(arguments).values()) {
-            for (item of new Reiterate(arg)) {
+          while (index < argsLength) {
+            for (item of new Reiterate(arguments[index])) {
               if (!seen.has(item)) {
                 if (give !== $.SYMBOL.ASSET) {
                   give = yield item;
@@ -1153,11 +1154,11 @@
                 seen.add(item);
               }
             }
+
+            index += 1;
           }
 
-          if (give !== $.SYMBOL.ASSET) {
-            seen.clear();
-          } else {
+          if (give === $.SYMBOL.ASSET) {
             return seen;
           }
         },
@@ -1225,8 +1226,6 @@
 
               yield * iterateStack(stack, object, relaxed);
             }
-
-            stack.clear();
           };
         }()),
 
@@ -1276,8 +1275,6 @@
                 }
               }
             }
-
-            stack.clear();
           };
         }()),
         */
