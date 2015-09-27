@@ -15,7 +15,7 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:false, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:35,
-    maxcomplexity:7
+    maxcomplexity:8
 */
 
 /*global
@@ -1019,8 +1019,10 @@
           }
 
           function push(arg) {
-            /*jshint validthis:true */
-            this.push(new Set(new Reiterate(arg)));
+            if (isArrayLike(arg) || isFunction(arg[Symbol.iterator])) {
+              /*jshint validthis:true */
+              this.push(new Set(new Reiterate(arg)));
+            }
           }
 
           return function* () {
@@ -1061,10 +1063,12 @@
           }
 
           for (arg of new g.ArrayGenerator(arguments)) {
-            for (item of new Reiterate(arg)) {
-              if (!seen.has(item)) {
-                yield item;
-                seen.add(item);
+            if (isArrayLike(arg) || isFunction(arg[Symbol.iterator])) {
+              for (item of new Reiterate(arg)) {
+                if (!seen.has(item)) {
+                  yield item;
+                  seen.add(item);
+                }
               }
             }
           }
