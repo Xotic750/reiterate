@@ -14,7 +14,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:33,
+    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:35,
     maxcomplexity:9
 */
 
@@ -32,15 +32,16 @@
     configurable, defineProperty, differenceGenerator, dropGenerator,
     dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
     first, flattenGenerator, floor, for, from, getYieldValue, has, hasOwn,
-    hasOwnProperty, initialGenerator, isArray, isArrayLike, isFinite,
-    isFunction, isLength, isNaN, isNil, isNumber, isObject, isString,
-    isSurrogatePair, isUndefined, join, keys, last, length, mapGenerator, max,
-    min, mustBeFunction, mustBeFunctionIfDefined, populatePrototypes,
-    prototype, reduce, repeatGenerator, restGenerator, reverse, reversed,
-    setIndexesOpts, setReverseIfOpt, setValue, sign, some, takeGenerator,
-    takeWhileGenerator, tapGenerator, then, throwIfCircular, to, toInteger,
-    toLength, toSafeInteger, toString, toStringTag, unionGenerator,
-    uniqueGenerator, value, valueOf, values, writable
+    hasOwnAsSet, hasOwnProperty, initialGenerator, intersectionGenerator,
+    isArray, isArrayLike, isFinite, isFunction, isLength, isNaN, isNil,
+    isNumber, isObject, isString, isSurrogatePair, isUndefined, join, keys,
+    last, length, mapGenerator, max, min, mustBeFunction,
+    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce,
+    repeatGenerator, restGenerator, reverse, reversed, setIndexesOpts,
+    setReverseIfOpt, setValue, sign, some, takeGenerator, takeWhileGenerator,
+    tapGenerator, then, throwIfCircular, to, toInteger, toLength,
+    toSafeInteger, toString, toStringTag, unionGenerator, uniqueGenerator,
+    value, valueOf, values, writable
 */
 
 /**
@@ -678,6 +679,7 @@
             _.setValue(object, 'difference', p.differenceGenerator);
             _.setValue(object, 'join', p.join);
             _.setValue(object, 'union', p.unionGenerator);
+            _.setValue(object, 'intersection', p.intersectionGenerator);
           } else {
             _.setValue(object, 'take', p.takeGenerator);
           }
@@ -685,6 +687,8 @@
           if (object === p.uniqueGenerator.prototype ||
             object === p.unionGenerator.prototype) {
 
+            _.setValue(object, 'asSet', p.hasOwnAsSet);
+          } else if (object === p.intersectionGenerator.prototype) {
             _.setValue(object, 'asSet', p.asSet);
           }
 
@@ -714,6 +718,7 @@
           _.addMethods(p.initialGenerator.prototype);
           _.addMethods(p.restGenerator.prototype);
           _.addMethods(p.unionGenerator.prototype);
+          _.addMethods(p.intersectionGenerator.prototype);
         },
 
         setIndexesOpts: function (start, end, opts) {
@@ -896,6 +901,17 @@
           return result;
         },
 
+        asSet: function () {
+          var result = new Set(),
+            item;
+
+          for (item of this) {
+            result.add(item);
+          }
+
+          return result;
+        },
+
         dropGenerator: function* (number) {
           var index = 0,
             length = _.toLength(number),
@@ -1062,17 +1078,13 @@
         },
 
         uniqueGenerator: function* () {
-          var seen = new Set(),
+          var seen = new Set(this),
             item,
             give;
 
-          for (item of this) {
-            if (!seen.has(item)) {
-              if (give !== $.SYMBOL.ASSET) {
-                give = yield item;
-              }
-
-              seen.add(item);
+          for (item of seen) {
+            if (give !== $.SYMBOL.ASSET) {
+              give = yield item;
             }
           }
 
@@ -1083,23 +1095,54 @@
           }
         },
 
+        intersectionGenerator: (function () {
+          function has(seen) {
+            /*jshint validthis:true */
+            return seen.has(this);
+          }
+
+          return function* () {
+            var seens = [],
+              seen = new Set(),
+              length,
+              item,
+              arg;
+
+            for (item of this) {
+              if (!seen.has(item)) {
+                if (!length) {
+                  for (arg of arguments) {
+                    length = seens.push(new Set(new Reiterate(arg)));
+                  }
+                }
+
+                if (!length || seens.every(has, item)) {
+                  yield item;
+                }
+
+                seen.add(item);
+              }
+            }
+
+            seens.forEach(function (item) {
+              item.clear();
+            });
+          };
+        }()),
+
         unionGenerator: function* () {
-          var seen = new Set(),
+          var seen = new Set(this),
             give,
             item,
             arg;
 
-          for (item of this) {
-            if (!seen.has(item)) {
-              if (give !== $.SYMBOL.ASSET) {
-                give = yield item;
-              }
-
-              seen.add(item);
+          for (item of seen) {
+            if (give !== $.SYMBOL.ASSET) {
+              give = yield item;
             }
           }
 
-          for (arg of new g.ArrayGenerator(arguments).values()) {
+          for (arg of arguments) {
             for (item of new Reiterate(arg)) {
               if (!seen.has(item)) {
                 if (give !== $.SYMBOL.ASSET) {
@@ -1118,7 +1161,7 @@
           }
         },
 
-        asSet: function () {
+        hasOwnAsSet: function () {
           var iterator = this[Symbol.iterator](),
             next = iterator.next(),
             value;
