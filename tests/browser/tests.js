@@ -14,9 +14,9 @@
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
-    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    nonbsp:true, singleGroups:false, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:35,
-    maxcomplexity:9
+    maxcomplexity:8
 */
 
 /*global
@@ -24,19 +24,18 @@
 */
 
 /*property
-    ARRAY, ASSET, ArrayGenerator, CounterGenerator, ENTRIES,
-    EnumerateGenerator, FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER,
-    MIN_SAFE_INTEGER, NUMBER, OBJECT, OPTS, SET, STRING, STRINGTAG, SYMBOL,
-    StringGenerator, TYPE, UNDEFINED, VALUEDESCRIPTOR, VALUES, abs, addMethods,
-    amd, asMap, asObject, asSet, asString, assign, bind, call, charCodeAt,
-    chunkGenerator, clamp, clampToSafeIntegerRange, compactGenerator,
+    ARRAY, ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator,
+    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, NUMBER, OBJECT,
+    OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED, VALUES,
+    abs, addMethods, amd, asMap, asObject, asSet, asString, assign, bind, call,
+    charCodeAt, chunkGenerator, clampToSafeIntegerRange, compactGenerator,
     configurable, defineProperty, differenceGenerator, dropGenerator,
     dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
-    first, flattenGenerator, floor, for, from, getYieldValue, has, hasOwn,
+    first, flattenGenerator, floor, from, getYieldValue, has, hasOwn,
     hasOwnAsSet, hasOwnProperty, initialGenerator, intersectionGenerator,
     isArray, isArrayLike, isFinite, isFunction, isLength, isNaN, isNil,
-    isNumber, isObject, isString, isSurrogatePair, isUndefined, join, keys,
-    last, length, mapGenerator, max, min, mustBeFunction,
+    isNumber, isObject, isObjectLike, isString, isSurrogatePair, isUndefined,
+    join, keys, last, length, mapGenerator, max, min, mustBeFunction,
     mustBeFunctionIfDefined, populatePrototypes, prototype, reduce,
     repeatGenerator, restGenerator, reverse, reversed, setIndexesOpts,
     setReverseIfOpt, setValue, sign, some, takeGenerator, takeWhileGenerator,
@@ -128,27 +127,9 @@
         TYPE: {
           OBJECT: typeof Object.prototype,
           FUNCTION: typeof Function,
+          NUMBER: typeof 0,
+          STRING: typeof '',
           UNDEFINED: typeof undefined
-        },
-
-        /**
-         * The private namespace for local symbols.
-         * @private
-         * @namespace
-         */
-        SYMBOL: {
-          ASSET: Symbol.for('asSet')
-        },
-
-        /**
-         * The private namespace for value desciptor.
-         * @private
-         * @namespace
-         */
-        VALUEDESCRIPTOR: {
-          enumerable: false,
-          writable: true,
-          configurable: true
         },
 
         /**
@@ -242,16 +223,24 @@
          * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
          * Reference/Global_Objects/Object/defineProperty
          */
-        setValue: function (object, property, value) {
-          if (_.hasOwn(object, property)) {
-            throw new Error('property already exists on object');
-          }
+        setValue: (function () {
+          var descriptor = {
+            enumerable: false,
+            writable: true,
+            configurable: true,
+            value: undefined
+          };
 
-          var descriptor = _.assign({}, $.VALUEDESCRIPTOR);
+          return function (object, property, value) {
+            if (_.hasOwn(object, property)) {
+              throw new Error('property already exists on object');
+            }
 
-          descriptor.value = value;
-          return Object.defineProperty(object, property, descriptor);
-        },
+            descriptor.value = value;
+
+            return Object.defineProperty(object, property, descriptor);
+          };
+        }()),
 
         /**
          * Returns true if the operand inputArg is null or undefined.
@@ -277,18 +266,27 @@
          * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger
          */
         toInteger: function (subject) {
-          var number = +subject,
-            val = 0;
+          var number = +subject;
 
-          if (!Number.isNaN(number)) {
-            if (!number || !Number.isFinite(number)) {
-              val = number;
-            } else {
-              val = Math.sign(number) * Math.floor(Math.abs(number));
-            }
+          if (Number.isNaN(number)) {
+            number = 0;
+          } else if (number && Number.isFinite(number)) {
+            number = Math.sign(number) * Math.floor(Math.abs(number));
           }
 
-          return val;
+          return number;
+        },
+
+        /**
+         * Checks if value is object-like. A value is object-like if it's not
+         * null and has a typeof result of "object".
+         *
+         * @private
+         * @param {*} subject The value to check.
+         * @return {boolean} Returns true if value is object-like, else false.
+         */
+        isObjectLike: function (subject) {
+          return !!subject && typeof subject === $.TYPE.OBJECT;
         },
 
         /**
@@ -299,20 +297,9 @@
          * @return {boolean} True if is a number, otherwise false.
          */
         isNumber: function (subject) {
-          return _.toStringTag(subject) === $.STRINGTAG.NUMBER;
-        },
-
-        /**
-         * Returns a number clamped to the range set by min and max.
-         *
-         * @private
-         * @param {numer} number The value to clamp if necessary.
-         * @param {number} min The minimum value allowed.
-         * @param {number} max The maximum value allowed
-         * @return {number} The clammped value.
-         */
-        clamp: function (number, min, max) {
-          return Math.min(Math.max(number, min), max);
+          return typeof subject === $.TYPE.NUMBER ||
+            (_.isObjectLike(subject) &&
+              _.toStringTag(subject) === $.STRINGTAG.NUMBER);
         },
 
         /**
@@ -324,11 +311,15 @@
          * @return {number}
          */
         toSafeInteger: function (subject) {
-          return _.clamp(
-            _.toInteger(subject),
-            Number.MIN_SAFE_INTEGER,
-            Number.MAX_SAFE_INTEGER
-          );
+          var number = _.toInteger(subject);
+
+          if (number < Number.MIN_SAFE_INTEGER) {
+            number = Number.MIN_SAFE_INTEGER;
+          } else if (number > Number.MAX_SAFE_INTEGER) {
+            number = Number.MAX_SAFE_INTEGER;
+          }
+
+          return number;
         },
 
         /**
@@ -361,7 +352,9 @@
          * @return {boolean}
          */
         isString: function (subject) {
-          return _.toStringTag(subject) === $.STRINGTAG.STRING;
+          return typeof subject === $.TYPE.STRING ||
+            (_.isObjectLike(subject) &&
+              _.toStringTag(subject) === $.STRINGTAG.STRING);
         },
 
         /**
@@ -373,7 +366,10 @@
          *                   else false.
          */
         isLength: function (subject) {
-          return _.toSafeInteger(subject) === subject && subject >= 0;
+          return typeof subject === $.TYPE.NUMBER &&
+            subject > -1 &&
+            subject % 1 === 0 &&
+            subject <= Number.MAX_SAFE_INTEGER;
         },
 
         /**
@@ -492,14 +488,17 @@
          * @return {number} Returns a safe number in range.
          */
         clampToSafeIntegerRange: function (subject) {
-          var num = +subject,
-            v = 0;
+          var number = +subject;
 
-          if (!Number.isNaN(num)) {
-            v = _.clamp(num, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+          if (Number.isNaN(number)) {
+            number = 0;
+          } else if (number < Number.MIN_SAFE_INTEGER) {
+            number = Number.MIN_SAFE_INTEGER;
+          } else if (number > Number.MAX_SAFE_INTEGER) {
+            number = Number.MAX_SAFE_INTEGER;
           }
 
-          return v;
+          return number;
         },
 
         /**
@@ -513,7 +512,15 @@
          * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
          */
         toLength: function (subject) {
-          return _.clamp(_.toInteger(subject), 0, Number.MAX_SAFE_INTEGER);
+          var length = _.toInteger(subject);
+
+          if (length <= 0) {
+            length = 0;
+          } else if (length > Number.MAX_SAFE_INTEGER) {
+            length = Number.MAX_SAFE_INTEGER;
+          }
+
+          return length;
         },
 
         /**
@@ -526,10 +533,17 @@
          * @return {boolean} Returns true if value is an object, else false.
          */
         isObject: function (subject) {
-          var type = typeof subject;
+          var type,
+            val;
 
-          return !!subject &&
-            (type === $.TYPE.OBJECT || type === $.TYPE.FUNCTION);
+          if (!subject) {
+            val = false;
+          } else {
+            type = typeof subject;
+            val = type === $.TYPE.OBJECT || type === $.TYPE.FUNCTION;
+          }
+
+          return val;
         },
 
         /**
@@ -846,9 +860,9 @@
         },
 
         join: function (seperator) {
-          var result = '',
-            iterator = this[Symbol.iterator](),
+          var iterator = this[Symbol.iterator](),
             item = iterator.next(),
+            result = '',
             next;
 
           if (_.isUndefined(seperator)) {
@@ -957,19 +971,17 @@
             index,
             item;
 
-          if (!length) {
-            return;
-          }
+          if (length) {
+            index = 0;
+            for (item of this) {
+              if (index < length) {
+                yield item;
+              } else {
+                break;
+              }
 
-          index = 0;
-          for (item of this) {
-            if (index < length) {
-              yield item;
-            } else {
-              break;
+              index += 1;
             }
-
-            index += 1;
           }
         },
 
@@ -1078,18 +1090,13 @@
 
         uniqueGenerator: function* () {
           var seen = new Set(this),
-            item,
-            give;
+            item;
 
           for (item of seen) {
-            if (give !== $.SYMBOL.ASSET) {
-              give = yield item;
-            }
+            yield item;
           }
 
-          if (give === $.SYMBOL.ASSET) {
-            return seen;
-          }
+          return seen;
         },
 
         intersectionGenerator: (function () {
@@ -1135,22 +1142,16 @@
           var argsLength = arguments.length,
             seen = new Set(this),
             index = 0,
-            give,
             item;
 
           for (item of seen) {
-            if (give !== $.SYMBOL.ASSET) {
-              give = yield item;
-            }
+            yield item;
           }
 
           while (index < argsLength) {
             for (item of new Reiterate(arguments[index])) {
               if (!seen.has(item)) {
-                if (give !== $.SYMBOL.ASSET) {
-                  give = yield item;
-                }
-
+                yield item;
                 seen.add(item);
               }
             }
@@ -1158,27 +1159,20 @@
             index += 1;
           }
 
-          if (give === $.SYMBOL.ASSET) {
-            return seen;
-          }
+          return seen;
         },
 
         hasOwnAsSet: function () {
           var iterator = this[Symbol.iterator](),
-            next = iterator.next(),
-            value;
+            next = iterator.next();
 
           if (!next.done) {
             do {
-              next = iterator.next($.SYMBOL.ASSET);
+              next = iterator.next();
             } while (!next.done);
-
-            value = next.value;
-          } else {
-            value = new Set();
           }
 
-          return value;
+          return next.value || new Set();
         },
 
         flattenGenerator: (function () {
