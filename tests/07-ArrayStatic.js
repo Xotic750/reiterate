@@ -27,7 +27,7 @@
 
       // forward
       for (entry of reiterate.array(a)) {
-        expect(entry).to.eql([index, a[index]]);
+        expect(entry).to.eql(a[index]);
         index += 1;
       }
 
@@ -52,7 +52,7 @@
       // reverse
       index = a.length - 1;
       for (entry of reiterate.array(a).reverse()) {
-        expect(entry).to.eql([index, a[index]]);
+        expect(entry).to.eql(a[index]);
         index -= 1;
       }
 

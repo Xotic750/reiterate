@@ -27,7 +27,7 @@
 
       // forward
       for (entry of reiterate(a)) {
-        expect(entry).to.eql([index, a[index]]);
+        expect(entry).to.be(a[index]);
         index += 1;
       }
 
@@ -59,7 +59,7 @@
       // reverse
       index = a.length - 1;
       for (entry of reiterate(a).reverse()) {
-        expect(entry).to.eql([index, a[index]]);
+        expect(entry).to.be(a[index]);
         index -= 1;
       }
 
@@ -193,7 +193,7 @@
         });
       }).to.not.throwException();
 
-      index = 3;
+      index = 2;
       for (entry of counter) {
         expect(entry).to.be.within(2, 4);
         expect(entry).to.be(index);

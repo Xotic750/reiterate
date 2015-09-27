@@ -45,7 +45,7 @@
       // forward
       index = 0;
       for (entry of reiterate(a)) {
-        expect(entry).to.eql([index, a[index]]);
+        expect(entry).to.eql(a[index]);
         index += 1;
       }
 
@@ -79,7 +79,7 @@
       // forward
       index = 0;
       for (entry of reiterate(a).own()) {
-        expect(entry).to.eql([index, a[index]]);
+        expect(entry).to.eql(a[index]);
         index += 1;
       }
 
@@ -119,8 +119,8 @@
         state = gen.state();
 
       expect(state).to.eql({
-        entries: true,
-        values: false,
+        entries: false,
+        values: true,
         keys: false,
         own: true
       });
