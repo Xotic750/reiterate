@@ -24,24 +24,23 @@
 */
 
 /*property
-    ARRAY, ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator,
-    FUNCTION, KEYS, MAP, MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, NUMBER, OBJECT,
-    OPTS, SET, STRING, STRINGTAG, StringGenerator, TYPE, UNDEFINED, VALUES,
-    abs, addMethods, amd, asMap, asObject, asSet, asString, assign, bind, call,
-    charCodeAt, chunkGenerator, clampToSafeIntegerRange, compactGenerator,
-    configurable, defineProperty, differenceGenerator, dropGenerator,
-    dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
-    first, flattenGenerator, floor, from, getYieldValue, has, hasOwn,
-    hasOwnAsSet, hasOwnProperty, initialGenerator, intersectionGenerator,
-    isArray, isArrayLike, isFinite, isFunction, isLength, isNaN, isNil,
-    isNumber, isObject, isObjectLike, isString, isSurrogatePair, isUndefined,
-    join, keys, last, length, mapGenerator, max, min, mustBeFunction,
-    mustBeFunctionIfDefined, populatePrototypes, prototype, reduce,
-    repeatGenerator, restGenerator, reverse, reversed, setIndexesOpts,
-    setReverseIfOpt, setValue, sign, some, takeGenerator, takeWhileGenerator,
-    tapGenerator, then, throwIfCircular, to, toInteger, toLength,
-    toSafeInteger, toString, toStringTag, unionGenerator, uniqueGenerator,
-    value, valueOf, values, writable
+    ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator, FUNCTION,
+    KEYS, MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, NUMBER, OBJECT, OPTS,
+    StringGenerator, TYPE, VALUES, abs, addMethods, amd, asMap, asObject,
+    asSet, asString, assign, bind, call, charCodeAt, chunkGenerator,
+    clampToSafeIntegerRange, compactGenerator, configurable, defineProperty,
+    differenceGenerator, dropGenerator, dropWhileGenerator, entries,
+    enumerable, every, exports, filterGenerator, first, flattenGenerator,
+    floor, from, getYieldValue, has, hasOwn, hasOwnAsSet, hasOwnProperty,
+    initialGenerator, intersectionGenerator, isArray, isArrayLike, isFinite,
+    isFunction, isLength, isNaN, isNil, isNumber, isObject, isObjectLike,
+    isString, isSurrogatePair, isUndefined, join, keys, last, length,
+    mapGenerator, max, min, mustBeFunction, mustBeFunctionIfDefined,
+    populatePrototypes, prototype, reduce, repeatGenerator, restGenerator,
+    reverse, reversed, setIndexesOpts, setReverseIfOpt, setValue, sign, some,
+    takeGenerator, takeWhileGenerator, tapGenerator, then, throwIfCircular, to,
+    toInteger, toLength, toString, toStringTag, unionGenerator,
+    uniqueGenerator, value, valueOf, values, writable
 */
 
 /**
@@ -107,19 +106,6 @@
       $ = {
 
         /**
-         * The private namespace for pre-calculated stringtags.
-         * @private
-         * @namespace
-         */
-        STRINGTAG: {
-          ARRAY: Object.prototype.toString.call(Array.prototype),
-          MAP: Object.prototype.toString.call(Map.prototype),
-          SET: Object.prototype.toString.call(Set.prototype),
-          STRING: Object.prototype.toString.call(String.prototype),
-          NUMBER: Object.prototype.toString.call(Number.prototype)
-        },
-
-        /**
          * The private namespace for pre-calculated type strings.
          * @private
          * @namespace
@@ -127,9 +113,7 @@
         TYPE: {
           OBJECT: typeof Object.prototype,
           FUNCTION: typeof Function,
-          NUMBER: typeof 0,
-          STRING: typeof '',
-          UNDEFINED: typeof undefined
+          NUMBER: typeof 0
         },
 
         /**
@@ -223,14 +207,7 @@
          * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
          * Reference/Global_Objects/Object/defineProperty
          */
-        setValue: (function () {
-          var descriptor = {
-            enumerable: false,
-            writable: true,
-            configurable: true,
-            value: undefined
-          };
-
+        setValue: (function (descriptor) {
           return function (object, property, value) {
             if (_.hasOwn(object, property)) {
               throw new Error('property already exists on object');
@@ -240,7 +217,12 @@
 
             return Object.defineProperty(object, property, descriptor);
           };
-        }()),
+        }({
+          enumerable: false,
+          writable: true,
+          configurable: true,
+          value: undefined
+        })),
 
         /**
          * Returns true if the operand inputArg is null or undefined.
@@ -296,11 +278,12 @@
          * @param {*} subject The object to be to tested.
          * @return {boolean} True if is a number, otherwise false.
          */
-        isNumber: function (subject) {
-          return typeof subject === $.TYPE.NUMBER ||
-            (_.isObjectLike(subject) &&
-              _.toStringTag(subject) === $.STRINGTAG.NUMBER);
-        },
+        isNumber: (function (tag) {
+          return function (subject) {
+            return typeof subject === $.TYPE.NUMBER ||
+              (_.isObjectLike(subject) && _.toStringTag(subject) === tag);
+          };
+        }(Object.prototype.toString.call(0))),
 
         /**
          * Returns true if the operand subject is undefined
@@ -309,9 +292,11 @@
          * @param {*} subject The object to be tested.
          * @return {boolean} True if the object is undefined, otherwise false.
          */
-        isUndefined: function (subject) {
-          return typeof subject === $.TYPE.UNDEFINED;
-        },
+        isUndefined: (function (typeUndefined) {
+          return function (subject) {
+            return typeof subject === typeUndefined;
+          };
+        }(typeof undefined)),
 
         /**
          * Returns true if the operand subject is a Function
@@ -331,11 +316,12 @@
          * @param {*} subject
          * @return {boolean}
          */
-        isString: function (subject) {
-          return typeof subject === $.TYPE.STRING ||
-            (_.isObjectLike(subject) &&
-              _.toStringTag(subject) === $.STRINGTAG.STRING);
-        },
+        isString: (function (tag, typeString) {
+          return function (subject) {
+            return typeof subject === typeString ||
+              (_.isObjectLike(subject) && _.toStringTag(subject) === tag);
+          };
+        }(Object.prototype.toString.call(''), typeof '')),
 
         /**
          * Checks if value is a valid array-like length.
@@ -513,17 +499,16 @@
          * @return {boolean} Returns true if value is an object, else false.
          */
         isObject: function (subject) {
-          var type,
-            val;
+          var type;
 
           if (!subject) {
-            val = false;
+            type = false;
           } else {
             type = typeof subject;
-            val = type === $.TYPE.OBJECT || type === $.TYPE.FUNCTION;
+            type = type === $.TYPE.OBJECT || type === $.TYPE.FUNCTION;
           }
 
-          return val;
+          return type;
         },
 
         /**
@@ -627,18 +612,14 @@
          * @param {object} object The key to get the value from the object.
          */
         getYieldValue: function (opts, object, key) {
-          var result,
-            value;
+          var result;
 
           if (opts.keys) {
             result = key;
+          } else if (opts.values) {
+            result = object[key];
           } else {
-            value = object[key];
-            if (opts.values) {
-              result = value;
-            } else {
-              result = [key, value];
-            }
+            result = [key, object[key]];
           }
 
           return result;
