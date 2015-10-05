@@ -216,7 +216,9 @@
 
       },
 
-      symIt = Symbol && Symbol.iterator ? Symbol.iterator : 'Symbol.iterator',
+      symIt = (function (typeFunction) {
+        return typeof Symbol === typeFunction ? Symbol.iterator : '@@iterator';
+      }(typeof isObject)),
 
       /**
        * Returns true if the operand subject is null or undefined.
@@ -425,7 +427,7 @@
         };
       }(typeof strDelete, typeof MAX_SAFE_INTEGER)),
 
-      toNumber = (function () {
+      toNumber = (function (typeFunction) {
         var typeUndefined = typeof undefined,
           typeBoolean = typeof false,
           typeNumber = typeof MAX_SAFE_INTEGER,
@@ -433,7 +435,7 @@
           typeSymbol,
           fn;
 
-        if (Symbol && Symbol[strFor]) {
+        if (typeof Symbol === typeFunction && Symbol[strFor]) {
           typeSymbol = typeof Symbol[strFor](strFor);
         }
 
@@ -466,7 +468,7 @@
         };
 
         return fn;
-      }()),
+      }(typeof isObject)),
 
       sign = (function (ms) {
         var fn;
@@ -1294,8 +1296,9 @@
         return -1 < getIndex(array, item);
       },
 
-      SetObject = (function (s) {
-        var fn;
+      SetObject = (function (typeFunction) {
+        var s = typeof Set === typeFunction && Set,
+          fn;
 
         if (s) {
           fn = s;
@@ -1437,10 +1440,11 @@
         }
 
         return fn;
-      }(Set)),
+      }(typeof isObject)),
 
-      MapObject = (function (m) {
-        var fn;
+      MapObject = (function (typeFunction) {
+        var m = typeof Map === typeFunction && Map,
+          fn;
 
         if (m) {
           fn = m;
@@ -1603,7 +1607,7 @@
         }
 
         return fn;
-      }(Map)),
+      }(typeof isObject)),
 
       /**
        * A function to return the entries, values or keys depending on the

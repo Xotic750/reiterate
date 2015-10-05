@@ -217,7 +217,9 @@
 
       },
 
-      symIt = Symbol && Symbol.iterator ? Symbol.iterator : 'Symbol.iterator',
+      symIt = (function (typeFunction) {
+        return typeof Symbol === typeFunction ? Symbol.iterator : '@@iterator';
+      }(typeof isObject)),
 
       /**
        * Returns true if the operand subject is null or undefined.
@@ -426,7 +428,7 @@
         };
       }(typeof strDelete, typeof MAX_SAFE_INTEGER)),
 
-      toNumber = (function () {
+      toNumber = (function (typeFunction) {
         var typeUndefined = typeof undefined,
           typeBoolean = typeof false,
           typeNumber = typeof MAX_SAFE_INTEGER,
@@ -434,7 +436,7 @@
           typeSymbol,
           fn;
 
-        if (Symbol && Symbol[strFor]) {
+        if (typeof Symbol === typeFunction && Symbol[strFor]) {
           typeSymbol = typeof Symbol[strFor](strFor);
         }
 
@@ -467,7 +469,7 @@
         };
 
         return fn;
-      }()),
+      }(typeof isObject)),
 
       sign = (function (ms) {
         var fn;
@@ -1295,8 +1297,9 @@
         return -1 < getIndex(array, item);
       },
 
-      SetObject = (function (s) {
-        var fn;
+      SetObject = (function (typeFunction) {
+        var s = typeof Set === typeFunction && Set,
+          fn;
 
         if (s) {
           fn = s;
@@ -1438,10 +1441,11 @@
         }
 
         return fn;
-      }(Set)),
+      }(typeof isObject)),
 
-      MapObject = (function (m) {
-        var fn;
+      MapObject = (function (typeFunction) {
+        var m = typeof Map === typeFunction && Map,
+          fn;
 
         if (m) {
           fn = m;
@@ -1604,7 +1608,7 @@
         }
 
         return fn;
-      }(Map)),
+      }(typeof isObject)),
 
       /**
        * A function to return the entries, values or keys depending on the
@@ -6632,7 +6636,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:4,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:7,
     maxcomplexity:2
 */
 /*global module, require, process */
@@ -6646,6 +6650,26 @@ process.umask = function() { return 0; };
   } else {
     module.exports.subject = require('../lib/reiterate');
   }
+
+  module.exports.isGeneratorSupported = (function () {
+    try {
+      /*jslint evil:true */
+      eval('(function*(){})()');
+      return true;
+    } catch (ignore) {}
+
+    return false;
+  }());
+
+  module.exports.isForOfSupported = (function () {
+    try {
+      /*jslint evil:true */
+      eval("for (var e of ['a']) {}");
+      return true;
+    } catch (ignore) {}
+
+    return false;
+  }());
 }());
 
 }).call(this,require('_process'))
