@@ -4,7 +4,7 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:12,
-    maxcomplexity:1
+    maxcomplexity:2
 */
 /*global require, describe, it */
 
@@ -54,11 +54,11 @@
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new Map());
+        reiterate(typeof Map === 'function' ? new Map() : new reiterate.Map());
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new Set());
+        reiterate(typeof Set === 'function' ? new Set() : new reiterate.Set());
       }).to.not.throwException();
 
       expect(function () {
