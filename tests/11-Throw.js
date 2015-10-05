@@ -13,17 +13,18 @@
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     it('Array then defined but not a function', function () {
       function noop() {}
 
       expect(function () {
-        for (var entry of reiterate([]).then(null)) {
+        forOf(reiterate([]).then(null), function (entry) {
           noop(entry);
-          break;
-        }
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -37,10 +38,10 @@
       function noop() {}
 
       expect(function () {
-        for (var entry of reiterate(a).flatten()) {
+        forOf(reiterate(a).flatten(), function (entry) {
           noop(entry);
           //break;
-        }
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });

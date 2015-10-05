@@ -13,7 +13,8 @@
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     var a = {
@@ -38,34 +39,33 @@
         6: [4]
       },
       index,
-      entry,
       array;
 
     it('Object enumerate, no length', function () {
       // forward
       index = 0;
-      for (entry of reiterate(a)) {
+      forOf(reiterate(a), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).entries()) {
+      forOf(reiterate(a).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).values()) {
+      forOf(reiterate(a).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).keys()) {
+      forOf(reiterate(a).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       expect(function () {
@@ -78,28 +78,28 @@
     it('Object enumerate own, no length', function () {
       // forward
       index = 0;
-      for (entry of reiterate(a).own()) {
+      forOf(reiterate(a).own(), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).own().entries()) {
+      forOf(reiterate(a).own().entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).own().values()) {
+      forOf(reiterate(a).own().values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).own().keys()) {
+      forOf(reiterate(a).own().keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       expect(function () {

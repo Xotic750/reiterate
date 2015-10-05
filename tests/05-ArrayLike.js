@@ -13,7 +13,8 @@
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     it('ArrayLike of primatives', function () {
@@ -57,57 +58,56 @@
           length: 7
         },
         index = 0,
-        entry,
         array;
 
       // forward
-      for (entry of reiterate(a, true)) {
+      forOf(reiterate(a, true), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a, true).entries()) {
+      forOf(reiterate(a, true).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a, true).values()) {
+      forOf(reiterate(a, true).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a, true).keys()) {
+      forOf(reiterate(a, true).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       index = a.length - 1;
-      for (entry of reiterate(a, true).reverse()) {
+      forOf(reiterate(a, true).reverse(), function (entry) {
         expect(entry).to.eql(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a, true).entries().reverse()) {
+      forOf(reiterate(a, true).entries().reverse(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a, true).values().reverse()) {
+      forOf(reiterate(a, true).values().reverse(), function (entry) {
         expect(entry).to.be(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a, true).keys().reverse()) {
+      forOf(reiterate(a, true).keys().reverse(), function (entry) {
         expect(entry).to.eql(index);
         index -= 1;
-      }
+      });
 
       // unique
       array = reiterate(a, true).values().unique().asArray();
@@ -156,7 +156,9 @@
     });
 
     it('Array-like state', function () {
-      var gen = reiterate({length: 0}, true).entries().reverse(),
+      var gen = reiterate({
+          length: 0
+        }, true).entries().reverse(),
         state = gen.state();
 
       expect(state).to.eql({
@@ -170,7 +172,9 @@
         keys: false
       });
 
-      gen = reiterate({length: Number.MAX_SAFE_INTEGER}, true);
+      gen = reiterate({
+        length: Number.MAX_SAFE_INTEGER
+      }, true);
       state = gen.state();
       expect(state).to.eql({
         length: Number.MAX_SAFE_INTEGER,

@@ -3,7 +3,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:28,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:29,
     maxcomplexity:5
 */
 /*global require, describe, it */
@@ -13,7 +13,8 @@
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -36,14 +37,13 @@
         iterator = reiterate(a).values().map(function (item) {
           return item.codePointAt();
         }),
-        index = 0,
-        entry;
+        index = 0;
 
       // forward
       index = 0;
-      for (entry of reiterate('').values()) {
+      forOf(reiterate('').values(), function () {
         index += 1;
-      }
+      });
 
       expect(index).to.be(0);
 
@@ -53,10 +53,10 @@
       expect(array).to.eql(c);
       array = reiterate(a).entries().asArray();
       expect(array).to.eql(d);
-      for (entry of iterator) {
+      forOf(iterator, function (entry) {
         expect(entry).to.be(e[index]);
         index += 1;
-      }
+      });
 
       // reverse
       string = reiterate(a).values().reverse().asString();
@@ -73,48 +73,47 @@
       });
 
       index = b.length - 1;
-      for (entry of iterator) {
+      forOf(iterator, function (entry) {
         expect(entry).to.be(e[index]);
         index -= 1;
-      }
+      });
     });
 
     it('String chars', function () {
       var a =
         '\uD835\uDC68\uD835\uDC69\uD835\uDC6A\uD835\uDC6B\uD835\uDC6C',
         gen = reiterate(a).keys().slice(1, -3),
-        entry,
         index;
 
       // forward
       index = 2;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(2, a.length - 4);
         expect(entry).to.eql(index);
         index += 2;
-      }
+      });
 
       gen = reiterate(a).keys().slice(-3);
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.eql(8);
-      }
+      });
 
       gen = reiterate(a).keys().slice(1, 3);
       index = 2;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(2, 4);
         expect(entry).to.eql(index);
         index += 2;
-      }
+      });
 
       // reverse
       gen = reiterate(a).keys().slice(1, -3).reverse();
       index = a.length - 4;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(1, a.length - 4);
         expect(entry).to.eql(index);
         index -= 2;
-      }
+      });
     });
 
     it('String state', function () {

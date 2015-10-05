@@ -6636,8 +6636,8 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:7,
-    maxcomplexity:2
+    esnext:true, plusplus:true, maxparams:3, maxdepth:3, maxstatements:25,
+    maxcomplexity:10
 */
 /*global module, require, process */
 
@@ -6670,6 +6670,122 @@ process.umask = function() { return 0; };
 
     return false;
   }());
+
+  module.exports.iterator = typeof Symbol === 'function' ?
+    Symbol.iterator :
+    '@@iterator';
+
+  module.exports.forOf = (function () {
+    var fn;
+
+    if (module.exports.isForOfSupported) {
+      /*jshint evil:true */
+      fn = new Function('return function(iterable,callback,thisArg){for(var ' +
+        'item of iterable)if(callback.call(thisArg,item))' +
+        'break};')();
+    } else {
+      fn = function (iterable, callback, thisArg) {
+        var generator = iterable[module.exports.iterator],
+          iterator = generator(),
+          next = iterator.next();
+
+        while (!next.done && !callback.call(thisArg, next.value)) {
+          next = iterator.next();
+        }
+      };
+    }
+
+    return fn;
+  }());
+
+  module.exports.reduce = (function () {
+    var msg = 'reduce of empty array with no initial value';
+
+    return function (array, callback, initialValue) {
+      var object,
+        acc,
+        length,
+        kPresent,
+        index;
+
+      /*jslint eqnull:true */
+      if (array == null) {
+        throw new TypeError('null or undefined');
+      }
+
+      if (Object.prototype.toString.call(callback) !== '[object Function]') {
+        throw new TypeError('must be a function');
+      }
+
+      object = Object(array);
+      /*jshint bitwise:false */
+      length = object.length >>> 0;
+      if (!length && arguments.length === 1) {
+        throw new TypeError(msg);
+      }
+
+      index = 0;
+      if (arguments.length > 1) {
+        acc = initialValue;
+      } else {
+        kPresent = false;
+        while (!kPresent && index < length) {
+          kPresent = index in object;
+          if (kPresent) {
+            acc = object[index];
+            index += 1;
+          }
+        }
+
+        if (!kPresent) {
+          throw new TypeError(msg);
+        }
+      }
+
+      while (index < length) {
+        if (index in object) {
+          acc = callback.call(
+            undefined,
+            acc,
+            object[index],
+            index,
+            object
+          );
+        }
+
+        index += 1;
+      }
+
+      return acc;
+    };
+  }());
+
+  module.exports.forEach = function (array, callback, thisArg) {
+    var object,
+      length,
+      index;
+
+    /*jslint eqnull:true */
+    if (array == null) {
+      throw new TypeError('null or undefined');
+    }
+
+    if (Object.prototype.toString.call(callback) !== '[object Function]') {
+      throw new TypeError('must be a function');
+    }
+
+    object = Object(array);
+    /*jshint bitwise:false */
+    length = object.length >>> 0;
+    index = 0;
+    while (index < length) {
+      if (index in object) {
+        callback.call(thisArg, object[index], index, object);
+      }
+
+      index += 1;
+    }
+  };
 }());
 
 }).call(this,require('_process'))
@@ -6760,242 +6876,277 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    symIt = required.iterator,
+    forOf = required.forOf,
+    reduce = required.reduce,
+    isGeneratorSupported = required.isGeneratorSupported,
+    aGenerator;
 
-  function* aGenerator() {
-    var x = Array.prototype.reduce.call(arguments, function (acc, arg) {
-        return acc + arg;
-      }, 0),
-      item;
+  if (isGeneratorSupported) {
+    /*jshint evil:true */
+    aGenerator = new Function('reduce', 'return function*(){var x=reduce(' +
+      'arguments,function(acc,arg){return acc+arg},0),item;' +
+      'for(item of this)yield item*2+x};')(reduce);
+  } else {
+    aGenerator = function () {
+      var generator = this,
+        args = arguments,
+        iterator,
+        next,
+        done,
+        x;
 
-    /*jshint validthis:true */
-    for (item of this) {
-      yield item * 2 + x;
-    }
+      return {
+        next: function () {
+          var object;
+
+          if (!done) {
+            x = reduce(args, function (acc, arg) {
+              return acc + arg;
+            }, 0);
+
+            done = true;
+          }
+
+          iterator = iterator || generator[symIt]();
+          next = iterator.next();
+          if (!next.done) {
+            object = {
+              done: false,
+              value: next.value * 2 + x
+            };
+          } else {
+            object = {
+              done: true,
+              value: undefined
+            };
+          }
+
+          return object;
+        }
+      };
+    };
   }
 
   describe('Basic tests', function () {
     it('Counter simple', function () {
-      var index = 0,
-        entry;
+      var index = 0;
 
       // forward
-      for (entry of reiterate()) {
+      forOf(reiterate(), function (entry) {
         expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
         expect(entry).to.eql(index);
         index += 1;
         if (index > 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(undefined)) {
+      forOf(reiterate(undefined), function (entry) {
         expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 1;
         if (index > 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(null)) {
+      forOf(reiterate(null), function (entry) {
         expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 1;
         if (index > 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(9)) {
+      forOf(reiterate(9), function (entry) {
         expect(entry).to.be.within(0, 9);
         expect(entry).to.be(index);
         index += 1;
-      }
+      });
 
       // reverse
       index = Number.MAX_SAFE_INTEGER;
-      for (entry of reiterate().reverse()) {
+      forOf(reiterate().reverse(), function (entry) {
         expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
         if (index < Number.MAX_SAFE_INTEGER - 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = Number.MAX_SAFE_INTEGER;
-      for (entry of reiterate(undefined).reverse()) {
+      forOf(reiterate(undefined).reverse(), function (entry) {
         expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
         if (index < Number.MAX_SAFE_INTEGER - 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = Number.MAX_SAFE_INTEGER;
-      for (entry of reiterate(null).reverse()) {
+      forOf(reiterate(null).reverse(), function (entry) {
         expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
         if (index < Number.MAX_SAFE_INTEGER - 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = -9;
-      for (entry of reiterate(-9).reverse()) {
+      forOf(reiterate(-9).reverse(), function (entry) {
         expect(entry).to.be.within(-9, 0);
         expect(entry).to.be(index);
         index += 1;
-      }
+      });
     });
 
     it('Counter specific arguments', function () {
-      var index = 0,
-        entry;
+      var index = 0;
 
       // forward
-      for (entry of reiterate(0, 10)) {
+      forOf(reiterate(0, 10), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate(-10, 0)) {
+      forOf(reiterate(-10, 0), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 1;
-      }
+      });
 
       index = 10;
-      for (entry of reiterate(10, -20)) {
+      forOf(reiterate(10, -20), function (entry) {
         expect(entry).to.be.within(-20, 10);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = -20;
-      for (entry of reiterate(-20, -10)) {
+      forOf(reiterate(-20, -10), function (entry) {
         expect(entry).to.be.within(-20, -10);
         expect(entry).to.be(index);
         index += 1;
-      }
+      });
 
       // reverse
       index = 10;
-      for (entry of reiterate(0, 10).reverse()) {
+      forOf(reiterate(0, 10).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(10, 0).reverse()) {
+      forOf(reiterate(10, 0).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(-10, 0).reverse()) {
+      forOf(reiterate(-10, 0).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate(0, -10).reverse()) {
+      forOf(reiterate(0, -10).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 1;
-      }
+      });
     });
 
     it('Counter with by', function () {
-      var index = 0,
-        entry;
+      var index = 0;
 
       // forward
-      for (entry of reiterate(0, 10, 1)) {
+      forOf(reiterate(0, 10, 1), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate(-10, 0, 2)) {
+      forOf(reiterate(-10, 0, 2), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       index = 10;
-      for (entry of reiterate(10, -20, 3)) {
+      forOf(reiterate(10, -20, 3), function (entry) {
         expect(entry).to.be.within(-20, 10);
         expect(entry).to.be(index);
         index -= 3;
-      }
+      });
 
       index = -20;
-      for (entry of reiterate(-20, -10, -2)) {
+      forOf(reiterate(-20, -10, -2), function (entry) {
         expect(entry).to.be.within(-20, -10);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       // reverse
       index = 10;
-      for (entry of reiterate(0, 10, 1).reverse()) {
+      forOf(reiterate(0, 10, 1).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(10, 0, 2).reverse()) {
+      forOf(reiterate(10, 0, 2).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(-10, 0, 3).reverse()) {
+      forOf(reiterate(-10, 0, 3).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index -= 3;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate(0, -10, -2).reverse()) {
+      forOf(reiterate(0, -10, -2).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
     });
 
     it('Counter zeros', function () {
-      var index = 0,
-        entry;
+      var index = 0;
 
       index = 0;
-      for (entry of reiterate(0)) {
+      forOf(reiterate(0), function (entry) {
         expect(entry).to.eql(index);
         expect(0).to.eql(index);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(0, 0)) {
+      forOf(reiterate(0, 0), function (entry) {
         expect(entry).to.eql(index);
         expect(0).to.eql(index);
         index += 1;
-      }
+      });
 
       index = 0;
       expect(function () {
@@ -7006,165 +7157,162 @@ process.umask = function() { return 0; };
     });
 
     it('Counter simple mixed sugar', function () {
-      var index = 10,
-        entry;
+      var index = 10;
 
       // forward
-      for (entry of reiterate().from(10)) {
+      forOf(reiterate().from(10), function (entry) {
         expect(entry).to.be.within(10, Number.MAX_SAFE_INTEGER);
         expect(entry).to.eql(index);
         index += 1;
         if (index > 20) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(undefined).to(10)) {
+      forOf(reiterate(undefined).to(10), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index += 1;
         if (index > 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(null).by(2)) {
+      forOf(reiterate(null).by(2), function (entry) {
         expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 2;
         if (index > 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = 10;
-      for (entry of reiterate().from(10).to(20).by(2)) {
+      forOf(reiterate().from(10).to(20).by(2), function (entry) {
         expect(entry).to.be.within(10, 20);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       // reverse
       index = Number.MAX_SAFE_INTEGER;
-      for (entry of reiterate().from(10).reverse()) {
+      forOf(reiterate().from(10).reverse(), function (entry) {
         expect(entry).to.be.within(10, Number.MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
         if (index < Number.MAX_SAFE_INTEGER - 10) {
-          break;
+          return true;
         }
-      }
+      });
 
       index = 10;
-      for (entry of reiterate(undefined).to(10).reverse()) {
+      forOf(reiterate(undefined).to(10).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = 10;
-      for (entry of reiterate().from(0).to(10).reverse()) {
+      forOf(reiterate().from(0).to(10).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate().from(-10).to(0).by(-2).reverse()) {
+      forOf(reiterate().from(-10).to(0).by(-2).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index -= 2;
-      }
+      });
     });
 
     it('Counter using sugar', function () {
-      var index = 0,
-        entry;
+      var index = 0;
 
       // NaN
-      for (entry of reiterate().from(NaN).to(NaN).by(1)) {
+      forOf(reiterate().from(NaN).to(NaN).by(1), function (entry) {
         expect(entry).to.be(0);
         index += 1;
-      }
+      });
 
       // forward
       index = 0;
-      for (entry of reiterate().from(0).to(10).by(1)) {
+      forOf(reiterate().from(0).to(10).by(1), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate().from(-10).to(0).by(2)) {
+      forOf(reiterate().from(-10).to(0).by(2), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       index = 10;
-      for (entry of reiterate().from(10).to(-20).by(3)) {
+      forOf(reiterate().from(10).to(-20).by(3), function (entry) {
         expect(entry).to.be.within(-20, 10);
         expect(entry).to.be(index);
         index -= 3;
-      }
+      });
 
       index = -20;
-      for (entry of reiterate().from(-20).to(-10).by(2)) {
+      forOf(reiterate().from(-20).to(-10).by(2), function (entry) {
         expect(entry).to.be.within(-20, -10);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       // reverse
       index = 10;
-      for (entry of reiterate().from(0).to(10).by(1).reverse()) {
+      forOf(reiterate().from(0).to(10).by(1).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate().from(10).to(0).by(2).reverse()) {
+      forOf(reiterate().from(10).to(0).by(2).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate().from(-10).to(0).by(3).reverse()) {
+      forOf(reiterate().from(-10).to(0).by(3).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index -= 3;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate().from(0).to(-10).by(-2).reverse()) {
+      forOf(reiterate().from(0).to(-10).by(-2).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
     });
 
     it('Counter zeros', function () {
-      var index = 0,
-        entry;
+      var index = 0;
 
       index = 0;
-      for (entry of reiterate(0)) {
+      forOf(reiterate(0), function (entry) {
         expect(entry).to.be(index);
         expect(0).to.be(index);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(0, 0)) {
+      forOf(reiterate(0, 0), function (entry) {
         expect(entry).to.be(index);
         expect(0).to.be(index);
         index += 1;
-      }
+      });
 
       expect(function () {
         reiterate(0, 0, 0);
@@ -7173,18 +7321,18 @@ process.umask = function() { return 0; };
       });
 
       index = 0;
-      for (entry of reiterate().to(0)) {
+      forOf(reiterate().to(0), function (entry) {
         expect(entry).to.be(index);
         expect(0).to.be(index);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate().from(0).to(0)) {
+      forOf(reiterate().from(0).to(0), function (entry) {
         expect(entry).to.be(index);
         expect(0).to.be(index);
         index += 1;
-      }
+      });
 
       expect(function () {
         reiterate().from(0).to(0).by(0);
@@ -7206,17 +7354,15 @@ process.umask = function() { return 0; };
     });
 
     it('Counter limits', function () {
-      var entry;
-
-      for (entry of reiterate().from(-Infinity).to(Infinity)) {
+      forOf(reiterate().from(-Infinity).to(Infinity), function (entry) {
         expect(entry).to.be(Number.MIN_SAFE_INTEGER);
-        break;
-      }
+        return true;
+      });
 
-      for (entry of reiterate().from(Infinity).to(-Infinity)) {
+      forOf(reiterate().from(Infinity).to(-Infinity), function (entry) {
         expect(entry).to.be(Number.MAX_SAFE_INTEGER);
-        break;
-      }
+        return true;
+      });
     });
 
     it('Counter next', function () {
@@ -7285,13 +7431,12 @@ process.umask = function() { return 0; };
 
     it('Counter map', function () {
       var index,
-        entry,
         counter;
 
       expect(function () {
-        for (entry of reiterate().map()) {
-          break;
-        }
+        forOf(reiterate().map(), function () {
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -7303,15 +7448,14 @@ process.umask = function() { return 0; };
       }).to.not.throwException();
 
       index = 65;
-      for (entry of counter) {
+      forOf(counter, function (entry) {
         expect(entry).to.be(String.fromCharCode(index));
         index += 1;
-      }
+      });
     });
 
     it('Counter map filter', function () {
       var index,
-        entry,
         counter;
 
       expect(function () {
@@ -7325,11 +7469,11 @@ process.umask = function() { return 0; };
       });
 
       index = 80;
-      for (entry of counter) {
+      forOf(counter, function (entry) {
         expect(index).to.be.within(80, 85);
         expect(entry).to.be(String.fromCharCode(index));
         index += 1;
-      }
+      });
     });
 
     it('Counter asArray', function () {
@@ -7384,23 +7528,21 @@ process.umask = function() { return 0; };
 
     it('Counter then undefined', function () {
       var index = 0,
-        value,
         iterator;
 
       expect(function () {
         iterator = reiterate().from(0).to(10).then();
       }).to.not.throwException();
 
-      for (value of iterator) {
+      forOf(iterator, function (entry) {
         expect(index).to.be.within(0, 10);
-        expect(value).to.be(index);
+        expect(entry).to.be(index);
         index += 1;
-      }
+      });
     });
 
     it('Counter then aGenerator', function () {
       var index = 0,
-        value,
         iterator;
 
       expect(function () {
@@ -7409,11 +7551,11 @@ process.umask = function() { return 0; };
         expect(e).to.be(undefined);
       });
 
-      for (value of iterator) {
+      forOf(iterator, function (entry) {
         expect(index).to.be.within(0, 10);
-        expect(value).to.be(index * 2);
+        expect(entry).to.be(index * 2);
         index += 1;
-      }
+      });
     });
 
     it('Counter then asArray', function () {
@@ -7457,65 +7599,64 @@ process.umask = function() { return 0; };
     });
 
     it('Counter using sugar', function () {
-      var index = 0,
-        entry;
+      var index = 0;
 
       // forward
-      for (entry of reiterate().from(0).to(10).by(1)) {
+      forOf(reiterate().from(0).to(10).by(1), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate().from(-10).to(0).by(2)) {
+      forOf(reiterate().from(-10).to(0).by(2), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       index = 10;
-      for (entry of reiterate().from(10).to(-20).by(3)) {
+      forOf(reiterate().from(10).to(-20).by(3), function (entry) {
         expect(entry).to.be.within(-20, 10);
         expect(entry).to.be(index);
         index -= 3;
-      }
+      });
 
       index = -20;
-      for (entry of reiterate().from(-20).to(-10).by(2)) {
+      forOf(reiterate().from(-20).to(-10).by(2), function (entry) {
         expect(entry).to.be.within(-20, -10);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       // reverse
       index = 10;
-      for (entry of reiterate().from(0).to(10).by(1).reverse()) {
+      forOf(reiterate().from(0).to(10).by(1).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index -= 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate().from(10).to(0).by(2).reverse()) {
+      forOf(reiterate().from(10).to(0).by(2).reverse(), function (entry) {
         expect(entry).to.be.within(0, 10);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate().from(-10).to(0).by(3).reverse()) {
+      forOf(reiterate().from(-10).to(0).by(3).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index -= 3;
-      }
+      });
 
       index = -10;
-      for (entry of reiterate().from(0).to(-10).by(-2).reverse()) {
+      forOf(reiterate().from(0).to(-10).by(-2).reverse(), function (entry) {
         expect(entry).to.be.within(-10, 0);
         expect(entry).to.be(index);
         index += 2;
-      }
+      });
     });
 
     it('Counter tap', function () {
@@ -7523,11 +7664,9 @@ process.umask = function() { return 0; };
         array;
 
       expect(function () {
-        var entry;
-
-        for (entry of reiterate().tap()) {
-          break;
-        }
+        forOf(reiterate().tap(), function () {
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -7573,11 +7712,9 @@ process.umask = function() { return 0; };
         r;
 
       expect(function () {
-        var entry;
-
-        for (entry of reiterate().reduce()) {
-          break;
-        }
+        forOf(reiterate().reduce(), function () {
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -7699,7 +7836,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     it('Array of primatives', function () {
@@ -7708,64 +7846,63 @@ process.umask = function() { return 0; };
         c = [4, 2, 1, 3, 5],
         d = [1, [2], 3, [5, 1, [3]], 1, 2, [4]],
         index = 0,
-        entry,
         array;
 
       // forward
-      for (entry of reiterate(a)) {
+      forOf(reiterate(a), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate([]).values()) {
+      forOf(reiterate([]).values(), function () {
         index += 1;
-      }
+      });
 
       expect(index).to.be(0);
 
       index = 0;
-      for (entry of reiterate(a).entries()) {
+      forOf(reiterate(a).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).values()) {
+      forOf(reiterate(a).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).keys()) {
+      forOf(reiterate(a).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       index = a.length - 1;
-      for (entry of reiterate(a).reverse()) {
+      forOf(reiterate(a).reverse(), function (entry) {
         expect(entry).to.be(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a).entries().reverse()) {
+      forOf(reiterate(a).entries().reverse(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a).values().reverse()) {
+      forOf(reiterate(a).values().reverse(), function (entry) {
         expect(entry).to.be(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a).keys().reverse()) {
+      forOf(reiterate(a).keys().reverse(), function (entry) {
         expect(entry).to.eql(index);
         index -= 1;
-      }
+      });
 
       // unique
       array = reiterate(a).values().unique().asArray();
@@ -7825,50 +7962,48 @@ process.umask = function() { return 0; };
     it('Array slice', function () {
       var a = [1, 2, 3, 4, 5],
         gen = reiterate(a).keys().slice(1, -1),
-        entry,
         index;
 
       // forward
       index = 1;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(1, a.length - 2);
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       gen = reiterate(a).keys().slice(-1);
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.eql(4);
-      }
+      });
 
       gen = reiterate(a).keys().slice(1, 3);
       index = 1;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(1, 3);
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       gen = reiterate(a).keys().slice(1, -1).reverse();
       index = a.length - 2;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(1, a.length - 2);
         expect(entry).to.eql(index);
         index -= 1;
-      }
+      });
     });
 
     it('Array filter', function () {
       var a = [1, 2, 3, 4, 5],
         index,
-        entry,
         counter;
 
       expect(function () {
-        for (entry of reiterate(a).filter()) {
-          break;
-        }
+        forOf(reiterate(a).filter(), function () {
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -7880,33 +8015,32 @@ process.umask = function() { return 0; };
       }).to.not.throwException();
 
       index = 2;
-      for (entry of counter) {
+      forOf(counter, function (entry) {
         expect(entry).to.be.within(2, 4);
         expect(entry).to.be(index);
         index += 1;
-      }
+      });
     });
 
     it('Array filter map', function () {
       var a = reiterate().from(65).to(90).asArray(),
         index,
-        entry,
         counter;
 
       expect(function () {
-        counter = reiterate(a).filter(function (value) {
-          return value >= 80 && value <= 85;
-        }).map(function (value) {
-          return String.fromCharCode(value);
+        counter = reiterate(a).filter(function (entry) {
+          return entry >= 80 && entry <= 85;
+        }).map(function (entry) {
+          return String.fromCharCode(entry);
         });
       }).to.not.throwException();
 
       index = 80;
-      for (entry of counter) {
+      forOf(counter, function (entry) {
         expect(index).to.be.within(80, 85);
         expect(entry).to.be(String.fromCharCode(index));
         index += 1;
-      }
+      });
     });
 
     it('Array filter asArray', function () {
@@ -7928,11 +8062,9 @@ process.umask = function() { return 0; };
         e;
 
       expect(function () {
-        var entry;
-
-        for (entry of reiterate(a).every()) {
-          break;
-        }
+        forOf(reiterate(a).every(), function () {
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -7965,11 +8097,9 @@ process.umask = function() { return 0; };
         s;
 
       expect(function () {
-        var entry;
-
-        for (entry of reiterate(a).some()) {
-          break;
-        }
+        forOf(reiterate(a).some(), function () {
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -8053,7 +8183,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:28,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:29,
     maxcomplexity:5
 */
 /*global require, describe, it */
@@ -8063,7 +8193,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -8086,14 +8217,13 @@ process.umask = function() { return 0; };
         iterator = reiterate(a).values().map(function (item) {
           return item.codePointAt();
         }),
-        index = 0,
-        entry;
+        index = 0;
 
       // forward
       index = 0;
-      for (entry of reiterate('').values()) {
+      forOf(reiterate('').values(), function () {
         index += 1;
-      }
+      });
 
       expect(index).to.be(0);
 
@@ -8103,10 +8233,10 @@ process.umask = function() { return 0; };
       expect(array).to.eql(c);
       array = reiterate(a).entries().asArray();
       expect(array).to.eql(d);
-      for (entry of iterator) {
+      forOf(iterator, function (entry) {
         expect(entry).to.be(e[index]);
         index += 1;
-      }
+      });
 
       // reverse
       string = reiterate(a).values().reverse().asString();
@@ -8123,48 +8253,47 @@ process.umask = function() { return 0; };
       });
 
       index = b.length - 1;
-      for (entry of iterator) {
+      forOf(iterator, function (entry) {
         expect(entry).to.be(e[index]);
         index -= 1;
-      }
+      });
     });
 
     it('String chars', function () {
       var a =
         '\uD835\uDC68\uD835\uDC69\uD835\uDC6A\uD835\uDC6B\uD835\uDC6C',
         gen = reiterate(a).keys().slice(1, -3),
-        entry,
         index;
 
       // forward
       index = 2;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(2, a.length - 4);
         expect(entry).to.eql(index);
         index += 2;
-      }
+      });
 
       gen = reiterate(a).keys().slice(-3);
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.eql(8);
-      }
+      });
 
       gen = reiterate(a).keys().slice(1, 3);
       index = 2;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(2, 4);
         expect(entry).to.eql(index);
         index += 2;
-      }
+      });
 
       // reverse
       gen = reiterate(a).keys().slice(1, -3).reverse();
       index = a.length - 4;
-      for (entry of gen) {
+      forOf(gen, function (entry) {
         expect(entry).to.be.within(1, a.length - 4);
         expect(entry).to.eql(index);
         index -= 2;
-      }
+      });
     });
 
     it('String state', function () {
@@ -8201,7 +8330,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     it('ArrayLike of primatives', function () {
@@ -8245,57 +8375,56 @@ process.umask = function() { return 0; };
           length: 7
         },
         index = 0,
-        entry,
         array;
 
       // forward
-      for (entry of reiterate(a, true)) {
+      forOf(reiterate(a, true), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a, true).entries()) {
+      forOf(reiterate(a, true).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a, true).values()) {
+      forOf(reiterate(a, true).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a, true).keys()) {
+      forOf(reiterate(a, true).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       index = a.length - 1;
-      for (entry of reiterate(a, true).reverse()) {
+      forOf(reiterate(a, true).reverse(), function (entry) {
         expect(entry).to.eql(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a, true).entries().reverse()) {
+      forOf(reiterate(a, true).entries().reverse(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a, true).values().reverse()) {
+      forOf(reiterate(a, true).values().reverse(), function (entry) {
         expect(entry).to.be(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate(a, true).keys().reverse()) {
+      forOf(reiterate(a, true).keys().reverse(), function (entry) {
         expect(entry).to.eql(index);
         index -= 1;
-      }
+      });
 
       // unique
       array = reiterate(a, true).values().unique().asArray();
@@ -8344,7 +8473,9 @@ process.umask = function() { return 0; };
     });
 
     it('Array-like state', function () {
-      var gen = reiterate({length: 0}, true).entries().reverse(),
+      var gen = reiterate({
+          length: 0
+        }, true).entries().reverse(),
         state = gen.state();
 
       expect(state).to.eql({
@@ -8358,7 +8489,9 @@ process.umask = function() { return 0; };
         keys: false
       });
 
-      gen = reiterate({length: Number.MAX_SAFE_INTEGER}, true);
+      gen = reiterate({
+        length: Number.MAX_SAFE_INTEGER
+      }, true);
       state = gen.state();
       expect(state).to.eql({
         length: Number.MAX_SAFE_INTEGER,
@@ -8390,7 +8523,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     var a = {
@@ -8415,34 +8549,33 @@ process.umask = function() { return 0; };
         6: [4]
       },
       index,
-      entry,
       array;
 
     it('Object enumerate, no length', function () {
       // forward
       index = 0;
-      for (entry of reiterate(a)) {
+      forOf(reiterate(a), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).entries()) {
+      forOf(reiterate(a).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).values()) {
+      forOf(reiterate(a).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).keys()) {
+      forOf(reiterate(a).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       expect(function () {
@@ -8455,28 +8588,28 @@ process.umask = function() { return 0; };
     it('Object enumerate own, no length', function () {
       // forward
       index = 0;
-      for (entry of reiterate(a).own()) {
+      forOf(reiterate(a).own(), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).own().entries()) {
+      forOf(reiterate(a).own().entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).own().values()) {
+      forOf(reiterate(a).own().values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate(a).own().keys()) {
+      forOf(reiterate(a).own().keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       expect(function () {
@@ -8521,7 +8654,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic static tests', function () {
     it('Array of primatives', function () {
@@ -8530,57 +8664,56 @@ process.umask = function() { return 0; };
         c = [4, 2, 1, 3, 5],
         d = [1, [2], 3, [5, 1, [3]], 1, 2, [4]],
         index = 0,
-        entry,
         array;
 
       // forward
-      for (entry of reiterate.array(a)) {
+      forOf(reiterate.array(a), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.array(a).entries()) {
+      forOf(reiterate.array(a).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.array(a).values()) {
+      forOf(reiterate.array(a).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.array(a).keys()) {
+      forOf(reiterate.array(a).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       index = a.length - 1;
-      for (entry of reiterate.array(a).reverse()) {
+      forOf(reiterate.array(a).reverse(), function (entry) {
         expect(entry).to.eql(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate.array(a).entries().reverse()) {
+      forOf(reiterate.array(a).entries().reverse(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate.array(a).values().reverse()) {
+      forOf(reiterate.array(a).values().reverse(), function (entry) {
         expect(entry).to.be(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate.array(a).keys().reverse()) {
+      forOf(reiterate.array(a).keys().reverse(), function (entry) {
         expect(entry).to.eql(index);
         index -= 1;
-      }
+      });
 
       // unique
       array = reiterate.array(a).values().unique().asArray();
@@ -8662,7 +8795,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic static tests', function () {
     it('UTF-16 string', function () {
@@ -8685,8 +8819,7 @@ process.umask = function() { return 0; };
         iterator = reiterate.string(a).values().map(function (item) {
           return item.codePointAt();
         }),
-        index = 0,
-        entry;
+        index = 0;
 
       // forward
       expect(string).to.be(a);
@@ -8695,10 +8828,10 @@ process.umask = function() { return 0; };
       expect(array).to.eql(c);
       array = reiterate.string(a).entries().asArray();
       expect(array).to.eql(d);
-      for (entry of iterator) {
+      forOf(iterator, function (entry) {
         expect(entry).to.be(e[index]);
         index += 1;
-      }
+      });
 
       // reverse
       string = reiterate.string(a).values().reverse().asString();
@@ -8715,10 +8848,10 @@ process.umask = function() { return 0; };
       });
 
       index = b.length - 1;
-      for (entry of iterator) {
+      forOf(iterator, function (entry) {
         expect(entry).to.be(e[index]);
         index -= 1;
-      }
+      });
     });
 
     it('String state', function () {
@@ -8755,7 +8888,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic static tests', function () {
     it('ArrayLike of primatives', function () {
@@ -8799,57 +8933,56 @@ process.umask = function() { return 0; };
           length: 7
         },
         index = 0,
-        entry,
         array;
 
       // forward
-      for (entry of reiterate.array(a)) {
+      forOf(reiterate.array(a), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.array(a).entries()) {
+      forOf(reiterate.array(a).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.array(a).values()) {
+      forOf(reiterate.array(a).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.array(a).keys()) {
+      forOf(reiterate.array(a).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       index = a.length - 1;
-      for (entry of reiterate.array(a).reverse()) {
+      forOf(reiterate.array(a).reverse(), function (entry) {
         expect(entry).to.eql(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate.array(a).entries().reverse()) {
+      forOf(reiterate.array(a).entries().reverse(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate.array(a).values().reverse()) {
+      forOf(reiterate.array(a).values().reverse(), function (entry) {
         expect(entry).to.be(a[index]);
         index -= 1;
-      }
+      });
 
       index = a.length - 1;
-      for (entry of reiterate.array(a).keys().reverse()) {
+      forOf(reiterate.array(a).keys().reverse(), function (entry) {
         expect(entry).to.eql(index);
         index -= 1;
-      }
+      });
 
       // unique
       array = reiterate.array(a).values().unique().asArray();
@@ -8933,7 +9066,8 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic static tests', function () {
     var a = {
@@ -8958,34 +9092,33 @@ process.umask = function() { return 0; };
         6: [4]
       },
       index,
-      entry,
       array;
 
     it('Object enumerate, no length', function () {
       // forward
       index = 0;
-      for (entry of reiterate.enumerate(a)) {
+      forOf(reiterate.enumerate(a), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.enumerate(a).entries()) {
+      forOf(reiterate.enumerate(a).entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.enumerate(a).values()) {
+      forOf(reiterate.enumerate(a).values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.enumerate(a).keys()) {
+      forOf(reiterate.enumerate(a).keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       expect(function () {
@@ -8998,28 +9131,28 @@ process.umask = function() { return 0; };
     it('Object enumerate own, no length', function () {
       // forward
       index = 0;
-      for (entry of reiterate.enumerate(a).own()) {
+      forOf(reiterate.enumerate(a).own(), function (entry) {
         expect(entry).to.eql(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.enumerate(a).own().entries()) {
+      forOf(reiterate.enumerate(a).own().entries(), function (entry) {
         expect(entry).to.eql([index, a[index]]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.enumerate(a).own().values()) {
+      forOf(reiterate.enumerate(a).own().values(), function (entry) {
         expect(entry).to.be(a[index]);
         index += 1;
-      }
+      });
 
       index = 0;
-      for (entry of reiterate.enumerate(a).own().keys()) {
+      forOf(reiterate.enumerate(a).own().keys(), function (entry) {
         expect(entry).to.eql(index);
         index += 1;
-      }
+      });
 
       // reverse
       expect(function () {
@@ -9064,17 +9197,18 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    forOf = required.forOf;
 
   describe('Basic tests', function () {
     it('Array then defined but not a function', function () {
       function noop() {}
 
       expect(function () {
-        for (var entry of reiterate([]).then(null)) {
+        forOf(reiterate([]).then(null), function (entry) {
           noop(entry);
-          break;
-        }
+          return true;
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
@@ -9088,10 +9222,10 @@ process.umask = function() { return 0; };
       function noop() {}
 
       expect(function () {
-        for (var entry of reiterate(a).flatten()) {
+        forOf(reiterate(a).flatten(), function (entry) {
           noop(entry);
           //break;
-        }
+        });
       }).to.throwException(function (e) {
         expect(e).to.be.a(TypeError);
       });
