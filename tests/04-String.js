@@ -15,7 +15,8 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    codePointAt = required.codePointAt;
+    codePointAt = required.codePointAt,
+    map = required.map;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -30,13 +31,13 @@
           [6, 'C'],
           [7, '\uD835\uDC6A']
         ],
-        e = b.map(function (item) {
-          return item.codePointAt();
+        e = map(b, function (item) {
+          return codePointAt(item);
         }),
         array = reiterate(a).values().asArray(),
         string = reiterate(a).values().asString(),
         iterator = reiterate(a).values().map(function (item) {
-          return item.codePointAt();
+          return codePointAt(item);
         }),
         index = 0;
 

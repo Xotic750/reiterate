@@ -6658,7 +6658,7 @@ process.umask = function() { return 0; };
     if (subject == null) {
       throw new TypeError('null or undefined');
     }
-    
+
     var string = String(subject),
       size = string.length,
       /*jshint bitwise:false */
@@ -6814,6 +6814,42 @@ process.umask = function() { return 0; };
 
       index += 1;
     }
+  };
+
+  module.exports.map = function (array, callback, thisArg) {
+    var object,
+      length,
+      arr,
+      index;
+
+    /*jslint eqnull:true */
+    if (array == null) {
+      throw new TypeError('null or undefined');
+    }
+
+    if (Object.prototype.toString.call(callback) !== '[object Function]') {
+      throw new TypeError('must be a function');
+    }
+
+    object = Object(array);
+    arr = [];
+    /*jshint bitwise:false */
+    arr.length = length = object.length >>> 0;
+    index = 0;
+    while (index < length) {
+      if (index in object) {
+        arr[index] = callback.call(
+          thisArg,
+          object[index],
+          index,
+          object
+        );
+      }
+
+      index += 1;
+    }
+
+    return arr;
   };
 }());
 
@@ -7866,7 +7902,8 @@ process.umask = function() { return 0; };
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    map = required.map;
 
   describe('Basic tests', function () {
     it('Array of primatives', function () {
@@ -7954,7 +7991,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(a.map(function (item) {
+      expect(array).to.eql(map(a, function (item) {
         return String(item);
       }));
 
@@ -7962,7 +7999,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(a.slice().reverse().map(function (item) {
+      expect(array).to.eql(map(a.slice().reverse(), function (item) {
         return String(item);
       }));
 
@@ -8224,7 +8261,8 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    codePointAt = required.codePointAt;
+    codePointAt = required.codePointAt,
+    map = required.map;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -8239,13 +8277,13 @@ process.umask = function() { return 0; };
           [6, 'C'],
           [7, '\uD835\uDC6A']
         ],
-        e = b.map(function (item) {
-          return item.codePointAt();
+        e = map(b, function (item) {
+          return codePointAt(item);
         }),
         array = reiterate(a).values().asArray(),
         string = reiterate(a).values().asString(),
         iterator = reiterate(a).values().map(function (item) {
-          return item.codePointAt();
+          return codePointAt(item);
         }),
         index = 0;
 
@@ -8361,7 +8399,8 @@ process.umask = function() { return 0; };
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    map = required.map;
 
   describe('Basic tests', function () {
     it('ArrayLike of primatives', function () {
@@ -8468,7 +8507,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(d.map(function (item) {
+      expect(array).to.eql(map(d, function (item) {
         return String(item);
       }));
 
@@ -8476,7 +8515,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(d.slice().reverse().map(function (item) {
+      expect(array).to.eql(map(d.slice().reverse(), function (item) {
         return String(item);
       }));
 
@@ -8685,7 +8724,8 @@ process.umask = function() { return 0; };
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    map = required.map;
 
   describe('Basic static tests', function () {
     it('Array of primatives', function () {
@@ -8757,7 +8797,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(a.map(function (item) {
+      expect(array).to.eql(map(a, function (item) {
         return String(item);
       }));
 
@@ -8765,7 +8805,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(a.slice().reverse().map(function (item) {
+      expect(array).to.eql(map(a.slice().reverse(), function (item) {
         return String(item);
       }));
 
@@ -8826,7 +8866,8 @@ process.umask = function() { return 0; };
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    map = required.map;
 
   describe('Basic static tests', function () {
     it('UTF-16 string', function () {
@@ -8841,7 +8882,7 @@ process.umask = function() { return 0; };
           [6, 'C'],
           [7, '\uD835\uDC6A']
         ],
-        e = b.map(function (item) {
+        e = map(b, function (item) {
           return item.codePointAt();
         }),
         array = reiterate.string(a).values().asArray(),
@@ -8919,7 +8960,8 @@ process.umask = function() { return 0; };
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    map = required.map;
 
   describe('Basic static tests', function () {
     it('ArrayLike of primatives', function () {
@@ -9026,7 +9068,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(d.map(function (item) {
+      expect(array).to.eql(map(d, function (item) {
         return String(item);
       }));
 
@@ -9034,7 +9076,7 @@ process.umask = function() { return 0; };
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(d.slice().reverse().map(function (item) {
+      expect(array).to.eql(map(d.slice().reverse(), function (item) {
         return String(item);
       }));
 

@@ -14,7 +14,8 @@
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    map = required.map;
 
   describe('Basic static tests', function () {
     it('UTF-16 string', function () {
@@ -29,7 +30,7 @@
           [6, 'C'],
           [7, '\uD835\uDC6A']
         ],
-        e = b.map(function (item) {
+        e = map(b, function (item) {
           return item.codePointAt();
         }),
         array = reiterate.string(a).values().asArray(),

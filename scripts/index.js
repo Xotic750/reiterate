@@ -23,7 +23,7 @@
     if (subject == null) {
       throw new TypeError('null or undefined');
     }
-    
+
     var string = String(subject),
       size = string.length,
       /*jshint bitwise:false */
@@ -179,5 +179,41 @@
 
       index += 1;
     }
+  };
+
+  module.exports.map = function (array, callback, thisArg) {
+    var object,
+      length,
+      arr,
+      index;
+
+    /*jslint eqnull:true */
+    if (array == null) {
+      throw new TypeError('null or undefined');
+    }
+
+    if (Object.prototype.toString.call(callback) !== '[object Function]') {
+      throw new TypeError('must be a function');
+    }
+
+    object = Object(array);
+    arr = [];
+    /*jshint bitwise:false */
+    arr.length = length = object.length >>> 0;
+    index = 0;
+    while (index < length) {
+      if (index in object) {
+        arr[index] = callback.call(
+          thisArg,
+          object[index],
+          index,
+          object
+        );
+      }
+
+      index += 1;
+    }
+
+    return arr;
   };
 }());

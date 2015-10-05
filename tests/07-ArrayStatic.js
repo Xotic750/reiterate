@@ -14,7 +14,8 @@
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    map = required.map;
 
   describe('Basic static tests', function () {
     it('Array of primatives', function () {
@@ -86,7 +87,7 @@
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(a.map(function (item) {
+      expect(array).to.eql(map(a, function (item) {
         return String(item);
       }));
 
@@ -94,7 +95,7 @@
         return String(item);
       }).asArray();
 
-      expect(array).to.eql(a.slice().reverse().map(function (item) {
+      expect(array).to.eql(map(a.slice().reverse(), function (item) {
         return String(item);
       }));
 
