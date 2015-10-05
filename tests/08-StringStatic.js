@@ -15,6 +15,7 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
+    codePointAt = required.codePointAt,
     map = required.map;
 
   describe('Basic static tests', function () {
@@ -31,12 +32,12 @@
           [7, '\uD835\uDC6A']
         ],
         e = map(b, function (item) {
-          return item.codePointAt();
+          return codePointAt(item);
         }),
         array = reiterate.string(a).values().asArray(),
         string = reiterate.string(a).values().asString(),
         iterator = reiterate.string(a).values().map(function (item) {
-          return item.codePointAt();
+          return codePointAt(item);
         }),
         index = 0;
 
@@ -63,7 +64,7 @@
       array = reiterate.string(a).entries().reverse().asArray();
       expect(array).to.eql(d.reverse());
       iterator = reiterate.string(a).values().reverse().map(function (item) {
-        return item.codePointAt();
+        return codePointAt(item);
       });
 
       index = b.length - 1;
