@@ -18,6 +18,8 @@
     forOf = required.forOf,
     reduce = required.reduce,
     isGeneratorSupported = required.isGeneratorSupported,
+    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER,
+    MIN_SAFE_INTEGER = required.MIN_SAFE_INTEGER,
     aGenerator;
 
   if (isGeneratorSupported) {
@@ -72,7 +74,7 @@
 
       // forward
       forOf(reiterate(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.eql(index);
         index += 1;
         if (index > 10) {
@@ -82,7 +84,7 @@
 
       index = 0;
       forOf(reiterate(undefined), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 1;
         if (index > 10) {
@@ -92,7 +94,7 @@
 
       index = 0;
       forOf(reiterate(null), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 1;
         if (index > 10) {
@@ -108,32 +110,32 @@
       });
 
       // reverse
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate().reverse(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
 
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate(undefined).reverse(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
 
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate(null).reverse(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
@@ -298,7 +300,7 @@
 
       // forward
       forOf(reiterate().from(10), function (entry) {
-        expect(entry).to.be.within(10, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(10, MAX_SAFE_INTEGER);
         expect(entry).to.eql(index);
         index += 1;
         if (index > 20) {
@@ -318,7 +320,7 @@
 
       index = 0;
       forOf(reiterate(null).by(2), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 2;
         if (index > 10) {
@@ -334,12 +336,12 @@
       });
 
       // reverse
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate().from(10).reverse(), function (entry) {
-        expect(entry).to.be.within(10, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(10, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
@@ -492,12 +494,12 @@
 
     it('Counter limits', function () {
       forOf(reiterate().from(-Infinity).to(Infinity), function (entry) {
-        expect(entry).to.be(Number.MIN_SAFE_INTEGER);
+        expect(entry).to.be(MIN_SAFE_INTEGER);
         return true;
       });
 
       forOf(reiterate().from(Infinity).to(-Infinity), function (entry) {
-        expect(entry).to.be(Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be(MAX_SAFE_INTEGER);
         return true;
       });
     });
@@ -949,9 +951,9 @@
 
       expect(state).to.eql({
         reversed: false,
-        from: Number.MIN_SAFE_INTEGER,
-        to: Number.MAX_SAFE_INTEGER,
-        by: Number.MAX_SAFE_INTEGER
+        from: MIN_SAFE_INTEGER,
+        to: MAX_SAFE_INTEGER,
+        by: MAX_SAFE_INTEGER
       });
     });
   });

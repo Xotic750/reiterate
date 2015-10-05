@@ -11,6 +11,8 @@
 (function () {
   'use strict';
 
+  module.exports.MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;
+  module.exports.MIN_SAFE_INTEGER = -module.exports.MAX_SAFE_INTEGER;
   module.exports.expect = require('expect.js');
   if (process.env.MIN) {
     module.exports.subject = require('../lib/reiterate.min');

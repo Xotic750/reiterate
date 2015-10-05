@@ -6646,6 +6646,8 @@ process.umask = function() { return 0; };
 (function () {
   'use strict';
 
+  module.exports.MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;
+  module.exports.MIN_SAFE_INTEGER = -module.exports.MAX_SAFE_INTEGER;
   module.exports.expect = require('expect.js');
   if (process.env.MIN) {
     module.exports.subject = require('../lib/reiterate.min');
@@ -6861,7 +6863,7 @@ process.umask = function() { return 0; };
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:12,
-    maxcomplexity:1
+    maxcomplexity:2
 */
 /*global require, describe, it */
 
@@ -6911,11 +6913,11 @@ process.umask = function() { return 0; };
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new Map());
+        reiterate(typeof Map === 'function' ? new Map() : new reiterate.Map());
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new Set());
+        reiterate(typeof Set === 'function' ? new Set() : new reiterate.Set());
       }).to.not.throwException();
 
       expect(function () {
@@ -6946,6 +6948,8 @@ process.umask = function() { return 0; };
     forOf = required.forOf,
     reduce = required.reduce,
     isGeneratorSupported = required.isGeneratorSupported,
+    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER,
+    MIN_SAFE_INTEGER = required.MIN_SAFE_INTEGER,
     aGenerator;
 
   if (isGeneratorSupported) {
@@ -7000,7 +7004,7 @@ process.umask = function() { return 0; };
 
       // forward
       forOf(reiterate(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.eql(index);
         index += 1;
         if (index > 10) {
@@ -7010,7 +7014,7 @@ process.umask = function() { return 0; };
 
       index = 0;
       forOf(reiterate(undefined), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 1;
         if (index > 10) {
@@ -7020,7 +7024,7 @@ process.umask = function() { return 0; };
 
       index = 0;
       forOf(reiterate(null), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 1;
         if (index > 10) {
@@ -7036,32 +7040,32 @@ process.umask = function() { return 0; };
       });
 
       // reverse
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate().reverse(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
 
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate(undefined).reverse(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
 
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate(null).reverse(), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
@@ -7226,7 +7230,7 @@ process.umask = function() { return 0; };
 
       // forward
       forOf(reiterate().from(10), function (entry) {
-        expect(entry).to.be.within(10, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(10, MAX_SAFE_INTEGER);
         expect(entry).to.eql(index);
         index += 1;
         if (index > 20) {
@@ -7246,7 +7250,7 @@ process.umask = function() { return 0; };
 
       index = 0;
       forOf(reiterate(null).by(2), function (entry) {
-        expect(entry).to.be.within(0, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(0, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index += 2;
         if (index > 10) {
@@ -7262,12 +7266,12 @@ process.umask = function() { return 0; };
       });
 
       // reverse
-      index = Number.MAX_SAFE_INTEGER;
+      index = MAX_SAFE_INTEGER;
       forOf(reiterate().from(10).reverse(), function (entry) {
-        expect(entry).to.be.within(10, Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be.within(10, MAX_SAFE_INTEGER);
         expect(entry).to.be(index);
         index -= 1;
-        if (index < Number.MAX_SAFE_INTEGER - 10) {
+        if (index < MAX_SAFE_INTEGER - 10) {
           return true;
         }
       });
@@ -7420,12 +7424,12 @@ process.umask = function() { return 0; };
 
     it('Counter limits', function () {
       forOf(reiterate().from(-Infinity).to(Infinity), function (entry) {
-        expect(entry).to.be(Number.MIN_SAFE_INTEGER);
+        expect(entry).to.be(MIN_SAFE_INTEGER);
         return true;
       });
 
       forOf(reiterate().from(Infinity).to(-Infinity), function (entry) {
-        expect(entry).to.be(Number.MAX_SAFE_INTEGER);
+        expect(entry).to.be(MAX_SAFE_INTEGER);
         return true;
       });
     });
@@ -7877,9 +7881,9 @@ process.umask = function() { return 0; };
 
       expect(state).to.eql({
         reversed: false,
-        from: Number.MIN_SAFE_INTEGER,
-        to: Number.MAX_SAFE_INTEGER,
-        by: Number.MAX_SAFE_INTEGER
+        from: MIN_SAFE_INTEGER,
+        to: MAX_SAFE_INTEGER,
+        by: MAX_SAFE_INTEGER
       });
     });
   });
@@ -8400,7 +8404,8 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map;
+    map = required.map,
+    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER;
 
   describe('Basic tests', function () {
     it('ArrayLike of primatives', function () {
@@ -8559,13 +8564,13 @@ process.umask = function() { return 0; };
       });
 
       gen = reiterate({
-        length: Number.MAX_SAFE_INTEGER
+        length: MAX_SAFE_INTEGER
       }, true);
       state = gen.state();
       expect(state).to.eql({
-        length: Number.MAX_SAFE_INTEGER,
+        length: MAX_SAFE_INTEGER,
         from: 0,
-        to: Number.MAX_SAFE_INTEGER - 1,
+        to: MAX_SAFE_INTEGER - 1,
         by: 1,
         reversed: false,
         entries: false,
@@ -8867,6 +8872,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
+    codePointAt = required.codePointAt,
     map = required.map;
 
   describe('Basic static tests', function () {
@@ -8883,12 +8889,12 @@ process.umask = function() { return 0; };
           [7, '\uD835\uDC6A']
         ],
         e = map(b, function (item) {
-          return item.codePointAt();
+          return codePointAt(item);
         }),
         array = reiterate.string(a).values().asArray(),
         string = reiterate.string(a).values().asString(),
         iterator = reiterate.string(a).values().map(function (item) {
-          return item.codePointAt();
+          return codePointAt(item);
         }),
         index = 0;
 
@@ -8915,7 +8921,7 @@ process.umask = function() { return 0; };
       array = reiterate.string(a).entries().reverse().asArray();
       expect(array).to.eql(d.reverse());
       iterator = reiterate.string(a).values().reverse().map(function (item) {
-        return item.codePointAt();
+        return codePointAt(item);
       });
 
       index = b.length - 1;

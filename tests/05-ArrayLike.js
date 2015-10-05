@@ -15,7 +15,8 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map;
+    map = required.map,
+    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER;
 
   describe('Basic tests', function () {
     it('ArrayLike of primatives', function () {
@@ -174,13 +175,13 @@
       });
 
       gen = reiterate({
-        length: Number.MAX_SAFE_INTEGER
+        length: MAX_SAFE_INTEGER
       }, true);
       state = gen.state();
       expect(state).to.eql({
-        length: Number.MAX_SAFE_INTEGER,
+        length: MAX_SAFE_INTEGER,
         from: 0,
-        to: Number.MAX_SAFE_INTEGER - 1,
+        to: MAX_SAFE_INTEGER - 1,
         by: 1,
         reversed: false,
         entries: false,
