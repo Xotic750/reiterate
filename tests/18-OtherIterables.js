@@ -13,7 +13,9 @@
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    isGeneratorSupported = required.isGeneratorSupported,
+    symIt = required.iterator;
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
@@ -39,16 +41,55 @@
         c: 3
       };
 
-      a[Symbol.iterator] = function* () {
-        for (var key in this) {
-          if (this.hasOwnProperty(key)) {
-            yield this[key];
-          }
-        }
-      };
+      if (isGeneratorSupported) {
+        /*jshint evil:true */
+        a[symIt] = new Function('return function*(){for(var key in this)' +
+          'if(this.hasOwnProperty(key))yield this[key]};')();
+      } else {
+        a[symIt] = function () {
+          var index = 0,
+            iterable = this,
+            keys;
+
+          return {
+            next: function () {
+              var object;
+
+              keys = keys || (function () {
+                var result = [],
+                  key;
+
+                for (key in iterable) {
+                  if (Object.prototype.hasOwnProperty.call(iterable, key)) {
+                    result.push(iterable[key]);
+                  }
+                }
+
+                return result;
+              }());
+
+              if (index < keys.length) {
+                object = {
+                  done: false,
+                  value: keys[index]
+                };
+
+                index += 1;
+              } else {
+                object = {
+                  done: true,
+                  value: undefined
+                };
+              }
+
+              return object;
+            }
+          };
+        };
+      }
 
       array = reiterate(a).asArray();
-      expect(array).to.eql([1, 2, 3]);
+      expect(array.sort()).to.eql([1, 2, 3]);
 
       a[Symbol.iterator] = function* () {
         for (var key in this) {
