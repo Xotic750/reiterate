@@ -18,6 +18,33 @@
     module.exports.subject = require('../lib/@@MODULE');
   }
 
+  module.exports.codePointAt = function (subject, position) {
+    /*jshint eqnull:true */
+    if (subject == null) {
+      throw new TypeError('null or undefined');
+    }
+    
+    var string = String(subject),
+      size = string.length,
+      /*jshint bitwise:false */
+      index = position >> 0,
+      first,
+      second,
+      val;
+
+    if (index >= 0 && index < size) {
+      first = string.charCodeAt(index);
+      if (first >= 0xD800 && first <= 0xDBFF && size > index + 1) {
+        second = string.charCodeAt(index + 1);
+        if (second >= 0xDC00 && second <= 0xDFFF) {
+          val = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+        }
+      }
+    }
+
+    return val || first;
+  };
+
   module.exports.isGeneratorSupported = (function () {
     try {
       /*jslint evil:true */

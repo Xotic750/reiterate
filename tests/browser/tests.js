@@ -3446,6 +3446,8 @@
       setValue(reiterate, 'repeat', g.RepeatGenerator);
       setValue(reiterate, 'unzip', g.UnzipGenerator);
       setValue(reiterate, 'iterator', symIt);
+      setValue(reiterate, 'Map', MapObject);
+      setValue(reiterate, 'Set', SetObject);
 
       return reiterate;
     }());
@@ -6651,6 +6653,33 @@ process.umask = function() { return 0; };
     module.exports.subject = require('../lib/reiterate');
   }
 
+  module.exports.codePointAt = function (subject, position) {
+    /*jshint eqnull:true */
+    if (subject == null) {
+      throw new TypeError('null or undefined');
+    }
+    
+    var string = String(subject),
+      size = string.length,
+      /*jshint bitwise:false */
+      index = position >> 0,
+      first,
+      second,
+      val;
+
+    if (index >= 0 && index < size) {
+      first = string.charCodeAt(index);
+      if (first >= 0xD800 && first <= 0xDBFF && size > index + 1) {
+        second = string.charCodeAt(index + 1);
+        if (second >= 0xDC00 && second <= 0xDFFF) {
+          val = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+        }
+      }
+    }
+
+    return val || first;
+  };
+
   module.exports.isGeneratorSupported = (function () {
     try {
       /*jslint evil:true */
@@ -8194,7 +8223,8 @@ process.umask = function() { return 0; };
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    codePointAt = required.codePointAt;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -8249,7 +8279,7 @@ process.umask = function() { return 0; };
       array = reiterate(a).entries().reverse().asArray();
       expect(array).to.eql(d.reverse());
       iterator = reiterate(a).values().reverse().map(function (item) {
-        return item.codePointAt();
+        return codePointAt(item);
       });
 
       index = b.length - 1;
@@ -9457,14 +9487,22 @@ process.umask = function() { return 0; };
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
-      var a = new Map().set(0, 1).set(1, 2).set(2, 3),
-        array = reiterate(a).asArray();
+      var array,
+        a;
 
+      if (typeof Map === 'function') {
+        a = new Map().set(0, 1).set(1, 2).set(2, 3);
+      } else {
+        a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3);
+      }
+
+      array = reiterate(a).asArray();
       expect(array).to.eql([
         [0, 1],
         [1, 2],
         [2, 3]
       ]);
+
       array = reiterate(a.values()).asArray();
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();

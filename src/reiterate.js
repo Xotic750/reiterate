@@ -3445,6 +3445,8 @@
       setValue(reiterate, 'repeat', g.RepeatGenerator);
       setValue(reiterate, 'unzip', g.UnzipGenerator);
       setValue(reiterate, 'iterator', symIt);
+      setValue(reiterate, 'Map', MapObject);
+      setValue(reiterate, 'Set', SetObject);
 
       return reiterate;
     }());

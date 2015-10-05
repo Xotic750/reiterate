@@ -19,14 +19,22 @@
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
-      var a = new Map().set(0, 1).set(1, 2).set(2, 3),
-        array = reiterate(a).asArray();
+      var array,
+        a;
 
+      if (typeof Map === 'function') {
+        a = new Map().set(0, 1).set(1, 2).set(2, 3);
+      } else {
+        a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3);
+      }
+
+      array = reiterate(a).asArray();
       expect(array).to.eql([
         [0, 1],
         [1, 2],
         [2, 3]
       ]);
+
       array = reiterate(a.values()).asArray();
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();

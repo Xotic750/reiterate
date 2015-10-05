@@ -14,7 +14,8 @@
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    forOf = required.forOf;
+    forOf = required.forOf,
+    codePointAt = required.codePointAt;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -69,7 +70,7 @@
       array = reiterate(a).entries().reverse().asArray();
       expect(array).to.eql(d.reverse());
       iterator = reiterate(a).values().reverse().map(function (item) {
-        return item.codePointAt();
+        return codePointAt(item);
       });
 
       index = b.length - 1;
