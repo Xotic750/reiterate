@@ -110,16 +110,16 @@
       }
 
       // unique
-      array = reiterate(a, true).values().unique().valueOf();
+      array = reiterate(a, true).values().unique().asArray();
       expect(array).to.eql(b);
 
-      array = reiterate(a, true).values().reverse().unique().valueOf();
+      array = reiterate(a, true).values().reverse().unique().asArray();
       expect(array).to.eql(c);
 
       // map
       array = reiterate(a, true).values().map(function (item) {
         return String(item);
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(d.map(function (item) {
         return String(item);
@@ -127,7 +127,7 @@
 
       array = reiterate(a, true).values().reverse().map(function (item) {
         return String(item);
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(d.slice().reverse().map(function (item) {
         return String(item);
@@ -136,7 +136,7 @@
       // filter
       array = reiterate(a, true).values().filter(function (item) {
         return item === 1;
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(d.filter(function (item) {
         return item === 1;
@@ -144,14 +144,14 @@
 
       array = reiterate(a, true).values().reverse().filter(function (item) {
         return item === 1;
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(d.slice().reverse().filter(function (item) {
         return item === 1;
       }));
 
       // flatten
-      array = reiterate(e, true).values().flatten(true).valueOf();
+      array = reiterate(e, true).values().flatten(true).asArray();
       expect(array).to.eql(d);
     });
 

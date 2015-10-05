@@ -3,7 +3,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:55,
+    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:56,
     maxcomplexity:10
 */
 /*global require, describe, it */
@@ -82,13 +82,13 @@
       }
 
       // unique
-      array = reiterate(a).values().unique().valueOf();
+      array = reiterate(a).values().unique().asArray();
       expect(array).to.eql(b);
 
-      array = reiterate(a).values().reverse().unique().valueOf();
+      array = reiterate(a).values().reverse().unique().asArray();
       expect(array).to.eql(c);
 
-      array = reiterate(a).values().unique().valueOf();
+      array = reiterate(a).values().unique().asArray();
       expect(array).to.eql(b);
 
       array = reiterate(a).values().unique().asSet();
@@ -100,7 +100,7 @@
       // map
       array = reiterate(a).values().map(function (item) {
         return String(item);
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(a.map(function (item) {
         return String(item);
@@ -108,7 +108,7 @@
 
       array = reiterate(a).values().reverse().map(function (item) {
         return String(item);
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(a.slice().reverse().map(function (item) {
         return String(item);
@@ -117,7 +117,7 @@
       // filter
       array = reiterate(a).values().filter(function (item) {
         return item === 1;
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(a.filter(function (item) {
         return item === 1;
@@ -125,14 +125,14 @@
 
       array = reiterate(a).values().reverse().filter(function (item) {
         return item === 1;
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql(a.slice().reverse().filter(function (item) {
         return item === 1;
       }));
 
       // flatten
-      array = reiterate(d).values().flatten().valueOf();
+      array = reiterate(d).values().flatten().asArray();
       expect(array).to.eql(a);
     });
 
@@ -202,7 +202,7 @@
     });
 
     it('Array filter map', function () {
-      var a = reiterate().from(65).to(90).valueOf(),
+      var a = reiterate().from(65).to(90).asArray(),
         index,
         entry,
         counter;
@@ -223,14 +223,14 @@
       }
     });
 
-    it('Array filter valueOf', function () {
-      var a = reiterate().to(10).valueOf(),
+    it('Array filter asArray', function () {
+      var a = reiterate().to(10).asArray(),
         array;
 
       expect(function () {
         array = reiterate(a).values().filter(function (value) {
           return value >= 4 && value <= 6;
-        }).valueOf();
+        }).asArray();
       }).to.not.throwException();
 
       expect(array).to.eql([4, 5, 6]);
@@ -238,7 +238,7 @@
 
     it('Counter every', function () {
       var index = 10,
-        a = reiterate().from(10).to(20).valueOf(),
+        a = reiterate().from(10).to(20).asArray(),
         e;
 
       expect(function () {
@@ -274,7 +274,7 @@
     });
 
     it('Array some', function () {
-      var a = reiterate().from(10).to(20).valueOf(),
+      var a = reiterate().from(10).to(20).asArray(),
         index = 10,
         s;
 
@@ -314,15 +314,15 @@
         array;
 
       // zero
-      array = reiterate(a).values().drop().valueOf();
+      array = reiterate(a).values().drop().asArray();
       expect(array).to.eql(a);
 
       // forward
-      array = reiterate(a).values().drop(2).valueOf();
+      array = reiterate(a).values().drop(2).asArray();
       expect(array).to.eql([3, 4, 5]);
 
       // reverse
-      array = reiterate(a).values().reverse().drop(2).valueOf();
+      array = reiterate(a).values().reverse().drop(2).asArray();
       expect(array).to.eql([3, 2, 1]);
     });
 
@@ -331,15 +331,15 @@
         array;
 
       // zero
-      array = reiterate(a).values().take().valueOf();
+      array = reiterate(a).values().take().asArray();
       expect(array).to.eql([]);
 
       // forward
-      array = reiterate(a).values().take(2).valueOf();
+      array = reiterate(a).values().take(2).asArray();
       expect(array).to.eql([1, 2]);
 
       // reverse
-      array = reiterate(a).values().reverse().take(2).valueOf();
+      array = reiterate(a).values().reverse().take(2).asArray();
       expect(array).to.eql([5, 4]);
     });
 

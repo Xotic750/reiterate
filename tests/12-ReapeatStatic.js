@@ -17,7 +17,7 @@
 
   describe('Basic static tests', function () {
     it('Repeat', function () {
-      expect(reiterate.repeat('a').take(5).valueOf()).to.eql([
+      expect(reiterate.repeat('a').take(5).asArray()).to.eql([
         'a',
         'a',
         'a',

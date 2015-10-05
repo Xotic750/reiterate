@@ -20,7 +20,7 @@
       var a = [1, 2, 3, 4, 1, 2, 3, 4],
         array = reiterate(a).values().takeWhile(function (item) {
           return item < 4;
-        }).valueOf();
+        }).asArray();
 
       expect(array).to.eql([1, 2, 3]);
     });

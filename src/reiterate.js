@@ -8,14 +8,14 @@
  * @module @@MODULE
  */
 
-/*jslint maxlen:80, es6:true, this:true */
+/*jslint maxlen:80, es6:true, this:true, bitwise:true, for:true */
 
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
-    nonbsp:true, singleGroups:false, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:4, maxstatements:36,
-    maxcomplexity:8
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    es3:true, esnext:true, plusplus:true, maxparams:3, maxdepth:6,
+    maxstatements:34, maxcomplexity:23
 */
 
 /*global
@@ -23,18 +23,21 @@
 */
 
 /*property
-    ArrayGenerator, CounterGenerator, ENTRIES, EnumerateGenerator, KEYS,
-    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS, StringGenerator, VALUES, abs,
-    amd, asMap, asObject, asSet, asString, bind, call, charCodeAt,
-    chunkGenerator, compactGenerator, configurable, defineProperty,
-    differenceGenerator, dropGenerator, dropWhileGenerator, entries,
-    enumerable, every, exports, filterGenerator, first, flattenGenerator,
-    floor, forEach, from, has, hasOwnAsSet, hasOwnProperty, initialGenerator,
-    intersectionGenerator, isArray, isFinite, isNaN, join, keys, last, length,
-    mapGenerator, max, min, prototype, reduce, repeatGenerator, restGenerator,
-    reverse, reversed, sign, some, takeGenerator, takeWhileGenerator,
-    tapGenerator, then, to, toString, unionGenerator, uniqueGenerator, value,
-    valueOf, values, writable, zipGenerator
+    ArrayGenerator, CounterGenerator, DONE, ENTRIES, EnumerateGenerator, KEYS,
+    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS, RepeatGenerator, StringGenerator,
+    ThenGenerator, UnzipGenerator, VALUES, abs, add, amd, apply, asArray,
+    asMap, asObject, asSet, asSetOwn, asString, assign, by, call, charCodeAt,
+    chunkGenerator, codePointAt, compactGenerator, configurable,
+    defineProperty, differenceGenerator, done, drop, dropGenerator,
+    dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
+    first, flattenGenerator, floor, forEach, from, fromCharCode, fromCodePoint,
+    get, has, hasOwnProperty, index, indexOf, initialGenerator,
+    intersectionGenerator, isArray, isFinite, isNaN, iterator, join, keys,
+    last, length, mapGenerator, max, min, next, own, pow, prev, prototype,
+    push, reduce, rest, restGenerator, reverse, reversed, set, sign, size,
+    some, splice, takeGenerator, takeWhileGenerator, tapGenerator, then, to,
+    toString, unionGenerator, uniqueGenerator, value, values, writable,
+    zipGenerator
 */
 
 /**
@@ -46,31 +49,87 @@
 (function (root, factory) {
   'use strict';
 
-  if (typeof define === 'function' && define.amd) {
+  var typeFunction = typeof factory,
+
+    typeObject = typeof Object.prototype,
+
+    /**
+     * Checks if value is the language type of Object.
+     * (e.g. arrays, functions, objects, regexes, new Number(0),
+     * and new String('')).
+     *
+     * @private
+     * @param {*} subject The value to check.
+     * @return {boolean} Returns true if value is an object, else false.
+     */
+    isObject = function (subject) {
+      var type;
+
+      if (!subject) {
+        type = false;
+      } else {
+        type = typeof subject;
+        type = type === typeObject || type === typeFunction;
+      }
+
+      return type;
+    },
+
+    defineProperty = (function (odp) {
+      var fn,
+        obj;
+
+      if (odp) {
+        obj = {};
+        // IE 8 only supports `Object.defineProperty` on DOM elements
+        try {
+          fn = odp(obj, obj, obj) && odp;
+        } catch (ignore) {}
+      }
+
+      if (!fn) {
+        fn = function (object, property, descriptor) {
+          if (!isObject(object)) {
+            throw new TypeError('called on non-object');
+          }
+
+          object[property] = descriptor.value;
+
+          return object;
+        };
+      }
+
+      return fn;
+    }(Object.defineProperty));
+
+  if (typeof define === typeFunction && define.amd) {
     /*
      * AMD. Register as an anonymous module.
      */
-    define([], factory);
-  } else if (typeof module === 'object' && module.exports) {
+    define([], function () {
+      return factory(isObject, defineProperty);
+    });
+
+  } else if (typeof module === typeObject && module.exports) {
     /*
      * Node. Does not work with strict CommonJS, but
      * only CommonJS-like environments that support module.exports,
      * like Node.
      */
-    module.exports = factory();
+    module.exports = factory(isObject, defineProperty);
   } else {
     /*
      * Browser globals (root is window)
      */
-    if (root.hasOwnProperty('@@MODULE')) {
+    if (Object.prototype.hasOwnProperty.call(root, '@@MODULE')) {
       throw new Error('Unable to define "@@MODULE"');
     }
 
-    Object.defineProperty(root, '@@MODULE', {
+    defineProperty(root, '@@MODULE', {
       enumerable: false,
       writable: true,
       configurable: true,
-      value: factory()
+      value: factory(isObject, defineProperty)
     });
   }
 }(
@@ -84,71 +143,23 @@
    * Factory function
    *
    * @private
+   * @param {function} isObject
+   * @param {function} defineProperty
    * @return {function} The function be exported
    */
-  function () {
+  function (isObject, defineProperty) {
     'use strict';
 
     /* constants */
-    var Reiterate,
+    var reiterate,
 
-      /**
-       * Returns a boolean indicating whether the object has the specified
-       * property. This function can be used to determine whether an object
-       * has the specified property as a direct property of that object; this
-       * method does not check down the object's prototype chain.
-       *
-       * @private
-       * @param {Object} subject The object to test for the property.
-       * @param {string} property The property to be tested.
-       * @return {boolean} True if the object has the direct specified
-       *                   property, otherwise false.
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
-       * Reference/Global_Objects/Object/hasOwnProperty
-       */
-      hasOwn = Function.call.bind(Object.prototype.hasOwnProperty),
+      strDelete = 'delete',
 
-      /**
-       * Provides a string representation of the supplied object in the form
-       * "[object type]", where type is the object type.
-       *
-       * @private
-       * @param {*} subject The object for which a class string represntation
-       *                    is required.
-       * @return {string} A string value of the form "[object type]".
-       * @see http://www.ecma-international.org/ecma-262/6.0/
-       * #sec-object.prototype.tostring
-       */
-      toStringTag = Function.call.bind(Object.prototype.toString),
+      strFor = 'for',
 
-      /**
-       * Executes a provided function once per array element.
-       *
-       * @private
-       * @param {array} arrayLike
-       * @param {function} callback
-       * @throws {TypeError} If callback is not a function
-       * @param {*} [thisArg]
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
-       * Global_Objects/Array/forEach
-       */
-      forEach = Function.call.bind(Array.prototype.forEach),
+      MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || Math.pow(2, 53) - 1,
 
-      /**
-       * Apply a function against an accumulator and each value of the array
-       * (from left-to-right) as to reduce it to a single value.
-       *
-       * @private
-       * @param {array} arrayLike
-       * @throws {TypeError} If array is null or undefined
-       * @param {Function} callback
-       * @throws {TypeError} If callback is not a function
-       * @param {*} [initialValue]
-       * @return {*}
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
-       * Global_Objects/Array/reduce
-       */
-      reduce = Function.call.bind(Array.prototype.reduce),
+      MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER || -MAX_SAFE_INTEGER,
 
       /**
        * The private namespace for common values.
@@ -156,6 +167,11 @@
        * @namespace
        */
       $ = {
+
+        DONE: {
+          done: true,
+          value: undefined
+        },
 
         /**
          * The private namespace for common options.
@@ -200,6 +216,97 @@
 
       },
 
+      symIt = Symbol && Symbol.iterator ? Symbol.iterator : 'Symbol.iterator',
+
+      /**
+       * Returns true if the operand subject is null or undefined.
+       *
+       * @private
+       * @param {*} subject The object to be tested.
+       * @return {boolean} True if undefined or null, otherwise false.
+       */
+      isNil = function (subject) {
+        /*jshint eqnull:true */
+        return subject == null;
+      },
+
+      /**
+       * The abstract operation throws an error if its argument is a value that
+       * cannot be converted to an Object, otherwise returns the argument.
+       *
+       * @private
+       * @param {*} subject The object to be tested.
+       * @throws {TypeError} If subject is null or undefined.
+       * @return {*} The subject if coercible.
+       */
+      requireObjectCoercible = function (subject) {
+        if (isNil(subject)) {
+          throw new TypeError('Cannot convert argument to object');
+        }
+
+        return subject;
+      },
+
+      /**
+       * The abstract operation converts its argument to a value of type Object.
+       *
+       * @private
+       * @param {*} subject The argument to be converted to an object.
+       * @throws {TypeError} If subject is not coercible to an object.
+       * @return {Object} Value of subject as type Object.
+       * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
+       */
+      toObject = (function (asArray) {
+        return function (subject) {
+          var object;
+
+          if (isObject(requireObjectCoercible(subject))) {
+            object = subject;
+          } else {
+            object = asArray.call(subject);
+          }
+
+          return object;
+        };
+      }(Object.prototype.asArray)),
+
+      /**
+       * Returns a boolean indicating whether the object has the specified
+       * property. This function can be used to determine whether an object
+       * has the specified property as a direct property of that object; this
+       * method does not check down the object's prototype chain.
+       *
+       * @private
+       * @param {Object} subject The object to test for the property.
+       * @param {string} property The property to be tested.
+       * @return {boolean} True if the object has the direct specified
+       *                   property, otherwise false.
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
+       * Reference/Global_Objects/Object/hasOwnProperty
+       */
+      hasOwn = (function (hop) {
+        return function (subject, property) {
+          return hop.call(toObject(subject), property);
+        };
+      }(Object.prototype.hasOwnProperty)),
+
+      /**
+       * Provides a string representation of the supplied object in the form
+       * "[object type]", where type is the object type.
+       *
+       * @private
+       * @param {*} subject The object for which a class string represntation
+       *                    is required.
+       * @return {string} A string value of the form "[object type]".
+       * @see http://www.ecma-international.org/ecma-262/6.0/
+       * #sec-object.prototype.tostring
+       */
+      toStringTag = (function (ts) {
+        return function (subject) {
+          return ts.call(subject);
+        };
+      }(Object.prototype.toString)),
+
       /**
        * Defines a new property directly on an object, or throws an error if
        * there is an existing property on an object, and returns the object.
@@ -217,12 +324,14 @@
       setValue = (function (descriptor) {
         return function (object, property, value) {
           if (hasOwn(object, property)) {
-            throw new Error('property already exists on object');
+            throw new Error(
+              'property "' + property + '" already exists on object'
+            );
           }
 
           descriptor.value = value;
 
-          return Object.defineProperty(object, property, descriptor);
+          return defineProperty(object, property, descriptor);
         };
       }({
         enumerable: false,
@@ -232,16 +341,174 @@
       })),
 
       /**
-       * Returns true if the operand inputArg is null or undefined.
+       * Returns true if the operand subject is a Function
        *
        * @private
        * @param {*} subject The object to be tested.
-       * @return {boolean} True if undefined or null, otherwise false.
+       * @return {boolean} True if the object is a function, otherwise false.
        */
-      isNil = function (subject) {
-        /*jshint eqnull:true */
-        return subject == null;
-      },
+      isFunction = (function (tagFunction, typeFunction) {
+        return function (subject) {
+          var tag = toStringTag(subject),
+            result = false;
+
+          if (isObject(subject)) {
+            tag = toStringTag(subject);
+            if (tag === tagFunction) {
+              result = true;
+            } else if (tag === '[object GeneratorFunction]') {
+              result = typeof subject === typeFunction;
+            }
+          }
+
+          return result;
+        };
+      }(toStringTag(isNil), typeof isNil)),
+
+      /**
+       * Checks if value is object-like. A value is object-like if it's not null
+       * and has a typeof result of "object".
+       *
+       * @privaye
+       * @param {*} subject The value to check.
+       * @return {boolean} Returns true if value is object-like, else false.
+       */
+      isObjectLike = (function (typeObject) {
+        return function (subject) {
+          return !!subject && typeof subject === typeObject;
+        };
+      }(typeof Object.prototype)),
+
+      isDate = (function (tag) {
+        return function (value) {
+          return isObjectLike(value) && toStringTag(value) === tag;
+        };
+      }(toStringTag(new Date()))),
+
+      toPrimitive = (function (typeStr, typeNum) {
+        var stringOrder = ['toString', 'valueOf'],
+          numberOrder = stringOrder.reverse();
+
+        return function (subject, hint) {
+          var methodNames,
+            method,
+            index,
+            result;
+
+          if (!isObject(subject)) {
+            result = subject;
+          } else {
+            /*jshint singleGroups:false */
+            if (hint === typeStr || (hint !== typeNum && isDate(subject))) {
+              methodNames = stringOrder;
+            } else {
+              methodNames = numberOrder;
+            }
+
+            index = 0;
+            while (index < 2) {
+              method = methodNames[index];
+              if (isFunction(subject[method])) {
+                result = subject[method]();
+                if (!isObject(result)) {
+                  break;
+                }
+              }
+
+              index += 1;
+            }
+
+            throw new TypeError('ordinaryToPrimitive returned an object');
+          }
+
+          return result;
+        };
+      }(typeof strDelete, typeof MAX_SAFE_INTEGER)),
+
+      toNumber = (function () {
+        var typeUndefined = typeof undefined,
+          typeBoolean = typeof false,
+          typeNumber = typeof MAX_SAFE_INTEGER,
+          typeString = typeof strDelete,
+          typeSymbol,
+          fn;
+
+        if (Symbol && Symbol[strFor]) {
+          typeSymbol = typeof Symbol[strFor](strFor);
+        }
+
+        fn = function (subject) {
+          var type,
+            val;
+
+          if (subject === null) {
+            val = +0;
+          } else {
+            type = typeof subject;
+            if (type === typeUndefined) {
+              val = NaN;
+            } else if (type === typeBoolean) {
+              val = subject ? 1 : +0;
+            } else if (type === typeNumber) {
+              val = subject;
+            } else if (type === typeString) {
+              val = Number(subject);
+            } else {
+              if (typeSymbol && type === typeSymbol) {
+                throw new TypeError('Can not convert symbol to a number');
+              }
+
+              val = fn(toPrimitive(subject, typeNumber));
+            }
+          }
+
+          return val;
+        };
+
+        return fn;
+      }()),
+
+      sign = (function (ms) {
+        var fn;
+
+        if (ms) {
+          fn = ms;
+        } else {
+          fn = function (value) {
+            return toNumber(value) && (toNumber(value >= 0) || -1);
+          };
+        }
+
+        return fn;
+      }(Math.sign)),
+
+      numIsNaN = (function (nin, typeNumber) {
+        var fn;
+
+        if (nin) {
+          fn = nin;
+        } else {
+          fn = function (subject) {
+            return typeof subject === typeNumber && isNaN(subject);
+          };
+        }
+
+        return fn;
+      }(Number.isNaN, typeof MAX_SAFE_INTEGER)),
+
+      numIsFinite = (function (nif, typeNumber) {
+        var fn;
+
+        if (nif) {
+          fn = nif;
+        } else {
+          fn = function (subject) {
+            return typeof subject === typeNumber && isFinite(subject);
+          };
+        }
+
+        return fn;
+      }(Number.isFinite, typeof MAX_SAFE_INTEGER)),
 
       /**
        * The function evaluates the passed value and converts it to an
@@ -255,19 +522,19 @@
        * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger
        */
       toInteger = function (subject) {
-        var number = +subject;
+        var number = toNumber(subject);
 
-        if (Number.isNaN(number)) {
+        if (numIsNaN(number)) {
           number = 0;
-        } else if (number && Number.isFinite(number)) {
-          number = Math.sign(number) * Math.floor(Math.abs(number));
+        } else if (number && numIsFinite(number)) {
+          number = sign(number) * Math.floor(Math.abs(number));
         }
 
         return number;
       },
 
       /**
-       * Returns true if the operand inputArg is a Number.
+       * Returns true if the operand subject is a Number.
        *
        * @private
        * @param {*} subject The object to be to tested.
@@ -277,10 +544,15 @@
         return function (subject) {
           var type = typeof subject;
 
+          /*jshint singleGroups:false */
           return type === typeNumber ||
             (type === typeObject && toStringTag(subject) === tag);
         };
-      }(toStringTag(0), typeof 0, typeof Object.prototype)),
+      }(
+        toStringTag(MAX_SAFE_INTEGER),
+        typeof MAX_SAFE_INTEGER,
+        typeof Object.prototype
+      )),
 
       /**
        * Returns true if the operand subject is undefined
@@ -296,20 +568,7 @@
       }(typeof undefined)),
 
       /**
-       * Returns true if the operand subject is a Function
-       *
-       * @private
-       * @param {*} subject The object to be tested.
-       * @return {boolean} True if the object is a function, otherwise false.
-       */
-      isFunction = (function (typeFunction) {
-        return function (subject) {
-          return typeof subject === typeFunction;
-        };
-      }(typeof Function)),
-
-      /**
-       * Returns true if the operand inputArg is a String.
+       * Returns true if the operand subject is a String.
        *
        * @private
        * @param {*} subject
@@ -319,10 +578,11 @@
         return function (subject) {
           var type = typeof subject;
 
+          /*jshint singleGroups:false */
           return type === typeString ||
             (type === typeObject && toStringTag(subject) === tag);
         };
-      }(toStringTag(''), typeof '', typeof Object.prototype)),
+      }(toStringTag(strDelete), typeof strDelete, typeof Object.prototype)),
 
       /**
        * Checks if value is a valid array-like length.
@@ -337,9 +597,9 @@
           return typeof subject === typeNumber &&
             subject > -1 &&
             subject % 1 === 0 &&
-            subject <= Number.MAX_SAFE_INTEGER;
+            subject <= MAX_SAFE_INTEGER;
         };
-      }(typeof 0)),
+      }(typeof MAX_SAFE_INTEGER)),
 
       /**
        * Checks if value is array-like. A value is considered array-like if
@@ -371,17 +631,36 @@
        *                   otherwise false.
        * @see http://www.ecma-international.org/ecma-262/6.0/#sec-isarray
        */
-      isArray = function (subject, relaxed) {
-        var isA;
+      isArray = (function (ai, tag) {
+        var fn;
 
-        if (relaxed) {
-          isA = isArrayLike(subject) && !isString(subject);
+        if (ai) {
+          fn = ai;
+        } else if (tag === '[object Array]') {
+          fn = function (subject) {
+            return isArrayLike(subject) && toStringTag(subject) === tag;
+          };
         } else {
-          isA = Array.isArray(subject);
+          fn = function (subject) {
+            return isArrayLike(subject) &&
+              !isString(subject) &&
+              hasOwn(subject, 'length') &&
+              hasOwn(subject, 'callee');
+          };
         }
 
-        return isA;
-      },
+        return function (subject, relaxed) {
+          var isA;
+
+          if (relaxed) {
+            isA = isArrayLike(subject) && !isString(subject);
+          } else {
+            isA = fn(subject);
+          }
+
+          return isA;
+        };
+      }(Array.isArray, toStringTag([]))),
 
       /**
        * Tests if the two character arguments combined are a valid UTF-16
@@ -411,6 +690,97 @@
         return result;
       },
 
+      codePointAt = (function (spc) {
+        var fn;
+
+        if (spc) {
+          fn = function (string, position) {
+            return spc.call(string, position);
+          };
+        } else {
+          fn = function (subject, position) {
+            var string = String(requireObjectCoercible(subject)),
+              size = string.length,
+              index = toInteger(position),
+              first,
+              second,
+              val;
+
+            if (index >= 0 && index < size) {
+              first = string.charCodeAt(index);
+              if (first >= 0xD800 && first <= 0xDBFF && size > index + 1) {
+                second = string.charCodeAt(index + 1);
+                if (second >= 0xDC00 && second <= 0xDFFF) {
+                  val = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+                }
+              }
+            }
+
+            return val || first;
+          };
+        }
+
+        return fn;
+      }(String.prototype.codePointAt)),
+
+      /**
+       * The isInteger method determines whether the passed value is an integer.
+       * If the target value is an integer, return true, otherwise return false.
+       * If the value is NaN or infinite, return false.
+       *
+       * @private
+       * @param {*} subject
+       * @return {boolean}
+       */
+      isInteger = function (subject) {
+        return numIsFinite(subject) && toInteger(subject) === subject;
+      },
+
+      fromCodePoint = (function (sf, stringFromCharCode) {
+        var fn;
+
+        if (sf) {
+          fn = sf;
+        } else {
+          fn = function () {
+            var MAX_SIZE = 0x4000,
+              codeUnits = [];
+
+            return reduce(arguments, function (result, arg) {
+              var codePnt = toNumber(arg),
+                highSurrogate,
+                lowSurrogate;
+
+              if (!isInteger(codePnt) || codePnt < 0 || codePnt > 0x10FFFF) {
+                throw new RangeError('Invalid codePnt point: ' + codePnt);
+              }
+
+              if (codePnt <= 0xFFFF) {
+                codeUnits.push(codePnt);
+              } else {
+                codePnt -= 0x10000;
+                /*jshint singleGroups:false */
+                /*jshint bitwise:false */
+                highSurrogate = (codePnt >> 10) + 0xD800;
+                /*jshint bitwise:true */
+                lowSurrogate = (codePnt % 0x400) + 0xDC00;
+                /*jshint singleGroups:true */
+                codeUnits.push(highSurrogate, lowSurrogate);
+              }
+
+              if (codeUnits.length > MAX_SIZE) {
+                result += stringFromCharCode.apply(null, codeUnits);
+                codeUnits.length = 0;
+              }
+
+              return result;
+            }, '') + stringFromCharCode.apply(null, codeUnits);
+          };
+        }
+
+        return fn;
+      }(String.fromCodePoint, String.fromCharCode)),
+
       /**
        * Tests the subject to see if it is a function and throws an error if
        * it is not.
@@ -429,26 +799,6 @@
       },
 
       /**
-       * Tests the subject to see if it is undefined, if not then the subject
-       * must be a function, otherwise throw an error.
-       *
-       * @private
-       * @param {*} subject The argument to test for validity
-       * @throws {TypeError} If subject is not undefined and is not a
-       *                     function.
-       * @return {*} Returns the subject if passes.
-       */
-      mustBeFunctionIfDefined = function (subject, name) {
-        if (!isUndefined(subject) && !isFunction(subject)) {
-          throw new TypeError(
-            'If not undefined, ' + name + ' must be a function'
-          );
-        }
-
-        return subject;
-      },
-
-      /**
        * Converts the subject into a safe number within the max and min safe
        * integer range.
        *
@@ -459,12 +809,12 @@
       clampToSafeIntegerRange = function (subject) {
         var number = +subject;
 
-        if (Number.isNaN(number)) {
+        if (numIsNaN(number)) {
           number = 0;
-        } else if (number < Number.MIN_SAFE_INTEGER) {
-          number = Number.MIN_SAFE_INTEGER;
-        } else if (number > Number.MAX_SAFE_INTEGER) {
-          number = Number.MAX_SAFE_INTEGER;
+        } else if (number < MIN_SAFE_INTEGER) {
+          number = MIN_SAFE_INTEGER;
+        } else if (number > MAX_SAFE_INTEGER) {
+          number = MAX_SAFE_INTEGER;
         }
 
         return number;
@@ -485,38 +835,12 @@
 
         if (length <= 0) {
           length = 0;
-        } else if (length > Number.MAX_SAFE_INTEGER) {
-          length = Number.MAX_SAFE_INTEGER;
+        } else if (length > MAX_SAFE_INTEGER) {
+          length = MAX_SAFE_INTEGER;
         }
 
         return length;
       },
-
-      /**
-       * Checks if value is the language type of Object.
-       * (e.g. arrays, functions, objects, regexes, new Number(0),
-       * and new String('')).
-       *
-       * @private
-       * @param {*} subject The value to check.
-       * @return {boolean} Returns true if value is an object, else false.
-       */
-      /*
-      isObject = (function (typeObject, typeFunction) {
-        return function (subject) {
-          var type;
-
-          if (!subject) {
-            type = false;
-          } else {
-            type = typeof subject;
-            type = type === typeObject || type === typeFunction;
-          }
-
-          return type;
-        };
-      }(typeof Object.prototype, typeof Function)),
-      */
 
       /**
        * Checks if an object already exists in a stack (Set), if it does then
@@ -552,6 +876,315 @@
         return generator;
       },
 
+      chop = function (array, start, end) {
+        var object = toObject(array),
+          length = toLength(object.length),
+          relativeStart = toInteger(start),
+          val = [],
+          next = 0,
+          relativeEnd,
+          finalEnd,
+          k;
+
+        if (relativeStart < 0) {
+          k = Math.max(length + relativeStart, 0);
+        } else {
+          k = Math.min(relativeStart, length);
+        }
+
+        if (isUndefined(end)) {
+          relativeEnd = length;
+        } else {
+          relativeEnd = toInteger(end);
+        }
+
+        if (relativeEnd < 0) {
+          finalEnd = Math.max(length + relativeEnd, 0);
+        } else {
+          finalEnd = Math.min(relativeEnd, length);
+        }
+
+        finalEnd = toLength(finalEnd);
+        val.length = toLength(Math.max(finalEnd - k, 0));
+        while (k < finalEnd) {
+          if (k in object) {
+            val[next] = object[k];
+          }
+
+          next += 1;
+          k += 1;
+        }
+
+        return val;
+      },
+
+      /*
+      map = (function (apm) {
+        var fn;
+
+        if (apm) {
+          fn = function (array) {
+            return apm.apply(array, chop(arguments, 1));
+          };
+        } else {
+          fn = function (array, callback, thisArg) {
+            var object = toObject(array),
+              length,
+              arr,
+              index;
+
+            mustBeFunction(fn);
+            arr = [];
+            arr.length = length = toLength(object.length);
+            index = 0;
+            while (index < length) {
+              if (index in object) {
+                arr[index] = callback.call(
+                  thisArg,
+                  object[index],
+                  index,
+                  object
+                );
+              }
+
+              index += 1;
+            }
+
+            return arr;
+          };
+        }
+
+        return fn;
+      }(Array.prototype.map)),
+
+      filter = (function (apf) {
+        var fn;
+
+        if (apf) {
+          fn = function (array) {
+            return apf.apply(array, chop(arguments, 1));
+          };
+        } else {
+          fn = function (array, callback, thisArg) {
+            var object = toObject(array),
+              length,
+              arr,
+              index,
+              it;
+
+            mustBeFunction(callback);
+            length = toLength(object.length);
+            arr = [];
+            index = 0;
+            while (index < length) {
+              if (index in object) {
+                it = object[index];
+                if (callback.call(thisArg, it, index, object)) {
+                  arr.push(it);
+                }
+              }
+
+              index += 1;
+            }
+
+            return arr;
+          };
+        }
+
+        return fn;
+      }(Array.prototype.filter)),
+      */
+
+      /*
+      curry = (function () {
+        return function (fn) {
+          var args;
+
+          mustBeFunction(fn);
+          args = chop(arguments, 1);
+          return function () {
+            return fn.apply(this, args.concat(chop(arguments)));
+          };
+        };
+      }()),
+      */
+
+      /**
+       * Executes a provided function once per array element.
+       *
+       * @private
+       * @param {array} arrayLike
+       * @param {function} callback
+       * @throws {TypeError} If callback is not a function
+       * @param {*} [thisArg]
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
+       * Global_Objects/Array/forEach
+       */
+      forEach = (function (apf) {
+        var fn;
+
+        if (apf) {
+          fn = function (array) {
+            return apf.apply(array, chop(arguments, 1));
+          };
+        } else {
+          fn = function (array, callback, thisArg) {
+            var object = toObject(array),
+              length,
+              index;
+
+            mustBeFunction(callback);
+            length = toLength(object.length);
+            index = 0;
+            while (index < length) {
+              if (index in object) {
+                callback.call(thisArg, object[index], index, object);
+              }
+
+              index += 1;
+            }
+          };
+        }
+
+        return fn;
+      }(Array.prototype.forEach)),
+
+      /**
+       * Apply a function against an accumulator and each value of the array
+       * (from left-to-right) as to reduce it to a single value.
+       *
+       * @private
+       * @param {array} arrayLike
+       * @throws {TypeError} If array is null or undefined
+       * @param {Function} callback
+       * @throws {TypeError} If callback is not a function
+       * @param {*} [initialValue]
+       * @return {*}
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
+       * Global_Objects/Array/reduce
+       */
+      reduce = (function (apr) {
+        var msg,
+          fn;
+
+        if (apr) {
+          fn = function (array) {
+            return apr.apply(array, chop(arguments, 1));
+          };
+        } else {
+          msg = 'reduce of empty array with no initial value';
+          fn = function (array, callback, initialValue) {
+            var object = toObject(array),
+              acc,
+              length,
+              kPresent,
+              index;
+
+            mustBeFunction(callback);
+            length = toLength(object.length);
+            if (!length && arguments.length === 1) {
+              throw new TypeError(msg);
+            }
+
+            index = 0;
+            if (arguments.length > 1) {
+              acc = initialValue;
+            } else {
+              kPresent = false;
+              while (!kPresent && index < length) {
+                kPresent = index in object;
+                if (kPresent) {
+                  acc = object[index];
+                  index += 1;
+                }
+              }
+
+              if (!kPresent) {
+                throw new TypeError(msg);
+              }
+            }
+
+            while (index < length) {
+              if (index in object) {
+                acc = callback.call(
+                  undefined,
+                  acc,
+                  object[index],
+                  index,
+                  object
+                );
+              }
+
+              index += 1;
+            }
+
+            return acc;
+          };
+        }
+
+        return fn;
+      }(Array.prototype.reduce)),
+
+      every = (function (ape) {
+        var fn;
+
+        if (ape) {
+          fn = function (array) {
+            return ape.apply(array, chop(arguments, 1));
+          };
+        } else {
+          fn = function (array, callback, thisArg) {
+            var object = toObject(array),
+              length,
+              val,
+              index;
+
+            mustBeFunction(callback);
+            length = toLength(object.length);
+            val = true;
+            index = 0;
+            while (index < length) {
+              if (index in object) {
+                val = !!callback.call(thisArg, object[index], index, object);
+                if (!val) {
+                  break;
+                }
+              }
+
+              index += 1;
+            }
+
+            return val;
+          };
+        }
+
+        return fn;
+      }(Array.prototype.every)),
+
+      objectKeys = (function (ok) {
+        var fn;
+
+        if (ok) {
+          fn = ok;
+        } else {
+          fn = function (subject) {
+            var object = toObject(subject),
+              ownKeys = [],
+              key;
+
+            for (key in object) {
+              if (hasOwn(object, key)) {
+                ownKeys.push(key);
+              }
+            }
+
+            return ownKeys;
+          };
+        }
+
+        return fn;
+      }(Object.keys)),
+
       /**
        * The assign function is used to copy the values of all of the
        * enumerable own properties from a source object to a target object.
@@ -561,20 +1194,416 @@
        * @param {...Object} source
        * @return {Object}
        */
-      assign = function (target) {
-        function copy(key) {
-          /*jshint validthis:true */
-          target[key] = this[key];
+      assign = (function (oa) {
+        var fn;
+
+        if (oa) {
+          fn = oa;
+        } else {
+          fn = function (target) {
+            var object = toObject(target);
+
+            function copy(key) {
+              /*jshint validthis:true */
+              object[key] = this[key];
+            }
+
+            forEach(chop(arguments, 1), function (arg) {
+              if (!isNil(arg)) {
+                forEach(objectKeys(arg), copy, arg);
+              }
+            });
+
+            return object;
+          };
         }
 
-        forEach(arguments, function (arg, index) {
-          if (index && !isNil(arg)) {
-            Object.keys(arg).forEach(copy, arg);
-          }
-        });
+        return fn;
+      }(Object.assign)),
 
-        return target;
+      indexOf = (function (api) {
+        var fn = api;
+
+        if (api) {
+          fn = function (array) {
+            return api.apply(array, chop(arguments, 1));
+          };
+        } else {
+          fn = function (array, searchElement, fromIndex) {
+            var object = toObject(array),
+              length = toLength(object.length),
+              val = -1,
+              index;
+
+            if (length) {
+              if (arguments.length > 1) {
+                fromIndex = toInteger(fromIndex);
+              } else {
+                fromIndex = 0;
+              }
+
+              if (fromIndex < length) {
+                if (fromIndex < 0) {
+                  fromIndex = length - Math.abs(fromIndex);
+                  if (fromIndex < 0) {
+                    fromIndex = 0;
+                  }
+                }
+
+                index = fromIndex;
+                while (index < length) {
+                  if (index in object && searchElement === object[index]) {
+                    val = index;
+                    break;
+                  }
+
+                  index += 1;
+                }
+              }
+            }
+
+            return val;
+          };
+        }
+
+        return fn;
+      }(Array.prototype.indexOf)),
+
+      is = function (x, y) {
+        /*jshint singleGroups:false */
+        return (x === y && (x !== 0 || 1 / x === 1 / y)) ||
+          (numIsNaN(x) && numIsNaN(y));
       },
+
+      getIndex = function (array, item) {
+        var index;
+
+        if (item === 0 || numIsNaN(item)) {
+          index = array.length - 1;
+          while (index >= 0 && !is(item, array[index])) {
+            index -= 1;
+          }
+        } else {
+          index = indexOf(array, item);
+        }
+
+        return index;
+      },
+
+      includes = function (array, item) {
+        return -1 < getIndex(array, item);
+      },
+
+      SetObject = (function (s) {
+        var fn;
+
+        if (s) {
+          fn = s;
+        } else {
+          fn = function (iterable) {
+            var iterator,
+              next;
+
+            setValue(this, 'keys', []);
+            if (!isNil(iterable)) {
+              if (isArrayLike(iterable)) {
+                iterator = reiterate(iterable, true);
+              } else if (iterable[symIt]) {
+                iterator = iterable[symIt]();
+              }
+            }
+
+            if (iterator) {
+              next = iterator.next();
+              while (!next.done) {
+                if (!includes(this.keys, next.value)) {
+                  this.keys.push(next.value);
+                }
+
+                next = iterator.next();
+              }
+            }
+
+            setValue(this, 'size', this.keys.length);
+          };
+
+          setValue(fn.prototype, 'has', function (key) {
+            return includes(this.keys, key);
+          });
+
+          setValue(fn.prototype, 'add', function (key) {
+            if (!includes(this.keys, key)) {
+              this.keys.push(key);
+              this.size = this.keys.length;
+            }
+
+            return this;
+          });
+
+          setValue(fn.prototype, 'clear', function () {
+            this.keys.length = this.size = 0;
+            return this;
+          });
+
+          setValue(fn.prototype, strDelete, function (key) {
+            var index = getIndex(this.keys, key);
+
+            if (-1 < index) {
+              this.keys.splice(index, 1);
+              this.size = this.keys.length;
+            }
+
+            return this;
+          });
+
+          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
+            forEach(this.keys, callback, thisArg);
+
+            return this;
+          });
+
+          setValue(fn.prototype, 'values', function () {
+            var length = this.keys.length,
+              index = 0,
+              object;
+
+            return {
+              next: function () {
+                if (index < length) {
+                  object = {
+                    done: false,
+                    value: this.keys[index]
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          });
+
+          setValue(fn.prototype, 'keys', function () {
+            var length = this.keys.length,
+              index = 0,
+              object;
+
+            return {
+              next: function () {
+                if (index < length) {
+                  object = {
+                    done: false,
+                    value: index
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          });
+
+          setValue(fn.prototype, 'entries', function () {
+            var length = this.keys.length,
+              index = 0,
+              object;
+
+            return {
+              next: function () {
+                if (index < length) {
+                  object = {
+                    done: false,
+                    value: [index, this.keys[index]]
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          });
+
+          setValue(fn.prototype, symIt, function () {
+            return this.values();
+          });
+        }
+
+        return fn;
+      }(Set)),
+
+      MapObject = (function (m) {
+        var fn;
+
+        if (m) {
+          fn = m;
+        } else {
+          fn = function (iterable) {
+            var iterator,
+              index,
+              next;
+
+            this.keys = [];
+            this.values = [];
+            if (!isNil(iterable)) {
+              if (isArrayLike(iterable)) {
+                iterator = reiterate(iterable, true).entries();
+              } else if (iterable[symIt]) {
+                iterator = iterable[symIt]();
+              }
+            }
+
+            if (iterator) {
+              next = iterator.next();
+              while (!next.done) {
+                index = getIndex(this.keys, next.value[0]);
+                if (-1 < index) {
+                  this.keys.push(next.value[0]);
+                  this.values.push(next.value[1]);
+                } else {
+                  this.values[index] = next.value[1];
+                }
+
+                next = iterator.next();
+              }
+            }
+
+            setValue(this, 'size', this.keys.length);
+          };
+
+          setValue(fn.prototype, 'has', function (key) {
+            return includes(this.keys, key);
+          });
+
+          setValue(fn.prototype, 'set', function (key, value) {
+            var index = getIndex(this.keys, key);
+
+            if (-1 < index) {
+              this.values[index] = value;
+            } else {
+              this.keys.push(key);
+              this.values.push(value);
+              this.size = this.keys.length;
+            }
+
+            return this;
+          });
+
+          setValue(fn.prototype, 'clear', function () {
+            this.keys.length = this.values = this.size = 0;
+            return this;
+          });
+
+          setValue(fn.prototype, 'get', function (key) {
+            var index = getIndex(this.keys, key);
+
+            return -1 < index ? this.values[index] : undefined;
+          });
+
+          setValue(fn.prototype, strDelete, function (key) {
+            var index = getIndex(this.keys, key);
+
+            if (-1 < index) {
+              this.keys.splice(index, 1);
+              this.values.splice(index, 1);
+              this.size = this.keys.length;
+            }
+
+            return this;
+          });
+
+          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
+            mustBeFunction(callback);
+            forEach(this.keys, function (key, index) {
+              callback.call(thisArg, this.values[index], key, this);
+            }, this);
+
+            return this;
+          });
+
+          setValue(fn.prototype, 'values', function () {
+            var length = this.keys.length,
+              index = 0,
+              object;
+
+            return {
+              next: function () {
+                if (index < length) {
+                  object = {
+                    done: false,
+                    value: this.values[index]
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          });
+
+          setValue(fn.prototype, 'keys', function () {
+            var length = this.keys.length,
+              index = 0,
+              object;
+
+            return {
+              next: function () {
+                if (index < length) {
+                  object = {
+                    done: false,
+                    value: this.keys[index]
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          });
+
+          setValue(fn.prototype, 'entries', function () {
+            var length = this.keys.length,
+              index = 0,
+              object;
+
+            return {
+              next: function () {
+                if (index < length) {
+                  object = {
+                    done: false,
+                    value: [this.keys[index], this.values[index]]
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          });
+
+          setValue(fn.prototype, symIt, function () {
+            return this.entries();
+          });
+        }
+
+        return fn;
+      }(Map)),
 
       /**
        * A function to return the entries, values or keys depending on the
@@ -600,48 +1629,33 @@
       },
 
       addMethods = function (object) {
-        if (object !== g.repeatGenerator.prototype) {
-          if (object !== g.CounterGenerator.prototype) {
-            setValue(object, 'first', p.first);
-            setValue(object, 'last', p.last);
-            setValue(object, 'enumerate', g.EnumerateGenerator);
-            setValue(object, 'unique', p.uniqueGenerator);
-            setValue(object, 'flatten', p.flattenGenerator);
-            setValue(object, 'compact', p.compactGenerator);
-            setValue(object, 'initial', p.initialGenerator);
-            setValue(object, 'rest', p.restGenerator);
-            setValue(object, 'drop', p.dropGenerator);
-            setValue(object, 'dropWhile', p.dropWhileGenerator);
-            setValue(object, 'take', p.takeGenerator);
-            setValue(object, 'takeWhile', p.takeWhileGenerator);
-            setValue(object, 'every', p.every);
-            setValue(object, 'some', p.some);
-            setValue(object, 'filter', p.filterGenerator);
-          }
-
-          setValue(object, 'valueOf', p.valueOf);
-          setValue(object, 'toString', p.toString);
-          setValue(object, 'asString', p.asString);
-          setValue(object, 'asObject', p.asObject);
-          setValue(object, 'asMap', p.asMap);
-          setValue(object, 'map', p.mapGenerator);
-          setValue(object, 'reduce', p.reduce);
-          setValue(object, 'difference', p.differenceGenerator);
-          setValue(object, 'join', p.join);
-          setValue(object, 'union', p.unionGenerator);
-          setValue(object, 'intersection', p.intersectionGenerator);
-        } else {
-          setValue(object, 'take', p.takeGenerator);
-        }
-
-        if (object === p.uniqueGenerator.prototype ||
-          object === p.unionGenerator.prototype) {
-
-          setValue(object, 'asSet', p.hasOwnAsSet);
-        } else if (object === p.intersectionGenerator.prototype) {
-          setValue(object, 'asSet', p.asSet);
-        }
-
+        setValue(object, 'first', p.first);
+        setValue(object, 'last', p.last);
+        setValue(object, 'enumerate', g.EnumerateGenerator);
+        setValue(object, 'unique', p.uniqueGenerator);
+        setValue(object, 'flatten', p.flattenGenerator);
+        setValue(object, 'compact', p.compactGenerator);
+        setValue(object, 'initial', p.initialGenerator);
+        setValue(object, 'rest', p.restGenerator);
+        setValue(object, 'drop', p.dropGenerator);
+        setValue(object, 'dropWhile', p.dropWhileGenerator);
+        setValue(object, 'take', p.takeGenerator);
+        setValue(object, 'takeWhile', p.takeWhileGenerator);
+        setValue(object, 'every', p.every);
+        setValue(object, 'some', p.some);
+        setValue(object, 'filter', p.filterGenerator);
+        setValue(object, 'asArray', p.asArray);
+        //setValue(object, 'asString', p.asString);
+        setValue(object, 'asString', p.asString);
+        setValue(object, 'asObject', p.asObject);
+        setValue(object, 'asMap', p.asMap);
+        setValue(object, 'map', p.mapGenerator);
+        setValue(object, 'reduce', p.reduce);
+        setValue(object, 'difference', p.differenceGenerator);
+        setValue(object, 'join', p.join);
+        setValue(object, 'union', p.unionGenerator);
+        setValue(object, 'intersection', p.intersectionGenerator);
+        setValue(object, 'asSet', p.asSet);
         setValue(object, 'chunk', p.chunkGenerator);
         setValue(object, 'tap', p.tapGenerator);
         setValue(object, 'then', p.then);
@@ -653,24 +1667,9 @@
         addMethods(g.ArrayGenerator.prototype);
         addMethods(g.StringGenerator.prototype);
         addMethods(g.EnumerateGenerator.prototype);
-        addMethods(g.repeatGenerator.prototype);
-        addMethods(p.mapGenerator.prototype);
-        addMethods(p.filterGenerator.prototype);
-        addMethods(p.uniqueGenerator.prototype);
-        addMethods(p.flattenGenerator.prototype);
-        addMethods(p.dropGenerator.prototype);
-        addMethods(p.dropWhileGenerator.prototype);
-        addMethods(p.takeGenerator.prototype);
-        addMethods(p.takeWhileGenerator.prototype);
-        addMethods(p.tapGenerator.prototype);
-        addMethods(p.chunkGenerator.prototype);
-        addMethods(p.compactGenerator.prototype);
-        addMethods(p.differenceGenerator.prototype);
-        addMethods(p.initialGenerator.prototype);
-        addMethods(p.restGenerator.prototype);
-        addMethods(p.unionGenerator.prototype);
-        addMethods(p.intersectionGenerator.prototype);
-        addMethods(p.zipGenerator.prototype);
+        addMethods(g.RepeatGenerator.prototype);
+        addMethods(g.UnzipGenerator.prototype);
+        addMethods(g.ThenGenerator.prototype);
       },
 
       setIndexesOpts = function (start, end, opts) {
@@ -704,98 +1703,138 @@
       p = {
 
         reduce: function (callback, initialValue) {
-          var index,
+          var iterator,
             supplied,
             assigned,
-            element;
+            index,
+            next;
 
           mustBeFunction(callback);
           if (arguments.length > 1) {
             supplied = true;
           }
 
-          index = 0;
-          for (element of this) {
-            if (!supplied && !assigned) {
-              initialValue = element;
-              assigned = true;
-            } else {
-              initialValue = callback(initialValue, element, index);
+          iterator = this[symIt]();
+          next = iterator.next();
+          if (!next.done) {
+            index = 0;
+            while (!next.done) {
+              if (!supplied && !assigned) {
+                initialValue = next.value;
+                assigned = true;
+              } else {
+                initialValue = callback(initialValue, next.value, index);
+              }
+
+              next = iterator.next();
+              index += 1;
             }
-
-            index += 1;
           }
-
 
           return initialValue;
         },
 
-        tapGenerator: function* (callback, thisArg) {
-          var index,
-            element;
+        tapGenerator: function (callback, thisArg) {
+          var generator;
 
           mustBeFunction(callback);
-          index = 0;
-          for (element of this) {
-            callback.call(thisArg, element, index);
-            yield element;
-            index += 1;
-          }
+          generator = this[symIt];
+          this[symIt] = function () {
+            var index = 0,
+              itertor,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                itertor = itertor || generator();
+                next = itertor.next();
+                if (!next.done) {
+                  callback.call(thisArg, next.value, index);
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
         },
 
         every: function (callback, thisArg) {
-          var index,
+          var iterator,
             result,
-            element;
+            index,
+            next;
 
           mustBeFunction(callback);
-          index = 0;
+          iterator = this[symIt]();
+          next = iterator.next();
           result = true;
-          for (element of this) {
-            if (!callback.call(thisArg, element, index)) {
-              result = false;
-              break;
+          if (!next.done) {
+            index = 0;
+            while (result && !next.done) {
+              if (!callback.call(thisArg, next.value, index)) {
+                result = false;
+              } else {
+                next = iterator.next();
+                index += 1;
+              }
             }
-
-            index += 1;
           }
 
           return result;
         },
 
         some: function (callback, thisArg) {
-          var index,
+          var iterator,
             result,
-            element;
+            index,
+            next;
 
           mustBeFunction(callback);
-          index = 0;
+          iterator = this[symIt]();
+          next = iterator.next();
           result = false;
-          for (element of this) {
-            if (callback.call(thisArg, element, index)) {
-              result = true;
-              break;
+          if (!next.done) {
+            index = 0;
+            while (!result && !next.done) {
+              if (callback.call(thisArg, next.value, index)) {
+                result = true;
+              } else {
+                next = iterator.next();
+                index += 1;
+              }
             }
-
-            index += 1;
           }
 
           return result;
         },
 
-        valueOf: function () {
-          var result = [],
-            item;
+        asArray: function () {
+          var iterator = this[symIt](),
+            next = iterator.next(),
+            result = [];
 
-          for (item of this) {
-            result.push(item);
+          while (!next.done) {
+            result.push(next.value);
+            next = iterator.next();
           }
 
           return result;
         },
 
         join: function (seperator) {
-          var iterator = this[Symbol.iterator](),
+          var iterator = this[symIt](),
             item = iterator.next(),
             result = '',
             next;
@@ -817,21 +1856,25 @@
           return result;
         },
 
-        toString: function () {
+        /*
+        asString: function () {
           return this.join();
         },
+        */
 
         asString: function () {
           return this.join('');
         },
 
         asObject: function () {
-          var result = {},
-            index = 0,
-            item;
+          var iterator = this[symIt](),
+            next = iterator.next(),
+            result = {},
+            index = 0;
 
-          for (item of this) {
-            result[index] = item;
+          while (!next.done) {
+            result[index] = next.value;
+            next = iterator.next();
             index += 1;
           }
 
@@ -839,262 +1882,568 @@
         },
 
         asMap: function () {
-          var result = new Map(),
-            index = 0,
-            item;
+          var iterator = this[symIt](),
+            next = iterator.next(),
+            result = new MapObject(),
+            index;
 
-          for (item of this) {
-            result.set(index, item);
-            index += 1;
+          if (!next.done) {
+            index = 0;
+            while (!next.done) {
+              result.set(index, next.value);
+              next = iterator.next();
+              index += 1;
+            }
           }
 
           return result;
         },
 
         asSet: function () {
-          var result = new Set(),
-            item;
+          var iterator = this[symIt](),
+            next = iterator.next(),
+            result = new SetObject();
 
-          for (item of this) {
-            result.add(item);
+          while (!next.done) {
+            result.add(next.value);
+            next = iterator.next();
           }
 
           return result;
         },
 
-        dropGenerator: function* (number) {
-          var index = 0,
-            length = toLength(number),
-            item;
-
-          for (item of this) {
-            if (index >= length) {
-              yield item;
-            }
-
-            index += 1;
-          }
-        },
-
-        restGenerator: function* () {
-          yield * this.drop(1);
-        },
-
-        dropWhileGenerator: function* (callback, thisArg) {
-          var index,
-            item,
-            drop;
-
-          mustBeFunction(callback);
-          drop = true;
-          index = 0;
-          for (item of this) {
-            if (drop) {
-              drop = callback.call(thisArg, item, index);
-            }
-
-            if (!drop) {
-              yield item;
-            }
-
-            index += 1;
-          }
-        },
-
-        takeGenerator: function* (number) {
-          var length = toLength(number),
-            index,
-            item;
-
-          if (length) {
-            index = 0;
-            for (item of this) {
-              if (index < length) {
-                yield item;
-              } else {
-                break;
-              }
-
-              index += 1;
-            }
-          }
-        },
-
-        takeWhileGenerator: function* (callback, thisArg) {
-          var index,
-            item,
-            take;
-
-          mustBeFunction(callback);
-          take = true;
-          index = 0;
-          for (item of this) {
-            if (take) {
-              take = callback.call(thisArg, item, index);
-            }
-
-            if (take) {
-              yield item;
-            } else {
-              break;
-            }
-
-            index += 1;
-          }
-        },
-
-        chunkGenerator: function* (size) {
-          var length = toLength(size) || 1,
-            chunk = [],
-            item;
-
-          for (item of this) {
-            if (chunk.length < length) {
-              chunk.push(item);
-            } else {
-              yield chunk;
-              chunk = [item];
-            }
-          }
-
-          if (chunk.length) {
-            yield chunk;
-          }
-        },
-
-        compactGenerator: function* () {
-          for (var item of this) {
-            if (item) {
-              yield item;
-            }
-          }
-        },
-
-        differenceGenerator: function* (values) {
-          var vals = new Set(new Reiterate(values).values()),
-            item;
-
-          for (item of this) {
-            if (!vals.has(item)) {
-              yield item;
-            }
-          }
-        },
-
-        initialGenerator: function* () {
-          var iterator = this[Symbol.iterator](),
-            item = iterator.next(),
+        asSetOwn: function () {
+          var iterator = this[symIt](),
             next;
 
-          while (!item.done) {
+          do {
             next = iterator.next();
-            if (!next.done) {
-              yield item.value;
-            }
+          } while (!next.done);
 
-            item = next;
-          }
+          return next.value;
+        },
+
+        dropGenerator: function (number) {
+          var generator = this[symIt],
+            howMany = toLength(number);
+
+          this[symIt] = function () {
+            var index = 0,
+              iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                while (!next.done && index < howMany) {
+                  next = iterator.next();
+                  index += 1;
+                }
+
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        restGenerator: function () {
+          return this.drop(1);
+        },
+
+        dropWhileGenerator: function (callback, thisArg) {
+          var generator;
+
+          mustBeFunction(callback);
+          generator = this[symIt];
+          this[symIt] = function () {
+            var index = 0,
+              iterator,
+              dropped,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                while (!dropped && !next.done && callback.call(
+                    thisArg,
+                    next.value,
+                    index
+                  )) {
+                  next = iterator.next();
+                  index += 1;
+                }
+
+                dropped = true;
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        takeGenerator: function (number) {
+          var generator = this[symIt],
+            howMany = toLength(number);
+
+          this[symIt] = function () {
+            var index = 0,
+              iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                if (!next.done && index < howMany) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        takeWhileGenerator: function (callback, thisArg) {
+          var generator;
+
+          mustBeFunction(callback);
+          generator = this[symIt];
+          this[symIt] = function () {
+            var index = 0,
+              iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                if (!next.done && callback.call(thisArg, next.value, index)) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        chunkGenerator: function (size) {
+          var generator = this[symIt],
+            howMany = toLength(size) || 1;
+
+          this[symIt] = function () {
+            var iterator,
+              next;
+
+            return {
+              next: function () {
+                var chunk,
+                  object;
+
+                iterator = iterator || generator();
+                next = next || iterator.next();
+                if (!next.done) {
+                  chunk = [];
+                }
+
+                while (!next.done && chunk && chunk.length < howMany) {
+                  chunk.push(next.value);
+                  next = iterator.next();
+                }
+
+                /*jshint singleGroups:false */
+                if (!next.done || (chunk && chunk.length)) {
+                  object = {
+                    done: false,
+                    value: chunk
+                  };
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        compactGenerator: function () {
+          var generator = this[symIt];
+
+          this[symIt] = function () {
+            var iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                while (!next.done && !next.value) {
+                  next = iterator.next();
+                }
+
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        differenceGenerator: function (values) {
+          var generator = this[symIt],
+            set;
+
+          this[symIt] = function () {
+            var iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                set = set || new SetObject(reiterate(values).values());
+                while (!next.done && set.has(next.value)) {
+                  next = iterator.next();
+                }
+
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        initialGenerator: function () {
+          var generator = this[symIt];
+
+          this[symIt] = function () {
+            var iterator,
+              after,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = next || iterator.next();
+                after = iterator.next();
+                if (!next.done && !after.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  next = after;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
         },
 
         first: function () {
-          var item = this[Symbol.iterator]().next();
+          var next = this[symIt]().next();
 
-          if (!item.done) {
-            return item.value;
-          }
+          return next.done ? undefined : next.value;
         },
 
         last: function () {
-          var iterator = this[Symbol.iterator](),
-            item = iterator.next(),
-            next;
+          var iterator = this[symIt](),
+            next = iterator.next(),
+            after,
+            last;
 
-          while (!item.done) {
-            next = iterator.next();
-            if (next.done) {
-              return item.value;
+          while (!next.done) {
+            after = iterator.next();
+            if (after.done) {
+              last = next.value;
+              break;
             }
 
-            item = next;
+            next = after;
           }
+
+          return last;
         },
 
-        uniqueGenerator: function* () {
-          var seen = new Set(),
-            item;
+        uniqueGenerator: function () {
+          var generator = this[symIt];
 
-          for (item of this) {
-            if (!seen.has(item)) {
-              yield item;
-              seen.add(item);
-            }
-          }
+          this[symIt] = function () {
+            var seen,
+              iterator,
+              next;
 
-          return seen;
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                seen = seen || new SetObject();
+                next = next || iterator.next();
+                while (!next.done && seen.has(next.value)) {
+                  next = iterator.next();
+                }
+
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  seen.add(next.value);
+                  next = iterator.next();
+                } else {
+                  object = assign({}, $.DONE);
+                  object.value = seen;
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
         },
 
         intersectionGenerator: (function () {
-          function has(seen) {
+          function has(argSet) {
             /*jshint validthis:true */
-            return seen.has(this);
+            return argSet.has(this);
           }
 
-          function push(seens, arg) {
-            if (isArrayLike(arg) || isFunction(arg[Symbol.iterator])) {
-              seens.push(new Set(new Reiterate(arg)));
+          function push(argSets, arg) {
+            if (isArrayLike(arg) || isFunction(arg[symIt])) {
+              argSets.push(new SetObject(reiterate(arg)));
             }
 
-            return seens;
+            return argSets;
           }
 
-          return function* () {
-            var seens,
-              done,
-              seen,
-              item;
+          return function () {
+            var generator = this[symIt],
+              args = arguments;
 
-            for (item of this) {
-              if (!seen || !seen.has(item)) {
-                if (!done) {
-                  seens = reduce(arguments, push, []);
-                  seen = new Set();
-                  done = true;
+            this[symIt] = function () {
+              var iterator,
+                argSets,
+                seen,
+                next;
+
+              return {
+                next: function () {
+                  var object;
+
+                  argSets = argSets || reduce(args, push, []);
+                  seen = seen || new SetObject();
+                  iterator = iterator || generator();
+                  next = iterator.next();
+                  while (!next.done) {
+                    if (!seen.has(next.value)) {
+                      if (every(argSets, has, next.value)) {
+                        seen.add(next.value);
+                        //yield next.value;
+                        break;
+                      }
+
+                      seen.add(next.value);
+                    }
+
+                    next = iterator.next();
+                  }
+
+                  if (!next.done) {
+                    object = {
+                      done: false,
+                      value: next.value
+                    };
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+
+                  return object;
                 }
+              };
+            };
 
-                if (!done || seens.every(has, item)) {
-                  yield item;
-                }
-
-                seen.add(item);
-              }
-            }
+            return this;
           };
         }()),
 
-        unionGenerator: function* () {
-          var seen = new Set(),
-            item,
-            arg;
+        unionGenerator: function () {
+          var generator = this[symIt],
+            args = arguments;
 
-          for (item of this) {
-            if (!seen.has(item)) {
-              yield item;
-              seen.add(item);
-            }
-          }
 
-          for (arg of new g.ArrayGenerator(arguments)) {
-            if (isArrayLike(arg) || isFunction(arg[Symbol.iterator])) {
-              for (item of new Reiterate(arg)) {
-                if (!seen.has(item)) {
-                  yield item;
-                  seen.add(item);
+          this[symIt] = function () {
+            var seen,
+              iterator,
+              next,
+              outerIt,
+              innerIt,
+              outerNext,
+              innerNext;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                seen = seen || new SetObject();
+                next = iterator.next();
+                while (!next.done && !outerIt) {
+                  if (!seen.has(next.value)) {
+                    seen.add(next.value);
+                    //yield next.value
+                    break;
+                  }
+
+                  next = iterator.next();
                 }
-              }
-            }
-          }
 
-          return seen;
+                if (next.done && args.length) {
+                  outerIt = outerIt || new g.ArrayGenerator(args)[symIt]();
+                  if (!innerNext || innerNext.done) {
+                    outerNext = outerIt.next();
+                  }
+
+                  while (!outerNext.done || !innerNext) {
+                    if (isArrayLike(outerNext.value) ||
+                      isFunction(outerNext.value[symIt])) {
+                      /*jshint singleGroups:false */
+                      if (!innerIt || (innerNext && innerNext.done)) {
+                        if (isArrayLike(outerNext.value)) {
+                          innerIt = reiterate(outerNext.value, true)[symIt]();
+                        } else {
+                          innerIt = outerNext.value[symIt]();
+                        }
+                      }
+
+                      if (innerIt) {
+                        innerNext = innerIt.next();
+                        while (!innerNext.done) {
+                          if (!seen.has(innerNext.value)) {
+                            seen.add(innerNext.value);
+                            //yield innerNext.value;
+                            break;
+                          }
+
+                          innerNext = innerIt.next();
+                        }
+                      }
+                    }
+
+                    if (innerNext.done) {
+                      outerNext = outerIt.next();
+                    } else {
+                      break;
+                    }
+                  }
+                }
+
+                /*jshint singleGroups:false */
+                if (!next.done || (innerNext && !innerNext.done)) {
+                  object = {
+                    done: false,
+                    value: innerNext ? innerNext.value : next.value
+                  };
+                } else {
+                  object = assign({}, $.DONE);
+                  object.value = seen;
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
         },
 
         zipGenerator: (function () {
@@ -1112,42 +2461,55 @@
           }
 
           function push(iterators, arg) {
-            if (isArrayLike(arg) || isFunction(arg[Symbol.iterator])) {
-              iterators.push(new Reiterate(arg)[Symbol.iterator]());
+            if (isArrayLike(arg) || isFunction(arg[symIt])) {
+              iterators.push(reiterate(arg, true)[symIt]());
             }
 
             return iterators;
           }
 
-          return function* () {
-            var iterators = reduce(arguments, push, [this[Symbol.iterator]()]),
-              zip;
+          return function () {
+            var generator = this[symIt],
+              args = arguments;
 
-            while (!zip || !zip.done) {
-              zip = iterators.reduce(ofNext, {
-                value: [],
-                done: true
-              });
+            this[symIt] = function () {
+              var iterators,
+                next;
 
-              if (!zip.done) {
-                yield zip.value;
-              }
-            }
+              return {
+                next: function () {
+                  var object;
+
+                  iterators = iterators || reduce(args, push, [generator()]);
+                  while (!next || !next.done) {
+                    next = reduce(iterators, ofNext, {
+                      value: [],
+                      done: true
+                    });
+
+                    if (!next.done) {
+                      //yield zip.value;
+                      break;
+                    }
+                  }
+
+                  if (!next.done) {
+                    object = {
+                      done: false,
+                      value: next.value
+                    };
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+
+                  return object;
+                }
+              };
+            };
+
+            return this;
           };
         }()),
-
-        hasOwnAsSet: function () {
-          var iterator = this[Symbol.iterator](),
-            next = iterator.next();
-
-          if (!next.done) {
-            do {
-              next = iterator.next();
-            } while (!next.done);
-          }
-
-          return next.value;
-        },
 
         flattenGenerator: (function () {
           function setStack(stack, current, previous) {
@@ -1157,43 +2519,82 @@
             });
           }
 
-          function* iterateStack(stack, object, relaxed) {
-            var tail,
-              value;
+          return function (relaxed) {
+            var generator = this[symIt];
 
-            while (stack && stack.size) {
-              tail = stack.get(object);
-              if (tail.index >= object.length) {
-                stack.delete(object);
-                object = tail.prev;
-              } else {
-                value = object[tail.index];
-                if (isArray(value, relaxed)) {
-                  throwIfCircular(stack, value);
-                  setStack(stack, value, object);
-                  object = value;
-                } else {
-                  yield value;
+            this[symIt] = function () {
+              var stack,
+                iterator,
+                next,
+                item,
+                done1;
+
+              return {
+                next: function () {
+                  var object,
+                    value,
+                    tail,
+                    done2;
+
+                  iterator = iterator || generator();
+                  stack = stack || new MapObject();
+                  next = !next || done1 ? iterator.next() : next;
+                  done1 = false;
+                  while (!next.done && !done2) {
+                    if (!stack.size) {
+                      if (isArray(next.value, relaxed)) {
+                        item = next.value;
+                        setStack(stack, item, null);
+                      } else {
+                        //yield
+                        value = next.value;
+                        done1 = true;
+                        break;
+                      }
+                    }
+
+                    while (stack.size) {
+                      tail = stack.get(item);
+                      if (tail.index >= item.length) {
+                        stack[strDelete](item);
+                        item = tail.prev;
+                      } else {
+                        value = item[tail.index];
+                        if (isArray(value, relaxed)) {
+                          throwIfCircular(stack, value);
+                          setStack(stack, value, item);
+                          item = value;
+                        } else {
+                          //yield
+                          tail.index += 1;
+                          done2 = true;
+                          break;
+                        }
+
+                        tail.index += 1;
+                      }
+                    }
+
+                    if (!done2) {
+                      next = iterator.next();
+                    }
+                  }
+
+                  if (!next.done) {
+                    object = {
+                      done: false,
+                      value: value
+                    };
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+
+                  return object;
                 }
+              };
+            };
 
-                tail.index += 1;
-              }
-            }
-          }
-
-          return function* (relaxed) {
-            var stack = new Map(),
-              object;
-
-            for (object of this) {
-              if (isArray(object, relaxed)) {
-                setStack(stack, object, null);
-              } else {
-                yield object;
-              }
-
-              yield * iterateStack(stack, object, relaxed);
-            }
+            return this;
           };
         }()),
 
@@ -1203,20 +2604,26 @@
         walkOwnGenerator: (function () {
           function setStack(stack, current, previous) {
             return stack.set(current, {
-              keys: Object.keys(current),
+              keys: keys(current),
               index: 0,
               prev: previous
             });
           }
 
           return function* () {
-            var stack = new Map(),
+            var iterator = this[symIt](),
+              next = iterator.next(),
+              stack,
               object,
               value,
-              tail,
-              key;
+              tail;
 
-            for (object of this) {
+            if (next.done) {
+              return;
+            }
+
+            stack = new es6.Map();
+            while (!next.done) {
               if (isObject(object)) {
                 setStack(stack, object, null);
               } else {
@@ -1230,7 +2637,7 @@
                   object = tail.prev;
                 } else {
                   key = tail.keys[tail.index];
-                  value = object[key];
+                  value = object[next.value];
                   if (isObject(value)) {
                     throwIfCircular(stack, value);
                     setStack(stack, value, object);
@@ -1242,51 +2649,134 @@
                   tail.index += 1;
                 }
               }
+
+              next = iterator.next();
             }
           };
         }()),
         */
 
-        mapGenerator: function* (callback, thisArg) {
-          var element,
-            index;
+        mapGenerator: function (callback, thisArg) {
+          var generator;
 
           mustBeFunction(callback);
-          index = 0;
-          for (element of this) {
-            yield callback.call(thisArg, element, index);
-            index += 1;
-          }
+          generator = this[symIt];
+          this[symIt] = function () {
+            var index = 0,
+              iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: callback.call(thisArg, next.value, index)
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
         },
 
-        filterGenerator: function* (callback, thisArg) {
-          var element,
-            index;
+        filterGenerator: function (callback, thisArg) {
+          var generator;
 
           mustBeFunction(callback);
-          index = 0;
-          for (element of this) {
-            if (callback.call(thisArg, element, index)) {
-              yield element;
-              index += 1;
+          generator = this[symIt];
+          this[symIt] = function () {
+            var index = 0,
+              iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                iterator = iterator || generator();
+                next = iterator.next();
+                while (!next.done &&
+                  !callback.call(thisArg, next.value, index)) {
+                  next = iterator.next();
+                  index += 1;
+                }
+
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          return this;
+        },
+
+        then: function (gen) {
+          var generator = this[symIt],
+            context;
+
+          if (!isUndefined(gen)) {
+            if (!isFunction(gen)) {
+              throw new TypeError(
+                'If not undefined, generator must be a function'
+              );
             }
-          }
-        },
 
-        then: function (generator) {
-          var iterator;
-
-          if (!isFunction(generator)) {
-            mustBeFunctionIfDefined(generator, 'generator');
-            iterator = this;
+            context = new g.ThenGenerator(gen, this, chop(arguments, 1));
           } else {
-            iterator = generator(this);
-            addMethods(iterator);
+            this[symIt] = function () {
+              var index = 0,
+                iterator,
+                next;
+
+              return {
+                next: function () {
+                  var object;
+
+                  iterator = iterator || generator();
+                  next = iterator.next();
+                  if (!next.done) {
+                    object = {
+                      done: false,
+                      value: next.value
+                    };
+
+                    index += 1;
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+
+                  return object;
+                }
+              };
+            };
+
+            context = this;
           }
 
-          return iterator;
+          return context;
         }
-
       },
 
       /**
@@ -1296,45 +2786,140 @@
        */
       g = {
 
+        ThenGenerator: function (generator, context, argsArray) {
+          this[symIt] = function () {
+            var index = 0,
+              iterator,
+              next;
+
+            return {
+              next: function () {
+                var object;
+
+                if (!iterator) {
+                  if (isFunction(generator)) {
+                    iterator = generator.apply(context, argsArray);
+                  } else {
+                    iterator = generator[symIt]();
+                  }
+                }
+
+                next = iterator.next();
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  index += 1;
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          };
+
+          /*
+          this[symIt] = function () {
+            var inter = Function.prototype.apply.bind(generator, argsArray);
+
+            inter[symIt] = generator[symIt];
+            return inter;
+          };
+          */
+        },
+
         CounterGenerator: (function () {
-          function* countReverseGenerator(opts) {
+          function countReverseGenerator(opts) {
             var count = opts.to;
 
-            if (opts.to <= opts.from) {
-              while (count <= opts.from) {
-                yield count;
-                count += opts.by;
+            return {
+              next: function () {
+                var object;
+
+                if (opts.to <= opts.from) {
+                  if (count <= opts.from) {
+                    object = {
+                      done: false,
+                      value: count
+                    };
+
+                    count += opts.by;
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+                } else {
+                  if (count >= opts.from) {
+                    object = {
+                      done: false,
+                      value: count
+                    };
+
+                    count -= opts.by;
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+                }
+
+                return object;
               }
-            } else {
-              while (count >= opts.from) {
-                yield count;
-                count -= opts.by;
-              }
-            }
+            };
           }
 
-          function* countForwardGenerator(opts) {
+          function countForwardGenerator(opts) {
             var count = opts.from;
 
-            if (opts.from <= opts.to) {
-              while (count <= opts.to) {
-                yield count;
-                count += opts.by;
+            return {
+              next: function () {
+                var object;
+
+                if (opts.from <= opts.to) {
+                  if (count <= opts.to) {
+                    object = {
+                      done: false,
+                      value: count
+                    };
+
+                    count += opts.by;
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+                } else {
+                  if (count >= opts.to) {
+                    object = {
+                      done: false,
+                      value: count
+                    };
+
+                    count -= opts.by;
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+                }
+
+                return object;
               }
-            } else {
-              while (count >= opts.to) {
-                yield count;
-                count -= opts.by;
-              }
-            }
+            };
           }
 
-          function* countGenerator(opts) {
-            if (opts.reversed) {
-              yield * countReverseGenerator(opts);
-            } else {
-              yield * countForwardGenerator(opts);
+          function countGenerator(opts) {
+            var iterator;
+
+            if (!iterator) {
+              if (opts.reversed) {
+                iterator = countReverseGenerator(opts);
+              } else {
+                iterator = countForwardGenerator(opts);
+              }
             }
+
+            return {
+              next: function () {
+                return iterator.next();
+              }
+            };
           }
 
           function CounterGenerator() {
@@ -1345,7 +2930,7 @@
             var opts = {
               reversed: false,
               from: 0,
-              to: Number.MAX_SAFE_INTEGER,
+              to: MAX_SAFE_INTEGER,
               by: 1
             };
 
@@ -1353,7 +2938,7 @@
               return assign({}, opts);
             });
 
-            setValue(this, Symbol.iterator, function () {
+            setValue(this, symIt, function () {
               return countGenerator(assign({}, opts));
             });
 
@@ -1386,18 +2971,45 @@
         }()),
 
         ArrayGenerator: (function () {
-          function* arrayGenerator(subject, opts) {
+          function arrayGenerator(subject, opts) {
             var generator,
-              key;
+              counter,
+              iterator,
+              next;
 
             if (opts.length) {
               generator = g.CounterGenerator();
               generator.from(opts.from).to(opts.to).by(opts.by);
               setReverseIfOpt(opts, generator);
-              for (key of generator) {
-                yield getYieldValue(opts, subject, key);
-              }
+              counter = generator[symIt]();
+              next = counter.next();
+              iterator = {
+                next: function () {
+                  var object;
+
+                  if (!next.done) {
+                    object = {
+                      done: false,
+                      value: getYieldValue(opts, subject, next.value)
+                    };
+
+                    next = counter.next();
+                  } else {
+                    object = assign({}, $.DONE);
+                  }
+
+                  return object;
+                }
+              };
+            } else {
+              iterator = {
+                next: function () {
+                  return assign({}, $.DONE);
+                }
+              };
             }
+
+            return iterator;
           }
 
           function ArrayGenerator(subject) {
@@ -1418,7 +3030,7 @@
               return assign({}, opts);
             });
 
-            setValue(this, Symbol.iterator, function () {
+            setValue(this, symIt, function () {
               return arrayGenerator(subject, assign({}, opts));
             });
 
@@ -1458,51 +3070,93 @@
             if (opts.keys) {
               result = key;
             } else if (opts.values) {
-              result = String.fromCodePoint(character.codePointAt());
+              result = fromCodePoint(codePointAt(character));
             } else {
-              result = [key, String.fromCodePoint(character.codePointAt())];
+              result = [key, fromCodePoint(codePointAt(character))];
             }
 
             return result;
           }
 
-          function* stringGenerator(subject, opts) {
+          function stringGenerator(subject, opts) {
             var generator,
-              next,
-              char1,
-              char2,
-              key;
+              counter,
+              iterator,
+              isPair,
+              next;
 
             if (!opts.length) {
-              return;
+              return {
+                next: function () {
+                  return assign({}, $.DONE);
+                }
+              };
             }
 
-            next = true;
             generator = g.CounterGenerator(opts);
             generator.from(opts.from).to(opts.to).by(opts.by);
             setReverseIfOpt(opts, generator);
-            for (key of generator) {
-              if (next) {
-                if (opts.reversed) {
-                  char1 = subject[key - 1];
-                  char2 = subject[key];
-                  next = !isSurrogatePair(char1, char2);
-                  if (next) {
-                    yield getStringYieldValue(opts, char2, key);
+            counter = generator[symIt]();
+            next = counter.next();
+            iterator = {
+              next: function () {
+                var object,
+                  char1,
+                  char2;
+
+                if (!next.done) {
+                  while (!next.done && !object) {
+                    if (!isPair) {
+                      if (opts.reversed) {
+                        char1 = subject[next.value - 1];
+                        char2 = subject[next.value];
+                        isPair = isSurrogatePair(char1, char2);
+                        if (!isPair) {
+                          object = {
+                            done: false,
+                            value: getStringYieldValue(
+                              opts,
+                              char2,
+                              next.value
+                            )
+                          };
+                        }
+                      } else {
+                        char1 = subject[next.value];
+                        char2 = subject[next.value + 1];
+                        isPair = isSurrogatePair(char1, char2);
+                        object = {
+                          done: false,
+                          value: getStringYieldValue(
+                            opts,
+                            char1 + char2,
+                            next.value
+                          )
+                        };
+                      }
+                    } else {
+                      isPair = !isPair;
+                      if (opts.reversed) {
+                        object = {
+                          done: false,
+                          value: getStringYieldValue(
+                            opts,
+                            char1 + char2,
+                            next.value
+                          )
+                        };
+                      }
+                    }
+
+                    next = counter.next();
                   }
-                } else {
-                  char1 = subject[key];
-                  char2 = subject[key + 1];
-                  next = !isSurrogatePair(char1, char2);
-                  yield getStringYieldValue(opts, char1 + char2, key);
                 }
-              } else {
-                next = !next;
-                if (opts.reversed) {
-                  yield getStringYieldValue(opts, char1 + char2, key);
-                }
+
+                return object || assign({}, $.DONE);
               }
-            }
+            };
+
+            return iterator;
           }
 
           function StringGenerator(subject) {
@@ -1523,7 +3177,7 @@
               return assign({}, opts);
             });
 
-            setValue(this, Symbol.iterator, function () {
+            setValue(this, symIt, function () {
               return stringGenerator(subject, assign({}, opts));
             });
 
@@ -1576,12 +3230,42 @@
         }()),
 
         EnumerateGenerator: (function () {
-          function* enumerateGenerator(subject, opts) {
-            for (var key in subject) {
-              if (!opts.own || hasOwn(subject, key)) {
-                yield getYieldValue(opts, subject, key);
+          function enumerateGenerator(subject, opts) {
+            var iterator,
+              keys,
+              next,
+              key;
+
+            if (opts.own) {
+              keys = objectKeys(subject);
+            } else {
+              keys = [];
+              for (key in subject) {
+                /*jshint forin:false */
+                keys.push(key);
               }
             }
+
+            iterator = new g.ArrayGenerator(keys)[symIt]();
+            next = iterator.next();
+            return {
+              next: function () {
+                var object;
+
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: getYieldValue(opts, subject, next.value)
+                  };
+
+                  next = iterator.next();
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
           }
 
           function EnumerateGenerator(subject) {
@@ -1597,7 +3281,7 @@
               return assign({}, opts);
             });
 
-            setValue(this, Symbol.iterator, function () {
+            setValue(this, symIt, function () {
               return enumerateGenerator(subject, assign({}, opts));
             });
 
@@ -1625,11 +3309,87 @@
           return EnumerateGenerator;
         }()),
 
-        repeatGenerator: function* (subject) {
-          do {
-            yield subject;
-          } while (true);
-        }
+        RepeatGenerator: (function () {
+          function repeatGenerator(subject) {
+            return {
+              next: function () {
+                return {
+                  done: false,
+                  value: subject
+                };
+              }
+            };
+          }
+
+          function RepeatGenerator(subject) {
+            if (!(this instanceof RepeatGenerator)) {
+              return new RepeatGenerator(subject);
+            }
+
+            setValue(this, symIt, function () {
+              return repeatGenerator(subject);
+            });
+          }
+
+          return RepeatGenerator;
+        }()),
+
+        UnzipGenerator: (function () {
+          function unzipGenerator(array) {
+            var iterator,
+              first,
+              next,
+              rest;
+
+            if (isArrayLike(array) || isFunction(array[symIt])) {
+              first = reiterate(array).first();
+              if (!isObjectLike(first)) {
+                first = [];
+              }
+
+              rest = reiterate(array).rest().asArray();
+            } else {
+              first = rest = [];
+            }
+
+            iterator = p.zipGenerator.apply(
+              reiterate(first, true),
+              rest
+            )[symIt]();
+
+            next = iterator.next();
+            return {
+              next: function () {
+                var object;
+
+                if (!next.done) {
+                  object = {
+                    done: false,
+                    value: next.value
+                  };
+
+                  next = iterator.next();
+                } else {
+                  object = assign({}, $.DONE);
+                }
+
+                return object;
+              }
+            };
+          }
+
+          function UnzipGenerator(subject) {
+            if (!(this instanceof UnzipGenerator)) {
+              return new UnzipGenerator(subject);
+            }
+
+            setValue(this, symIt, function () {
+              return unzipGenerator(subject);
+            });
+          }
+
+          return UnzipGenerator;
+        }())
 
       };
 
@@ -1637,7 +3397,7 @@
 
     return (function () {
       function makeCounterGenerator(subject, to, by) {
-        var generator = g.CounterGenerator();
+        var generator = new g.CounterGenerator();
 
         if (isNumber(subject)) {
           if (isNil(to)) {
@@ -1654,24 +3414,19 @@
         return generator;
       }
 
-      Reiterate = function (subject, to, by) {
-        if (!(this instanceof Reiterate)) {
-          return new Reiterate(subject, to, by);
-        }
-
+      reiterate = function (subject, to, by) {
         var generator;
 
         if (isNil(subject) || isNumber(subject)) {
           generator = makeCounterGenerator(subject, to, by);
         } else if (isArray(subject, to)) {
-          generator = g.ArrayGenerator(subject);
+          generator = new g.ArrayGenerator(subject);
         } else if (isString(subject)) {
-          generator = g.StringGenerator(subject);
-        } else if (isFunction(subject[Symbol.iterator])) {
-          generator = subject[Symbol.iterator]();
-          addMethods(generator);
+          generator = new g.StringGenerator(subject);
+        } else if (isFunction(subject[symIt])) {
+          generator = new g.ThenGenerator(subject, {}, chop(arguments, 1));
         } else {
-          generator = g.EnumerateGenerator(subject);
+          generator = new g.EnumerateGenerator(subject);
         }
 
         return generator;
@@ -1680,12 +3435,14 @@
       /*
        * Static methods
        */
-      setValue(Reiterate, 'array', g.ArrayGenerator);
-      setValue(Reiterate, 'string', g.StringGenerator);
-      setValue(Reiterate, 'enumerate', g.EnumerateGenerator);
-      setValue(Reiterate, 'repeat', g.repeatGenerator);
+      setValue(reiterate, 'array', g.ArrayGenerator);
+      setValue(reiterate, 'string', g.StringGenerator);
+      setValue(reiterate, 'enumerate', g.EnumerateGenerator);
+      setValue(reiterate, 'repeat', g.RepeatGenerator);
+      setValue(reiterate, 'unzip', g.UnzipGenerator);
+      setValue(reiterate, 'iterator', symIt);
 
-      return Reiterate;
+      return reiterate;
     }());
   }
 

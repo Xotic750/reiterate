@@ -1,10 +1,10 @@
-/*jslint maxlen:80, es6:true, this:true */
+/*jslint maxlen:80 */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:11,
-    maxcomplexity:6
+    es3:true, plusplus:true, maxparams:1, maxdepth:1, maxstatements:11,
+    maxcomplexity:1
 */
 /*global module */
 
@@ -39,6 +39,23 @@
         readme: {
           readme: 'templates/index.js.tpl',
           dest: 'scripts/index.js'
+        }
+      },
+
+      uglify: {
+        lib: {
+          files: {
+            'lib/<%= pkg.name %>.min.js': 'lib/<%= pkg.name %>.js'
+          }
+        },
+        options: {
+          mangle: true,
+          compress: {},
+          output: {
+            'ascii_only': true
+          },
+          report: 'min',
+          preserveComments: 'some'
         }
       },
 
@@ -121,24 +138,13 @@
           src: ['README.md', 'lib/<%= pkg.name %>.js'],
           options: {
             destination: 'doc',
-            private: false,
+            'private': false,
             lenient: true
           }
         }
       },
 
       shell: {
-        minify: {
-          options: {
-            stdout: true,
-            stderr: true,
-            failOnError: true,
-            execOptions: {
-              maxBuffer: 1048576
-            }
-          },
-          command: '<%= pkg.scripts.minify %>'
-        },
         browserify: {
           options: {
             stdout: true,
@@ -206,7 +212,7 @@
       'jshint:lib',
       'shell:beautified',
       'shell:browserify',
-      'shell:minify',
+      'uglify',
       'shell:uglified',
       'buildReadme',
       'jsdoc',

@@ -17,7 +17,7 @@
 
   describe('Basic tests', function () {
     it('Chunk', function () {
-      var array = reiterate().to(10).chunk(3).valueOf();
+      var array = reiterate().to(10).chunk(3).asArray();
 
       expect(array).to.eql([[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10]]);
     });

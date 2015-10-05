@@ -31,7 +31,7 @@
         e = b.map(function (item) {
           return item.codePointAt();
         }),
-        array = reiterate.string(a).values().valueOf(),
+        array = reiterate.string(a).values().asArray(),
         string = reiterate.string(a).values().asString(),
         iterator = reiterate.string(a).values().map(function (item) {
           return item.codePointAt();
@@ -42,9 +42,9 @@
       // forward
       expect(string).to.be(a);
       expect(array).to.eql(b);
-      array = reiterate.string(a).keys().valueOf();
+      array = reiterate.string(a).keys().asArray();
       expect(array).to.eql(c);
-      array = reiterate.string(a).entries().valueOf();
+      array = reiterate.string(a).entries().asArray();
       expect(array).to.eql(d);
       for (entry of iterator) {
         expect(entry).to.be(e[index]);
@@ -55,11 +55,11 @@
       string = reiterate.string(a).values().reverse().asString();
       b.reverse();
       expect(string).to.be(b.join(''));
-      array = reiterate.string(a).values().reverse().valueOf();
+      array = reiterate.string(a).values().reverse().asArray();
       expect(array).to.eql(b);
-      array = reiterate.string(a).keys().reverse().valueOf();
+      array = reiterate.string(a).keys().reverse().asArray();
       expect(array).to.eql(c.reverse());
-      array = reiterate.string(a).entries().reverse().valueOf();
+      array = reiterate.string(a).entries().reverse().asArray();
       expect(array).to.eql(d.reverse());
       iterator = reiterate.string(a).values().reverse().map(function (item) {
         return item.codePointAt();

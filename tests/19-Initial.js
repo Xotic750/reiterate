@@ -18,7 +18,7 @@
   describe('Basic tests', function () {
     it('Initial', function () {
       var a = [1, 2, 3, 4, 5],
-        array = reiterate(a).values().initial().valueOf();
+        array = reiterate(a).values().initial().asArray();
 
       expect(array).to.eql([1, 2, 3, 4]);
       array = reiterate(a).values().initial().asObject();
@@ -39,7 +39,7 @@
       a = 'A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6A';
       array = reiterate(a).values().initial().asString();
       expect(array).to.be('A\uD835\uDC68B\uD835\uDC69C');
-      array = reiterate(a).values().initial().valueOf();
+      array = reiterate(a).values().initial().asArray();
       expect(array).to.eql([
         'A',
         '\uD835\uDC68',
@@ -48,7 +48,7 @@
         'C'
       ]);
 
-      array = reiterate(a).values().initial().toString();
+      array = reiterate(a).values().initial().join();
       expect(array).to.be('A,\uD835\uDC68,B,\uD835\uDC69,C');
     });
   });

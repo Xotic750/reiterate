@@ -19,27 +19,27 @@
     it('Intersection', function () {
       var a = reiterate([4, 2]).values(),
         b = reiterate([2, 1]).values(),
-        array = reiterate([1, 2]).values().intersection(a, b).valueOf();
+        array = reiterate([1, 2]).values().intersection(a, b).asArray();
 
       expect(array).to.eql([2]);
 
       a = reiterate([5, 2, 1, 4]).values();
       b = reiterate([2, 1]).values();
-      array = reiterate([1, 3, 2]).values().intersection(a, b).valueOf();
+      array = reiterate([1, 3, 2]).values().intersection(a, b).asArray();
       expect(array).to.eql([1, 2]);
 
       a = reiterate([5, 2, 2, 1, 4]).values();
       b = reiterate([2, 1, 1]).values();
-      array = reiterate([1, 1, 3, 2, 2]).values().intersection(a, b).valueOf();
+      array = reiterate([1, 1, 3, 2, 2]).values().intersection(a, b).asArray();
       expect(array).to.eql([1, 2]);
 
       a = reiterate([1, NaN, 3]).values();
       b = reiterate([NaN, 5, NaN]).values();
-      array = reiterate([1, 3, NaN, 2]).values().intersection(a, b).valueOf();
+      array = reiterate([1, 3, NaN, 2]).values().intersection(a, b).asArray();
       expect(array.length).to.be(1);
       expect(array[0]).to.not.be(array[0]);
 
-      array = reiterate([1, 1, 3, 2, 2]).values().intersection().valueOf();
+      array = reiterate([1, 1, 3, 2, 2]).values().intersection().asArray();
       expect(array).to.eql([1, 3, 2]);
 
       a = reiterate([5, 2, 2, 1, 4]).values();

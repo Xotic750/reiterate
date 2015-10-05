@@ -24,22 +24,25 @@
     "url": "https://github.com/Xotic750/reiterate/issues"
   },
   "engines": {
-    "node": ">=0.11.16"
+    "node": ">=0.8"
   },
   "license": "GPL-3.0+",
-  "licenses": [{
-    "type": "GPL-3.0+",
-    "url": "http://www.gnu.org/licenses/gpl-3.0.html"
-  }],
+  "licenses": [
+    {
+      "type": "GPL-3.0+",
+      "url": "http://www.gnu.org/licenses/gpl-3.0.html"
+    }
+  ],
   "directories": {
     "lib": "lib",
     "doc": "doc"
   },
-  "dependencies": {},
+  "dependencies": {
+  },
   "devDependencies": {
-    "google-closure-compiler": "latest",
+    "uglify-js": "latest",
     "grunt": "latest",
-    "jsdoc": "3.3.2",
+    "jsdoc": "https://github.com/jsdoc3/jsdoc.git",
     "mocha": "latest",
     "mocha-lcov-reporter": "latest",
     "expect.js": "latest",
@@ -56,9 +59,9 @@
     "browserify": "latest"
   },
   "optionalDependencies": {
-    "google-closure-compiler": "latest",
+    "uglify-js": "latest",
     "grunt": "latest",
-    "jsdoc": "3.3.2",
+    "jsdoc": "https://github.com/jsdoc3/jsdoc.git",
     "mocha": "latest",
     "mocha-lcov-reporter": "latest",
     "expect.js": "latest",
@@ -77,7 +80,7 @@
   },
   "browser": {
     "../lib/reiterate.min": false,
-    "google-closure-compiler": false,
+    "uglify-js": false,
     "grunt": false,
     "js-beautify": false,
     "jsdoc": false,
@@ -93,8 +96,7 @@
     "istanbul": false
   },
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js",
-    "minify": "java -jar ./node_modules/google-closure-compiler/compiler.jar --compilation_level=WHITESPACE_ONLY --language_in=ECMASCRIPT6_STRICT --js_output_file=lib/reiterate.min.js --js=lib/reiterate.js",
+    "test": "./node_modules/mocha/bin/mocha --check-leaks -u bdd -t 10000 -b -R tap tests/*.js",
     "browserify": "./node_modules/browserify/bin/cmd.js ./tests/*.js -o ./tests/browser/tests.js",
     "testmin": "export MIN=1; ./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js",
     "coveralls": "./node_modules/istanbul/lib/cli.js cover --report lcovonly ./node_modules/mocha/bin/_mocha -- --check-leaks -u bdd -t 10000 -b -R tap tests/*.js && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"

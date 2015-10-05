@@ -18,19 +18,19 @@
   describe('Basic tests', function () {
     it('Other iterables', function () {
       var a = new Map().set(0, 1).set(1, 2).set(2, 3),
-        array = reiterate(a).valueOf();
+        array = reiterate(a).asArray();
 
       expect(array).to.eql([
         [0, 1],
         [1, 2],
         [2, 3]
       ]);
-      array = reiterate(a.values()).valueOf();
+      array = reiterate(a.values()).asArray();
       expect(array).to.eql([1, 2, 3]);
-      array = reiterate(a.keys()).valueOf();
+      array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
       a = new Set().add(0).add(1).add(2);
-      array = reiterate(a).valueOf();
+      array = reiterate(a).asArray();
       expect(array).to.eql([0, 1, 2]);
 
       a = {
@@ -47,7 +47,7 @@
         }
       };
 
-      array = reiterate(a).valueOf();
+      array = reiterate(a).asArray();
       expect(array).to.eql([1, 2, 3]);
 
       a[Symbol.iterator] = function* () {
@@ -58,10 +58,10 @@
         }
       };
 
-      array = reiterate(a).valueOf();
+      array = reiterate(a).asArray();
       expect(array).to.eql(['a', 'b', 'c']);
 
-      array = reiterate(a).toString();
+      array = reiterate(a).join();
       expect(array).to.be('a,b,c');
 
       array = reiterate(a).asString();

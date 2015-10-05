@@ -18,7 +18,7 @@
   describe('Basic tests', function () {
     it('Compact', function () {
       var a = [0, 1, false, 2, '', 3, undefined, 4, null, 5, NaN, 6],
-        array = reiterate(a).values().compact().valueOf();
+        array = reiterate(a).values().compact().asArray();
 
       expect(array).to.eql([1, 2, 3, 4, 5, 6]);
     });

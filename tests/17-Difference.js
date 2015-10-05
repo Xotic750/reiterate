@@ -18,7 +18,7 @@
   describe('Basic tests', function () {
     it('Difference', function () {
       var a = [1, 2, 3, 4, 5],
-        array = reiterate(a).values().difference([4, 2]).valueOf();
+        array = reiterate(a).values().difference([4, 2]).asArray();
 
       expect(array).to.eql([1, 3, 5]);
       array = reiterate(a).values().difference([4, 2]).asObject();
@@ -37,15 +37,15 @@
       array = reiterate(a).values().difference({
         'a': 4,
         'b': 2
-      }).valueOf();
+      }).asArray();
 
       expect(array).to.eql([1, 3, 5]);
       a = 'A\uD835\uDC68B\uD835\uDC69C\uD835\uDC6A';
       array = reiterate(a).values().difference('A\uD835\uDC69B').asString();
       expect(array).to.be('\uD835\uDC68C\uD835\uDC6A');
-      array = reiterate(a).values().difference('A\uD835\uDC69B').valueOf();
+      array = reiterate(a).values().difference('A\uD835\uDC69B').asArray();
       expect(array).to.eql(['\uD835\uDC68', 'C', '\uD835\uDC6A']);
-      array = reiterate(a).values().difference('A\uD835\uDC69B').toString();
+      array = reiterate(a).values().difference('A\uD835\uDC69B').join();
       expect(array).to.be('\uD835\uDC68,C,\uD835\uDC6A');
     });
   });

@@ -21,14 +21,14 @@
         b = reiterate().from(3).to(6),
         c = reiterate().from(6).to(9),
         d = reiterate().to(10),
-        value = reiterate(a).union(b, c, d).valueOf();
+        value = reiterate(a).union(b, c, d).asArray();
 
-      expect(value).to.eql(reiterate().to(10).valueOf());
+      expect(value).to.eql(reiterate().to(10).asArray());
       a = reiterate([0, 1, 2]).values();
       b = reiterate([4, 5, 6]).values();
       c = reiterate([8, 9]).values();
       d = reiterate([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).values();
-      value = reiterate(a).union(b, c, d).valueOf();
+      value = reiterate(a).union(b, c, d).asArray();
       expect(value).to.eql([0, 1, 2, 4, 5, 6, 8, 9, 3, 7, 10]);
       a = reiterate().to(3);
       b = reiterate().from(3).to(6);
@@ -47,8 +47,18 @@
       expect(value.has(8)).to.be(true);
       expect(value.has(9)).to.be(true);
       expect(value.has(10)).to.be(true);
+      value = reiterate([]).union().asArray();
+      expect(value).to.eql([]);
+      value = reiterate([1]).union().asArray();
+      expect(value).to.eql([1]);
+      value = reiterate([]).union([1]).asArray();
+      expect(value).to.eql([1]);
       value = reiterate([]).union().asSet();
+      expect(value).to.eql([]);
+      value = reiterate([]).union([]).asSet();
       expect(value.size).to.be(0);
+      value = reiterate([]).union([1]).asSet();
+      expect(value.size).to.be(1);
       value = reiterate([1]).union().asSet();
       expect(value.size).to.be(1);
     });
