@@ -506,7 +506,7 @@
 
     it('Counter next', function () {
       var generator = reiterate().from(0).to(3).by(1),
-        iterator = generator[Symbol.iterator]();
+        iterator = generator[symIt]();
 
       expect(iterator.next()).to.eql({
         value: 0,
@@ -536,7 +536,7 @@
 
     it('Counter already started', function () {
       var generator = reiterate(),
-        iterator = generator[Symbol.iterator]();
+        iterator = generator[symIt]();
 
       expect(iterator.next()).to.eql({
         value: 0,
