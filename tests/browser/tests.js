@@ -9529,13 +9529,52 @@ process.umask = function() { return 0; };
       array = reiterate(a).asArray();
       expect(array.sort()).to.eql([1, 2, 3]);
 
-      a[Symbol.iterator] = function* () {
-        for (var key in this) {
-          if (this.hasOwnProperty(key)) {
-            yield key;
-          }
-        }
-      };
+      if (isGeneratorSupported) {
+        /*jshint evil:true */
+        a[symIt] = new Function('return function*(){for(var key in this)' +
+          'if(this.hasOwnProperty(key))yield key};')();
+      } else {
+        a[symIt] = function () {
+          var index = 0,
+            iterable = this,
+            keys;
+
+          return {
+            next: function () {
+              var object;
+
+              keys = keys || (function () {
+                var result = [],
+                  key;
+
+                for (key in iterable) {
+                  if (Object.prototype.hasOwnProperty.call(iterable, key)) {
+                    result.push(key);
+                  }
+                }
+
+                return result;
+              }());
+
+              if (index < keys.length) {
+                object = {
+                  done: false,
+                  value: keys[index]
+                };
+
+                index += 1;
+              } else {
+                object = {
+                  done: true,
+                  value: undefined
+                };
+              }
+
+              return object;
+            }
+          };
+        };
+      }
 
       array = reiterate(a).asArray();
       expect(array).to.eql(['a', 'b', 'c']);
