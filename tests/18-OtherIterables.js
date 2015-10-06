@@ -73,7 +73,8 @@
                   key;
 
                 for (key in iterable) {
-                  if (Object.prototype.hasOwnProperty.call(iterable, key)) {
+                  if (key !== symIt &&
+                    Object.prototype.hasOwnProperty.call(iterable, key)) {
                     result.push(iterable[key]);
                   }
                 }
