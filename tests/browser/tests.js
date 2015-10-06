@@ -1075,7 +1075,7 @@
         var msg,
           fn;
 
-        if (apr && !useShims) {
+        if (apr && !useShims && false) {
           fn = function (array) {
             return apr.apply(array, chop(arguments, 1));
           };
