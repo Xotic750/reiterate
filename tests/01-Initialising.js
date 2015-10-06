@@ -54,11 +54,11 @@
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(typeof Map === 'function' ? new Map() : new reiterate.Map());
+        reiterate(new reiterate.Map());
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(typeof Set === 'function' ? new Set() : new reiterate.Set());
+        reiterate(new reiterate.Set());
       }).to.not.throwException();
 
       expect(function () {

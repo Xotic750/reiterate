@@ -50,7 +50,7 @@
 (function (root, factory) {
   'use strict';
 
-  var useShims = true,
+  var useShims = false,
 
     typeFunction = typeof factory,
 
@@ -931,7 +931,7 @@
 
         if (apm && !useShims) {
           fn = function (array) {
-            return apm.apply(array, chop(arguments, 1));
+            return aps.apply(array, chop(arguments, 1));
           };
         } else {
           fn = function (array, callback, thisArg) {
@@ -1305,7 +1305,14 @@
         var s = typeof Set === typeFunction && Set,
           fn;
 
-        if (s && !useShims) {
+        if (s &&
+          s.keys &&
+          s.values &&
+          s.entries &&
+          s.forEach &&
+          s.clear &&
+          s[symIt] &&
+          !useShims) {
           fn = s;
         } else {
           fn = function (iterable) {
@@ -1481,7 +1488,14 @@
         var m = typeof Map === typeFunction && Map,
           fn;
 
-        if (m && !useShims) {
+        if (m &&
+          m.keys &&
+          m.values &&
+          m.entries &&
+          m.forEach &&
+          m.clear &&
+          m[symIt] &&
+          !useShims) {
           fn = m;
         } else {
           fn = function (iterable) {
@@ -1906,22 +1920,22 @@
 
         join: function (seperator) {
           var iterator = this[symIt](),
-            item = iterator.next(),
+            next = iterator.next(),
             result = '',
-            next;
+            after;
 
           if (isUndefined(seperator)) {
             seperator = ',';
           }
 
-          while (!item.done) {
-            result += item.value;
-            next = iterator.next();
-            if (!next.done) {
+          while (!next.done) {
+            result += next.value;
+            after = iterator.next();
+            if (!after.done) {
               result += seperator;
             }
 
-            item = next;
+            next = after;
           }
 
           return result;
@@ -6978,11 +6992,11 @@ process.umask = function() { return 0; };
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(typeof Map === 'function' ? new Map() : new reiterate.Map());
+        reiterate(new reiterate.Map());
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(typeof Set === 'function' ? new Set() : new reiterate.Set());
+        reiterate(new reiterate.Set());
       }).to.not.throwException();
 
       expect(function () {
@@ -9599,16 +9613,9 @@ process.umask = function() { return 0; };
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
-      var array,
-        a;
+      var a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3),
+        array = reiterate(a).asArray();
 
-      if (typeof Map === 'function' && !reiterate.useShims) {
-        a = new Map().set(0, 1).set(1, 2).set(2, 3);
-      } else {
-        a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3);
-      }
-
-      array = reiterate(a).asArray();
       expect(array).to.eql([
         [0, 1],
         [1, 2],
@@ -9619,12 +9626,7 @@ process.umask = function() { return 0; };
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
-      if (typeof Set === 'function' && !reiterate.useShims) {
-        a = new Set().add(0).add(1).add(2);
-      } else {
-        a = new reiterate.Set().add(0).add(1).add(2);
-      }
-
+      a = new reiterate.Set().add(0).add(1).add(2);
       array = reiterate(a).asArray();
       expect(array).to.eql([0, 1, 2]);
 

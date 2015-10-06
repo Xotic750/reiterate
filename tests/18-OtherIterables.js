@@ -19,16 +19,9 @@
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
-      var array,
-        a;
+      var a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3),
+        array = reiterate(a).asArray();
 
-      if (typeof Map === 'function' && !reiterate.useShims) {
-        a = new Map().set(0, 1).set(1, 2).set(2, 3);
-      } else {
-        a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3);
-      }
-
-      array = reiterate(a).asArray();
       expect(array).to.eql([
         [0, 1],
         [1, 2],
@@ -39,12 +32,7 @@
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
-      if (typeof Set === 'function' && !reiterate.useShims) {
-        a = new Set().add(0).add(1).add(2);
-      } else {
-        a = new reiterate.Set().add(0).add(1).add(2);
-      }
-
+      a = new reiterate.Set().add(0).add(1).add(2);
       array = reiterate(a).asArray();
       expect(array).to.eql([0, 1, 2]);
 
