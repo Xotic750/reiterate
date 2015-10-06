@@ -28,16 +28,16 @@
     MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS, RepeatGenerator, StringGenerator,
     ThenGenerator, UnzipGenerator, VALUES, abs, add, amd, apply, asArray,
     asMap, asObject, asSet, asSetOwn, asString, assign, by, call, charCodeAt,
-    chunkGenerator, codePointAt, compactGenerator, configurable,
+    chunkGenerator, clear, codePointAt, compactGenerator, configurable,
     defineProperty, differenceGenerator, done, drop, dropGenerator,
     dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
     first, flattenGenerator, floor, forEach, from, fromCharCode, fromCodePoint,
     get, has, hasOwnProperty, index, indexOf, initialGenerator,
     intersectionGenerator, isArray, isFinite, isNaN, iterator, join, keys,
-    last, length, mapGenerator, max, min, next, own, pow, prev, prototype,
-    push, reduce, rest, restGenerator, reverse, reversed, set, sign, size,
-    some, splice, takeGenerator, takeWhileGenerator, tapGenerator, then, to,
-    toString, unionGenerator, uniqueGenerator, value, values, writable,
+    last, length, mapGenerator, max, min, next, order, own, pow, prev,
+    prototype, push, reduce, rest, restGenerator, reverse, reversed, set, sign,
+    size, some, splice, takeGenerator, takeWhileGenerator, tapGenerator, then,
+    to, toString, unionGenerator, uniqueGenerator, value, values, writable,
     zipGenerator
 */
 
@@ -1057,6 +1057,42 @@
         return fn;
       }(Array.prototype.forEach)),
 
+      some = (function (aps) {
+        var fn;
+
+        if (aps && !useShims) {
+          fn = function (array) {
+            return aps.apply(array, chop(arguments, 1));
+          };
+        } else {
+          fn = function (array, callback, thisArg) {
+            var object = toObject(array),
+              val,
+              length,
+              index;
+
+            mustBeFunction(callback);
+            length = toLength(object.length);
+            val = false;
+            index = 0;
+            while (index < length) {
+              if (index in object) {
+                val = !!callback.call(thisArg, object[index], index, object);
+                if (val) {
+                  break;
+                }
+              }
+
+              index += 1;
+            }
+
+            return val;
+          };
+        }
+
+        return fn;
+      }(Array.prototype.some)),
+
       /**
        * Apply a function against an accumulator and each value of the array
        * (from left-to-right) as to reduce it to a single value.
@@ -1075,7 +1111,7 @@
         var msg,
           fn;
 
-        if (apr && !useShims && false) {
+        if (apr && !useShims) {
           fn = function (array) {
             return apr.apply(array, chop(arguments, 1));
           };
@@ -1277,10 +1313,18 @@
         return fn;
       }(Array.prototype.indexOf)),
 
+      /*
       is = function (x, y) {
-        /*jshint singleGroups:false */
+        /-*jshint singleGroups:false *-/
         return (x === y && (x !== 0 || 1 / x === 1 / y)) ||
           (numIsNaN(x) && numIsNaN(y));
+      },
+      */
+
+      // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-samevaluezero
+      sameValueZero = function (x, y) {
+        /*jshint singleGroups:false */
+        return (x === y) || (numIsNaN(x) && numIsNaN(y));
       },
 
       getIndex = function (array, item) {
@@ -1288,7 +1332,7 @@
 
         if (item === 0 || numIsNaN(item)) {
           index = array.length - 1;
-          while (index >= 0 && !is(item, array[index])) {
+          while (index >= 0 && !sameValueZero(item, array[index])) {
             index -= 1;
           }
         } else {
@@ -1304,13 +1348,14 @@
 
       SetObject = (function (typeFunction) {
         var S = typeof Set === typeFunction && !useShims && Set,
+          changed,
           fn,
           s;
 
         if (S) {
           try {
-            s = new S([1]);
-            if (!s.has(1) ||
+            s = new S([0]);
+            if (!s.has(-0) ||
               s.size !== 1 ||
               typeof s.add !== typeFunction ||
               typeof s.keys !== typeFunction ||
@@ -1330,11 +1375,20 @@
         if (S) {
           fn = S;
         } else {
-          fn = function (iterable) {
+          changed = function (id, count) {
+            this.index = count;
+
+            return id > this.order;
+          };
+
+          fn = function Set(iterable) {
             var iterator,
               next;
 
-            setValue(this, '_keys', []);
+            setValue(this, '[[key]]', []);
+            setValue(this, '[[order]]', []);
+            setValue(this, '[[id]]', 0);
+            setValue(this, '[[changed]]', false);
             if (!isNil(iterable)) {
               if (isArrayLike(iterable)) {
                 iterator = reiterate(iterable, true);
@@ -1346,60 +1400,120 @@
             if (iterator) {
               next = iterator.next();
               while (!next.done) {
-                if (!includes(this._keys, next.value)) {
-                  this._keys.push(next.value);
+                if (!includes(this['[[key]]'], next.value)) {
+                  this['[[key]]'].push(next.value);
                 }
 
                 next = iterator.next();
               }
             }
 
-            setValue(this, 'size', this._keys.length);
+            setValue(this, 'size', this['[[key]]'].length);
           };
 
           setValue(fn.prototype, 'has', function (key) {
-            return includes(this._keys, key);
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            return includes(this['[[key]]'], key);
           });
 
           setValue(fn.prototype, 'add', function (key) {
-            if (!includes(this._keys, key)) {
-              this._keys.push(key);
-              this.size = this._keys.length;
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            if (!includes(this['[[key]]'], key)) {
+              this['[[key]]'].push(key);
+              this['[[change]]'] = true;
+              this.size = this['[[key]]'].length;
             }
 
             return this;
           });
 
           setValue(fn.prototype, 'clear', function () {
-            this._keys.length = this.size = 0;
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            this['[[change]]'] = true;
+            this['[[key]]'].length =
+              this['[[order]]'].length =
+              this['[[id]]'] =
+              this.size = 0;
+
             return this;
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            var index = getIndex(this._keys, key);
+            var index,
+              result;
 
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            index = getIndex(this['[[key]]'], key);
             if (-1 < index) {
-              this._keys.splice(index, 1);
-              this.size = this._keys.length;
+              this['[[key]]'].splice(index, 1);
+              this['[[order]]'].splice(index, 1);
+              this['[[change]]'] = true;
+              this.size = this['[[key]]'].length;
+              result = true;
+            } else {
+              result = false;
+            }
+
+            return result;
+          });
+
+          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
+            var pointers,
+              length;
+
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            mustBeFunction(callback);
+            pointers = {};
+            pointers.index = 0;
+            pointers.order = this['[[order]]'][pointers.index];
+            length = this['[[key]]'].length;
+            while (pointers.index < length) {
+              if (hasOwn(this['[[key]]'], pointers.index)) {
+                callback.call(
+                  thisArg,
+                  this['[[key]]'][pointers.index],
+                  pointers.index,
+                  this
+                );
+              }
+
+              if (this['[[change]]']) {
+                length = this['[[key]]'].length;
+                some(this['[[order]]'], changed, pointers);
+                this['[[change]]'] = false;
+              } else {
+                pointers.index += 1;
+              }
+
+              pointers.order = this['[[order]]'][pointers.index];
             }
 
             return this;
           });
 
-          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            forEach(this._keys, callback, thisArg);
-
-            return this;
-          });
-
           setValue(fn.prototype, 'values', function () {
-            var keys = this._keys;
+            var context = this,
+              keys = context['[[key]]'];
 
             function SetIterator() {
-              var length = keys.length,
-                index = 0;
+              var index = 0,
+                done;
 
-              setValue(this, '@@IteratorKind', 'values');
               setValue(this, symIt, function () {
                 return this;
               });
@@ -1407,7 +1521,11 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (index < length) {
+                if (!isObject(context)) {
+                  throw new TypeError('context is not an object');
+                }
+
+                if (index < keys.length) {
                   object = {
                     done: false,
                     value: keys[index]
@@ -1415,7 +1533,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  done = object = assign({}, $.DONE);
                 }
 
                 return object;
@@ -1426,13 +1544,13 @@
           });
 
           setValue(fn.prototype, 'keys', function () {
-            var keys = this._keys;
+            var context = this,
+              keys = context['[[key]]'];
 
             function SetIterator() {
-              var length = keys.length,
-                index = 0;
+              var index = 0,
+                done;
 
-              setValue(this, '@@IteratorKind', 'keys');
               setValue(this, symIt, function () {
                 return this;
               });
@@ -1440,7 +1558,11 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (index < length) {
+                if (!isObject(context)) {
+                  throw new TypeError('context is not an object');
+                }
+
+                if (index < keys.length && !done) {
                   object = {
                     done: false,
                     value: index
@@ -1448,7 +1570,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  done = object = assign({}, $.DONE);
                 }
 
                 return object;
@@ -1459,13 +1581,13 @@
           });
 
           setValue(fn.prototype, 'entries', function () {
-            var keys = this._keys;
+            var context = this,
+              keys = context['[[key]]'];
 
             function SetIterator() {
-              var length = keys.length,
-                index = 0;
+              var index = 0,
+                done;
 
-              setValue(this, '@@IteratorKind', 'entries');
               setValue(this, symIt, function () {
                 return this;
               });
@@ -1473,7 +1595,11 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (index < length) {
+                if (!isObject(context)) {
+                  throw new TypeError('context is not an object');
+                }
+
+                if (index < keys.length && !done) {
                   object = {
                     done: false,
                     value: [index, keys[index]]
@@ -1481,7 +1607,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  done = object = assign({}, $.DONE);
                 }
 
                 return object;
@@ -1501,6 +1627,7 @@
 
       MapObject = (function (typeFunction) {
         var M = typeof Map === typeFunction && !useShims && Map,
+          changed,
           fn,
           m;
 
@@ -1509,16 +1636,17 @@
             m = new M([
               [0, 1]
             ]);
+
             if (!m.has(0) ||
               m.size !== 1 ||
-              m.set !== typeFunction ||
-              m.keys !== typeFunction ||
-              m.values !== typeFunction ||
-              m.entries !== typeFunction ||
-              m.forEach !== typeFunction ||
-              m.clear !== typeFunction ||
-              m[strDelete] !== typeFunction ||
-              m[symIt] !== typeFunction) {
+              typeof m.set !== typeFunction ||
+              typeof m.keys !== typeFunction ||
+              typeof m.values !== typeFunction ||
+              typeof m.entries !== typeFunction ||
+              typeof m.forEach !== typeFunction ||
+              typeof m.clear !== typeFunction ||
+              typeof m[strDelete] !== typeFunction ||
+              typeof m[symIt] !== typeFunction) {
               throw new Error();
             }
           } catch (e) {
@@ -1529,16 +1657,25 @@
         if (M) {
           fn = M;
         } else {
-          fn = function (iterable) {
+          changed = function (id, count) {
+            this.index = count;
+
+            return id > this.order;
+          };
+
+          fn = function Map(iterable) {
             var iterator,
-              index,
+              indexof,
               next;
 
-            setValue(this, '_keys', []);
-            setValue(this, '_values', []);
+            setValue(this, '[[key]]', []);
+            setValue(this, '[[value]]', []);
+            setValue(this, '[[order]]', []);
+            setValue(this, '[[id]]', 0);
+            setValue(this, '[[changed]]', false);
             if (!isNil(iterable)) {
               if (isArrayLike(iterable)) {
-                iterator = reiterate(iterable, true).entries();
+                iterator = reiterate(iterable, true)[symIt]();
               } else if (iterable[symIt]) {
                 iterator = iterable[symIt]();
               }
@@ -1547,80 +1684,149 @@
             if (iterator) {
               next = iterator.next();
               while (!next.done) {
-                index = getIndex(this._keys, next.value[0]);
-                if (-1 < index) {
-                  this._keys.push(next.value[0]);
-                  this._values.push(next.value[1]);
+                indexof = getIndex(this['[[key]]'], next.value[0]);
+                if (indexof < 0) {
+                  this['[[key]]'].push(next.value[0]);
+                  this['[[value]]'].push(next.value[1]);
+                  this['[[id]]'] += 1;
+                  this['[[order]]'].push(this['[[id]]']);
                 } else {
-                  this._values[index] = next.value[1];
+                  this['[[value]]'][indexof] = next.value[1];
                 }
 
                 next = iterator.next();
               }
             }
 
-            setValue(this, 'size', this._keys.length);
+            setValue(this, 'size', this['[[key]]'].length);
           };
 
           setValue(fn.prototype, 'has', function (key) {
-            return includes(this._keys, key);
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            return includes(this['[[key]]'], key);
           });
 
           setValue(fn.prototype, 'set', function (key, value) {
-            var index = getIndex(this._keys, key);
+            var index;
 
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            index = getIndex(this['[[key]]'], key);
             if (-1 < index) {
-              this._values[index] = value;
+              this['[[value]]'][index] = value;
             } else {
-              this._keys.push(key);
-              this._values.push(value);
-              this.size = this._keys.length;
+              this['[[key]]'].push(key);
+              this['[[value]]'].push(value);
+              this['[[id]]'] += 1;
+              this['[[order]]'].push(this['[[id]]']);
+              this['[[change]]'] = true;
+              this.size = this['[[key]]'].length;
             }
 
             return this;
           });
 
           setValue(fn.prototype, 'clear', function () {
-            this._keys.length = this._values = this.size = 0;
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            this['[[change]]'] = true;
+            this['[[key]]'].length =
+              this['[[value]]'].length =
+              this['[[order]]'].length =
+              this['[[id]]'] =
+              this.size = 0;
+
             return this;
           });
 
           setValue(fn.prototype, 'get', function (key) {
-            var index = getIndex(this._keys, key);
+            var index;
 
-            return -1 < index ? this._values[index] : undefined;
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            index = getIndex(this['[[key]]'], key);
+
+            return -1 < index ? this['[[value]]'][index] : undefined;
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            var index = getIndex(this._keys, key);
+            var indexof,
+              result;
 
-            if (-1 < index) {
-              this._keys.splice(index, 1);
-              this._values.splice(index, 1);
-              this.size = this._keys.length;
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            indexof = getIndex(this['[[key]]'], key);
+            if (-1 < indexof) {
+              this['[[key]]'].splice(indexof, 1);
+              this['[[value]]'].splice(indexof, 1);
+              this['[[order]]'].splice(indexof, 1);
+              this['[[change]]'] = true;
+              this.size = this['[[key]]'].length;
+              result = true;
+            } else {
+              result = false;
+            }
+
+            return result;
+          });
+
+          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
+            var pointers,
+              length;
+
+            if (!isObject(this)) {
+              throw new TypeError('context is not an object');
+            }
+
+            mustBeFunction(callback);
+            pointers = {};
+            pointers.index = 0;
+            pointers.order = this['[[order]]'][pointers.index];
+            length = this['[[key]]'].length;
+            while (pointers.index < length) {
+              if (hasOwn(this['[[key]]'], pointers.index)) {
+                callback.call(
+                  thisArg,
+                  this['[[value]]'][pointers.index],
+                  this['[[key]]'][pointers.index],
+                  this
+                );
+              }
+
+              if (this['[[change]]']) {
+                length = this['[[key]]'].length;
+                some(this['[[order]]'], changed, pointers);
+                this['[[change]]'] = false;
+              } else {
+                pointers.index += 1;
+              }
+
+              pointers.order = this['[[order]]'][pointers.index];
             }
 
             return this;
           });
 
-          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            mustBeFunction(callback);
-            forEach(this._keys, function (key, index) {
-              callback.call(thisArg, this._values[index], key, this);
-            }, this);
-
-            return this;
-          });
-
           setValue(fn.prototype, 'values', function () {
-            var keys = this._keys,
-              values = this._values;
+            var context = this,
+              keys = context['[[key]]'],
+              values = context['[[value]]'];
 
             function MapIterator() {
-              var length = keys.length,
-                index = 0;
+              var index = 0,
+                done;
 
-              setValue(this, '@@IteratorKind', 'values');
               setValue(this, symIt, function () {
                 return this;
               });
@@ -1628,7 +1834,11 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (index < length) {
+                if (!isObject(context)) {
+                  throw new TypeError('context is not an object');
+                }
+
+                if (index < keys.length && !done) {
                   object = {
                     done: false,
                     value: values[index]
@@ -1636,7 +1846,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  done = object = assign({}, $.DONE);
                 }
 
                 return object;
@@ -1647,13 +1857,13 @@
           });
 
           setValue(fn.prototype, 'keys', function () {
-            var keys = this._keys;
+            var context = this,
+              keys = context['[[key]]'];
 
             function MapIterator() {
-              var length = keys.length,
-                index = 0;
+              var index = 0,
+                done;
 
-              setValue(this, '@@IteratorKind', 'keys');
               setValue(this, symIt, function () {
                 return this;
               });
@@ -1661,7 +1871,11 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (index < length) {
+                if (!isObject(context)) {
+                  throw new TypeError('context is not an object');
+                }
+
+                if (index < keys.length && !done) {
                   object = {
                     done: false,
                     value: keys[index]
@@ -1669,7 +1883,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  done = object = assign({}, $.DONE);
                 }
 
                 return object;
@@ -1680,14 +1894,14 @@
           });
 
           setValue(fn.prototype, 'entries', function () {
-            var keys = this._keys,
-              values = this._values;
+            var context = this,
+              keys = context['[[key]]'],
+              values = context['[[value]]'];
 
             function MapIterator() {
-              var length = keys.length,
-                index = 0;
+              var index = 0,
+                done;
 
-              setValue(this, '@@IteratorKind', 'entries');
               setValue(this, symIt, function () {
                 return this;
               });
@@ -1695,7 +1909,11 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (index < length) {
+                if (!isObject(context)) {
+                  throw new TypeError('context is not an object');
+                }
+
+                if (index < keys.length && !done) {
                   object = {
                     done: false,
                     value: [keys[index], values[index]]
@@ -1703,7 +1921,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  done = object = assign({}, $.DONE);
                 }
 
                 return object;
@@ -6999,6 +7217,413 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:true, es3:true, plusplus:true, maxparams:3, maxdepth:2,
+    maxstatements:29, maxcomplexity:3
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../scripts/'),
+    expect = required.expect,
+    reiterate = required.subject;
+
+  describe('Basic tests', function () {
+    var proto = '__proto__';
+
+    it('reiterate.Map existence', function () {
+      expect(reiterate.Map).to.be.ok();
+    });
+
+    it('reiterate.Map constructor behavior', function () {
+      expect(new reiterate.Map()).to.be.a(reiterate.Map);
+      var a = 1,
+        b = {},
+        c = new reiterate.Map(),
+        m = new reiterate.Map([
+          [1, 1],
+          [b, 2],
+          [c, 3]
+        ]);
+
+      expect(m.has(a)).to.be.ok();
+      expect(m.has(b)).to.be.ok();
+      expect(m.has(c)).to.be.ok();
+      expect(m.size).to.be(3);
+      if (proto in {}) {
+        expect(new reiterate.Map()[proto].isPrototypeOf(new reiterate.Map()))
+          .to.be.ok();
+        expect(new reiterate.Map()[proto]).to.be(reiterate.Map.prototype);
+      }
+    });
+
+    it('reiterate.Map#size - Mozilla only', function () {
+      var o = new reiterate.Map();
+
+      if ('size' in o) {
+        expect(o.size).to.be(0);
+        o.set('a', 'a');
+        expect(o.size).to.be(1);
+        o['delete']('a');
+        expect(o.size).to.be(0);
+      }
+    });
+
+    it('reiterate.Map#has', function () {
+      var o = new reiterate.Map(),
+        generic = {},
+        callback = function () {};
+
+      expect(o.has(callback)).to.not.be.ok();
+      o.set(callback, generic);
+      expect(o.has(callback)).to.be.ok();
+    });
+
+    it('reiterate.Map#get', function () {
+      var o = new reiterate.Map(),
+        generic = {},
+        callback = function () {};
+
+      //:was assert(o.get(callback, 123) === 123);
+      o.set(callback, generic);
+      expect(o.get(callback, 123)).to.be(generic);
+      expect(o.get(callback)).to.be(generic);
+    });
+
+    it('reiterate.Map#set', function () {
+      var o = new reiterate.Map(),
+        generic = {},
+        callback = function () {};
+
+      o.set(callback, generic);
+      expect(o.get(callback)).to.be(generic);
+      o.set(callback, callback);
+      expect(o.get(callback)).to.be(callback);
+      o.set(callback, o);
+      expect(o.get(callback)).to.be(o);
+      o.set(o, callback);
+      expect(o.get(o)).to.be(callback);
+      o.set(NaN, generic);
+      expect(o.has(NaN)).to.be.ok();
+      expect(o.get(NaN)).to.be(generic);
+      o.set('key', undefined);
+      expect(o.has('key')).to.be.ok();
+      expect(o.get('key')).to.be(undefined);
+
+      expect(!o.has(-0)).to.be.ok();
+      expect(!o.has(0)).to.be.ok();
+      o.set(-0, callback);
+      expect(o.has(-0)).to.be.ok();
+      expect(o.has(0)).to.be.ok();
+      expect(o.get(-0)).to.be(callback);
+      expect(o.get(0)).to.be(callback);
+      o.set(0, generic);
+      expect(o.has(-0)).to.be.ok();
+      expect(o.has(0)).to.be.ok();
+      expect(o.get(-0)).to.be(generic);
+      expect(o.get(0)).to.be(generic);
+    });
+
+    it("reiterate.Map#['delete']", function () {
+      var o = new reiterate.Map(),
+        generic = {},
+        callback = function () {};
+
+      o.set(callback, generic);
+      o.set(generic, callback);
+      o.set(o, callback);
+      expect(o.has(callback) && o.has(generic) && o.has(o)).to.be.ok();
+      o['delete'](callback);
+      o['delete'](generic);
+      o['delete'](o);
+      expect(!o.has(callback) && !o.has(generic) && !o.has(o)).to.be.ok();
+      expect(o['delete'](o)).to.not.be.ok();
+      o.set(o, callback);
+      expect(o['delete'](o)).to.be.ok();
+    });
+
+    it('non object key does not throw an error', function () {
+      var o = new reiterate.Map();
+
+      try {
+        o.set('key', o);
+      } catch (emAll) {
+        expect(false).to.be.ok();
+      }
+    });
+
+    it('keys, values, entries behavior', function () {
+      // test that things get returned in insertion order as per the specs
+      var o = new reiterate.Map([
+          ['1', 1],
+          ['2', 2],
+          ['3', 3]
+        ]),
+        keys = o.keys(),
+        values = o.values(),
+        k = keys.next(),
+        v = values.next(),
+        e;
+
+      expect(k.value === '1' && v.value === 1).to.be.ok();
+      o['delete']('2');
+      k = keys.next();
+      v = values.next();
+      expect(k.value === '3' && v.value === 3).to.be.ok();
+      // insertion of previously-removed item goes to the end
+      o.set('2', 2);
+      k = keys.next();
+      v = values.next();
+      expect(k.value === '2' && v.value === 2).to.be.ok();
+      // when called again, new iterator starts from beginning
+      var entriesagain = o.entries();
+
+      expect(entriesagain.next().value[0]).to.be('1');
+      expect(entriesagain.next().value[0]).to.be('3');
+      expect(entriesagain.next().value[0]).to.be('2');
+      // after a iterator is finished, don't return any more elements
+      k = keys.next();
+      v = values.next();
+      expect(k.done && v.done).to.be.ok();
+      k = keys.next();
+      v = values.next();
+      expect(k.done && v.done).to.be.ok();
+      o.set('4', 4);
+      k = keys.next();
+      v = values.next();
+      expect(k.done && v.done).to.be.ok();
+      // new element shows up in iterators that didn't yet
+      e = entriesagain.next();
+      expect(e.done).to.not.be.ok();
+      expect(e.value[0]).to.be('4');
+      expect(entriesagain.next().done).to.be.ok();
+    });
+
+    it('reiterate.Map#forEach', function () {
+      var o = new reiterate.Map();
+
+      o.set('key 0', 0);
+      o.set('key 1', 1);
+      o.forEach(function (value, key, obj) {
+        /*global console */
+        console.log(key);
+        expect('key ' + value).to.be(key);
+        expect(obj).to.be(o);
+        // even if dropped, keeps looping
+        o['delete'](key);
+      });
+
+      expect(!o.size).to.be.ok();
+    });
+
+    it('reiterate.Map#forEach with mutations', function () {
+      var o = new reiterate.Map([
+          ['0', 0],
+          ['1', 1],
+          ['2', 2]
+        ]),
+        seen = [];
+
+      o.forEach(function (value, key, obj) {
+        seen.push(value);
+        expect(obj).to.be(o);
+        expect('' + value).to.be(key);
+        // mutations work as expected
+        if (value === 1) {
+          o['delete']('0'); // remove from before current index
+          o['delete']('2'); // remove from after current index
+          o.set('3', 3); // insertion
+        } else if (value === 3) {
+          o.set('0', 0); // insertion at the end
+        }
+      });
+
+      expect(seen).to.eql([0, 1, 3, 0]);
+    });
+
+    it('reiterate.Map#clear', function () {
+      var o = new reiterate.Map();
+
+      o.set(1, '1');
+      o.set(2, '2');
+      o.set(3, '3');
+      o.clear();
+      expect(!o.size).to.be.ok();
+    });
+
+    it('reiterate.Set existence', function () {
+      expect(reiterate.Set).to.be.ok();
+    });
+
+    it('reiterate.Set constructor behavior', function () {
+      expect(new reiterate.Set()).to.be.a(reiterate.Set);
+      var s = new reiterate.Set([1, 2]);
+
+      expect(s.has(1)).to.be.ok();
+      expect(s.has(2)).to.be.ok();
+      expect(s.size).to.be(2);
+      if (proto in {}) {
+        expect(new reiterate.Set()[proto].isPrototypeOf(new reiterate.Set()))
+          .to.be.ok();
+        expect(new reiterate.Set()[proto]).to.be(reiterate.Set.prototype);
+      }
+    });
+
+    it('reiterate.Set#size - Mozilla only', function () {
+      var o = new reiterate.Set();
+
+      if ('size' in o) {
+        expect(o.size).to.be(0);
+        o.add('a');
+        expect(o.size).to.be(1);
+        o['delete']('a');
+        expect(o.size).to.be(0);
+      }
+    });
+
+    it('reiterate.Set#add', function () {
+      var o = new reiterate.Set();
+
+      expect(o.add(NaN)).to.be.ok();
+      expect(o.has(NaN)).to.be.ok();
+    });
+
+    it("reiterate.Set#['delete']", function () {
+      var o = new reiterate.Set(),
+        generic = {},
+        callback = function () {};
+
+      o.add(callback);
+      o.add(generic);
+      o.add(o);
+      expect(o.has(callback) && o.has(generic) && o.has(o)).to.be.ok();
+      o['delete'](callback);
+      o['delete'](generic);
+      o['delete'](o);
+      expect(!o.has(callback) && !o.has(generic) && !o.has(o)).to.be.ok();
+      expect(o['delete'](o)).to.not.be.ok();
+      o.add(o);
+      expect(o['delete'](o)).to.be.ok();
+    });
+
+    it('values behavior', function () {
+      // test that things get returned in insertion order as per the specs
+      var o = new reiterate.Set([1, 2, 3]);
+
+      expect(o.keys).to.be(o.values); // same function, as per the specs
+      var values = o.values(),
+        v = values.next();
+
+      expect(v.value).to.be(1);
+      o['delete'](2);
+      v = values.next();
+      expect(v.value).to.be(3);
+      // insertion of previously-removed item goes to the end
+      o.add(2);
+      v = values.next();
+      expect(v.value).to.be(2);
+      // when called again, new iterator starts from beginning
+      var entriesagain = o.entries();
+      expect(entriesagain.next().value[1]).to.be(1);
+      expect(entriesagain.next().value[1]).to.be(3);
+      expect(entriesagain.next().value[1]).to.be(2);
+      // after a iterator is finished, don't return any more elements
+      v = values.next();
+      expect(v.done).to.be.ok();
+      v = values.next();
+      expect(v.done).to.be.ok();
+      o.add(4);
+      v = values.next();
+      expect(v.done).to.be.ok();
+      // new element shows up in iterators that didn't yet finish
+      expect(entriesagain.next().value[1]).to.be(4);
+      expect(entriesagain.next().done).to.be.ok();
+    });
+
+    it('reiterate.Set#has', function () {
+      var o = new reiterate.Set(),
+        callback = function () {};
+
+      expect(o.has(callback)).to.not.be.ok();
+      o.add(callback);
+      expect(o.has(callback)).to.be.ok();
+    });
+
+    it('reiterate.Set#forEach', function () {
+      var o = new reiterate.Set(),
+        i = 0;
+
+      o.add('value 0');
+      o.add('value 1');
+      o.forEach(function (value, sameValue, obj) {
+        expect('value ' + i).to.be(value);
+        i += 1;
+        expect(obj).to.be(o);
+        expect(sameValue).to.be(value);
+        // even if dropped, keeps looping
+        o['delete'](value);
+      });
+
+      expect(!o.size).to.be.ok();
+    });
+
+    it('reiterate.Set#forEach with mutations', function () {
+      var o = new reiterate.Set([0, 1, 2]),
+        seen = [];
+
+      o.forEach(function (value, sameValue, obj) {
+        seen.push(value);
+        expect(obj).to.be(o);
+        expect(sameValue).to.be(value);
+        // mutations work as expected
+        if (value === 1) {
+          o['delete'](0); // remove from before current index
+          o['delete'](2); // remove from after current index
+          o.add(3); // insertion
+        } else if (value === 3) {
+          o.add(0); // insertion at the end
+        }
+      });
+
+      expect(seen).to.eql([0, 1, 3, 0]);
+    });
+
+    it('reiterate.Set#clear', function () {
+      var o = new reiterate.Set();
+
+      o.add(1);
+      o.add(2);
+      o.clear();
+      expect(!o.size).to.be.ok();
+    });
+
+    it('reiterate.Set#add, reiterate.Map#set are chainable now', function () {
+      var s = new reiterate.Set(),
+        m = new reiterate.Map(),
+        a = {};
+
+      s.add(1).add(2);
+      expect(s.has(1) && s.has(2) && s.size).to.be(2);
+
+      m.set(1, 1).set(a, 2);
+      expect(m.has(1) && m.has(a) && m.size).to.be(2);
+    });
+
+    it('Recognize any iterable as the constructor input', function () {
+      var a = new reiterate.Set(new reiterate.Set([1, 2]));
+
+      expect(a.has(1)).to.be.ok();
+    });
+  });
+}());
+
+},{"../scripts/":9}],11:[function(require,module,exports){
+/*jslint maxlen:80, es6:true, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:12,
     maxcomplexity:2
 */
@@ -7064,7 +7689,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],11:[function(require,module,exports){
+},{"../scripts/":9}],12:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -8026,7 +8651,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],12:[function(require,module,exports){
+},{"../scripts/":9}],13:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -8384,7 +9009,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],13:[function(require,module,exports){
+},{"../scripts/":9}],14:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -8523,7 +9148,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],14:[function(require,module,exports){
+},{"../scripts/":9}],15:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -8718,7 +9343,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],15:[function(require,module,exports){
+},{"../scripts/":9}],16:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -8849,7 +9474,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],16:[function(require,module,exports){
+},{"../scripts/":9}],17:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -8991,7 +9616,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],17:[function(require,module,exports){
+},{"../scripts/":9}],18:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9086,7 +9711,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],18:[function(require,module,exports){
+},{"../scripts/":9}],19:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9265,7 +9890,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],19:[function(require,module,exports){
+},{"../scripts/":9}],20:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9396,7 +10021,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],20:[function(require,module,exports){
+},{"../scripts/":9}],21:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9448,7 +10073,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],21:[function(require,module,exports){
+},{"../scripts/":9}],22:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9481,7 +10106,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],22:[function(require,module,exports){
+},{"../scripts/":9}],23:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9511,7 +10136,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],23:[function(require,module,exports){
+},{"../scripts/":9}],24:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9541,7 +10166,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],24:[function(require,module,exports){
+},{"../scripts/":9}],25:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9568,7 +10193,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],25:[function(require,module,exports){
+},{"../scripts/":9}],26:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9596,7 +10221,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],26:[function(require,module,exports){
+},{"../scripts/":9}],27:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9649,7 +10274,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],27:[function(require,module,exports){
+},{"../scripts/":9}],28:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9805,7 +10430,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],28:[function(require,module,exports){
+},{"../scripts/":9}],29:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9861,7 +10486,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],29:[function(require,module,exports){
+},{"../scripts/":9}],30:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9896,7 +10521,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],30:[function(require,module,exports){
+},{"../scripts/":9}],31:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9932,7 +10557,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],31:[function(require,module,exports){
+},{"../scripts/":9}],32:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -9988,7 +10613,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],32:[function(require,module,exports){
+},{"../scripts/":9}],33:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -10056,7 +10681,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],33:[function(require,module,exports){
+},{"../scripts/":9}],34:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -10111,7 +10736,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}],34:[function(require,module,exports){
+},{"../scripts/":9}],35:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -10262,4 +10887,4 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34]);
+},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]);
