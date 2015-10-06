@@ -1466,7 +1466,7 @@
           });
 
           setValue(fn.prototype, symIt, function () {
-            return this.entries();
+            return this.values();
           });
         }
 
@@ -9600,7 +9600,7 @@ process.umask = function() { return 0; };
       var array,
         a;
 
-      if (false && typeof Map === 'function') {
+      if (typeof Map === 'function') {
         a = new Map().set(0, 1).set(1, 2).set(2, 3);
       } else {
         a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3);
@@ -9617,7 +9617,12 @@ process.umask = function() { return 0; };
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
-      a = new Set().add(0).add(1).add(2);
+      if (typeof Set === 'function') {
+        a = new Set().add(0).add(1).add(2);
+      } else {
+        a = new reiterate.Set().add(0).add(1).add(2);
+      }
+
       array = reiterate(a).asArray();
       expect(array).to.eql([0, 1, 2]);
 
