@@ -3,8 +3,8 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:false, plusplus:true, maxparams:3, maxdepth:3, maxstatements:25,
-    maxcomplexity:10
+    esnext:true, es3:true, plusplus:true, maxparams:3, maxdepth:3,
+    maxstatements:25, maxcomplexity:10
 */
 /*global module, require, process */
 
@@ -58,12 +58,15 @@
   }());
 
   module.exports.iterator = module.exports.subject.iterator;
+  module.exports.isNativeSymbolIterator = typeof module.exports.iterator ===
+    'symbol';
 
   module.exports.forOf = (function () {
     var val,
       fn;
 
-    if (!module.exports.subject.useShims) {
+    if (!module.exports.subject.useShims &&
+      module.exports.isNativeSymbolIterator) {
       try {
         /*jshint evil:true */
         fn = new Function('return function(iterable,callback,thisArg){for(' +
@@ -82,10 +85,22 @@
           throw new Error();
         }
 
+        val = 1;
+        fn('123', function (entry) {
+          if (entry !== String(val)) {
+            throw new Error();
+          }
+
+          val += 1;
+        });
+
+        if (val !== 4) {
+          throw new Error();
+        }
+
         module.exports.isForOfSupported = true;
-      } catch(e) {
-        module.exports.isForOfSupported = false;
-        fn = null;
+      } catch (e) {
+        fn = module.exports.isForOfSupported = false;
       }
     }
 
