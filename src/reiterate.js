@@ -14,7 +14,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    es3:true, esnext:true, plusplus:true, maxparams:3, maxdepth:6,
+    es3:true, esnext:true, plusplus:true, maxparams:4, maxdepth:6,
     maxstatements:34, maxcomplexity:23
 */
 
@@ -324,8 +324,8 @@
        * Reference/Global_Objects/Object/defineProperty
        */
       setValue = (function (descriptor) {
-        return function (object, property, value) {
-          if (hasOwn(object, property)) {
+        return function (object, property, value, noCheck) {
+          if (!noCheck && hasOwn(object, property)) {
             throw new Error(
               'property "' + property + '" already exists on object'
             );
@@ -1307,7 +1307,7 @@
             var iterator,
               next;
 
-            setValue(this, 'keys', []);
+            setValue(this, '_keys', []);
             if (!isNil(iterable)) {
               if (isArrayLike(iterable)) {
                 iterator = reiterate(iterable, true);
@@ -1319,63 +1319,71 @@
             if (iterator) {
               next = iterator.next();
               while (!next.done) {
-                if (!includes(this.keys, next.value)) {
-                  this.keys.push(next.value);
+                if (!includes(this._keys, next.value)) {
+                  this._keys.push(next.value);
                 }
 
                 next = iterator.next();
               }
             }
 
-            setValue(this, 'size', this.keys.length);
+            setValue(this, 'size', this._keys.length);
           };
 
           setValue(fn.prototype, 'has', function (key) {
-            return includes(this.keys, key);
+            return includes(this._keys, key);
           });
 
           setValue(fn.prototype, 'add', function (key) {
-            if (!includes(this.keys, key)) {
-              this.keys.push(key);
-              this.size = this.keys.length;
+            if (!includes(this._keys, key)) {
+              this._keys.push(key);
+              this.size = this._keys.length;
             }
 
             return this;
           });
 
           setValue(fn.prototype, 'clear', function () {
-            this.keys.length = this.size = 0;
+            this._keys.length = this.size = 0;
             return this;
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            var index = getIndex(this.keys, key);
+            var index = getIndex(this._keys, key);
 
             if (-1 < index) {
-              this.keys.splice(index, 1);
-              this.size = this.keys.length;
+              this._keys.splice(index, 1);
+              this.size = this._keys.length;
             }
 
             return this;
           });
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            forEach(this.keys, callback, thisArg);
+            forEach(this._keys, callback, thisArg);
 
             return this;
           });
 
           setValue(fn.prototype, 'values', function () {
-            var length = this.keys.length,
-              index = 0,
-              object;
+            var keys = this._keys;
 
-            return {
-              next: function () {
+            function SetIterator() {
+              var length = keys.length,
+                index = 0;
+
+              setValue(this, '@@IteratorKind', 'values');
+              setValue(this, symIt, function () {
+                return this;
+              });
+
+              setValue(this, 'next', function () {
+                var object;
+
                 if (index < length) {
                   object = {
                     done: false,
-                    value: this.keys[index]
+                    value: keys[index]
                   };
 
                   index += 1;
@@ -1384,17 +1392,27 @@
                 }
 
                 return object;
-              }
-            };
+              });
+            }
+
+            return new SetIterator();
           });
 
           setValue(fn.prototype, 'keys', function () {
-            var length = this.keys.length,
-              index = 0,
-              object;
+            var keys = this._keys;
 
-            return {
-              next: function () {
+            function SetIterator() {
+              var length = keys.length,
+                index = 0;
+
+              setValue(this, '@@IteratorKind', 'keys');
+              setValue(this, symIt, function () {
+                return this;
+              });
+
+              setValue(this, 'next', function () {
+                var object;
+
                 if (index < length) {
                   object = {
                     done: false,
@@ -1407,21 +1425,31 @@
                 }
 
                 return object;
-              }
-            };
+              });
+            }
+
+            return new SetIterator();
           });
 
           setValue(fn.prototype, 'entries', function () {
-            var length = this.keys.length,
-              index = 0,
-              object;
+            var keys = this._keys;
 
-            return {
-              next: function () {
+            function SetIterator() {
+              var length = keys.length,
+                index = 0;
+
+              setValue(this, '@@IteratorKind', 'entries');
+              setValue(this, symIt, function () {
+                return this;
+              });
+
+              setValue(this, 'next', function () {
+                var object;
+
                 if (index < length) {
                   object = {
                     done: false,
-                    value: [index, this.keys[index]]
+                    value: [index, keys[index]]
                   };
 
                   index += 1;
@@ -1430,12 +1458,14 @@
                 }
 
                 return object;
-              }
-            };
+              });
+            }
+
+            return new SetIterator();
           });
 
           setValue(fn.prototype, symIt, function () {
-            return this.values();
+            return this.entries();
           });
         }
 
@@ -1446,7 +1476,7 @@
         var m = typeof Map === typeFunction && Map,
           fn;
 
-        if (m) {
+        if (false && m) {
           fn = m;
         } else {
           fn = function (iterable) {
@@ -1454,8 +1484,8 @@
               index,
               next;
 
-            this.keys = [];
-            this.values = [];
+            setValue(this, '_keys', []);
+            setValue(this, '_values', []);
             if (!isNil(iterable)) {
               if (isArrayLike(iterable)) {
                 iterator = reiterate(iterable, true).entries();
@@ -1467,57 +1497,57 @@
             if (iterator) {
               next = iterator.next();
               while (!next.done) {
-                index = getIndex(this.keys, next.value[0]);
+                index = getIndex(this._keys, next.value[0]);
                 if (-1 < index) {
-                  this.keys.push(next.value[0]);
-                  this.values.push(next.value[1]);
+                  this._keys.push(next.value[0]);
+                  this._values.push(next.value[1]);
                 } else {
-                  this.values[index] = next.value[1];
+                  this._values[index] = next.value[1];
                 }
 
                 next = iterator.next();
               }
             }
 
-            setValue(this, 'size', this.keys.length);
+            setValue(this, 'size', this._keys.length);
           };
 
           setValue(fn.prototype, 'has', function (key) {
-            return includes(this.keys, key);
+            return includes(this._keys, key);
           });
 
           setValue(fn.prototype, 'set', function (key, value) {
-            var index = getIndex(this.keys, key);
+            var index = getIndex(this._keys, key);
 
             if (-1 < index) {
-              this.values[index] = value;
+              this._values[index] = value;
             } else {
-              this.keys.push(key);
-              this.values.push(value);
-              this.size = this.keys.length;
+              this._keys.push(key);
+              this._values.push(value);
+              this.size = this._keys.length;
             }
 
             return this;
           });
 
           setValue(fn.prototype, 'clear', function () {
-            this.keys.length = this.values = this.size = 0;
+            this._keys.length = this._values = this.size = 0;
             return this;
           });
 
           setValue(fn.prototype, 'get', function (key) {
-            var index = getIndex(this.keys, key);
+            var index = getIndex(this._keys, key);
 
-            return -1 < index ? this.values[index] : undefined;
+            return -1 < index ? this._values[index] : undefined;
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            var index = getIndex(this.keys, key);
+            var index = getIndex(this._keys, key);
 
             if (-1 < index) {
-              this.keys.splice(index, 1);
-              this.values.splice(index, 1);
-              this.size = this.keys.length;
+              this._keys.splice(index, 1);
+              this._values.splice(index, 1);
+              this.size = this._keys.length;
             }
 
             return this;
@@ -1525,24 +1555,33 @@
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
             mustBeFunction(callback);
-            forEach(this.keys, function (key, index) {
-              callback.call(thisArg, this.values[index], key, this);
+            forEach(this._keys, function (key, index) {
+              callback.call(thisArg, this._values[index], key, this);
             }, this);
 
             return this;
           });
 
           setValue(fn.prototype, 'values', function () {
-            var length = this.keys.length,
-              index = 0,
-              object;
+            var keys = this._keys,
+              values = this._values;
 
-            return {
-              next: function () {
+            function MapIterator() {
+              var length = keys.length,
+                index = 0;
+
+              setValue(this, '@@IteratorKind', 'values');
+              setValue(this, symIt, function () {
+                return this;
+              });
+
+              setValue(this, 'next', function () {
+                var object;
+
                 if (index < length) {
                   object = {
                     done: false,
-                    value: this.values[index]
+                    value: values[index]
                   };
 
                   index += 1;
@@ -1551,21 +1590,31 @@
                 }
 
                 return object;
-              }
-            };
+              });
+            }
+
+            return new MapIterator();
           });
 
           setValue(fn.prototype, 'keys', function () {
-            var length = this.keys.length,
-              index = 0,
-              object;
+            var keys = this._keys;
 
-            return {
-              next: function () {
+            function MapIterator() {
+              var length = keys.length,
+                index = 0;
+
+              setValue(this, '@@IteratorKind', 'keys');
+              setValue(this, symIt, function () {
+                return this;
+              });
+
+              setValue(this, 'next', function () {
+                var object;
+
                 if (index < length) {
                   object = {
                     done: false,
-                    value: this.keys[index]
+                    value: keys[index]
                   };
 
                   index += 1;
@@ -1574,21 +1623,32 @@
                 }
 
                 return object;
-              }
-            };
+              });
+            }
+
+            return new MapIterator();
           });
 
           setValue(fn.prototype, 'entries', function () {
-            var length = this.keys.length,
-              index = 0,
-              object;
+            var keys = this._keys,
+              values = this._values;
 
-            return {
-              next: function () {
+            function MapIterator() {
+              var length = keys.length,
+                index = 0;
+
+              setValue(this, '@@IteratorKind', 'entries');
+              setValue(this, symIt, function () {
+                return this;
+              });
+
+              setValue(this, 'next', function () {
+                var object;
+
                 if (index < length) {
                   object = {
                     done: false,
-                    value: [this.keys[index], this.values[index]]
+                    value: [keys[index], values[index]]
                   };
 
                   index += 1;
@@ -1597,8 +1657,10 @@
                 }
 
                 return object;
-              }
-            };
+              });
+            }
+
+            return new MapIterator();
           });
 
           setValue(fn.prototype, symIt, function () {
