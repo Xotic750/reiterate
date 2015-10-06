@@ -49,7 +49,9 @@
 (function (root, factory) {
   'use strict';
 
-  var typeFunction = typeof factory,
+  var useShims = true,
+
+    typeFunction = typeof factory,
 
     typeObject = typeof Object.prototype,
 
@@ -87,7 +89,7 @@
         } catch (ignore) {}
       }
 
-      if (!fn) {
+      if (!fn || useShims) {
         fn = function (object, property, descriptor) {
           if (!isObject(object)) {
             throw new TypeError('called on non-object');
@@ -107,7 +109,7 @@
      * AMD. Register as an anonymous module.
      */
     define([], function () {
-      return factory(isObject, defineProperty);
+      return factory(isObject, defineProperty, useShims);
     });
 
   } else if (typeof module === typeObject && module.exports) {
@@ -116,7 +118,7 @@
      * only CommonJS-like environments that support module.exports,
      * like Node.
      */
-    module.exports = factory(isObject, defineProperty);
+    module.exports = factory(isObject, defineProperty, useShims);
   } else {
     /*
      * Browser globals (root is window)
@@ -129,7 +131,7 @@
       enumerable: false,
       writable: true,
       configurable: true,
-      value: factory(isObject, defineProperty)
+      value: factory(isObject, defineProperty, useShims)
     });
   }
 }(
@@ -147,7 +149,7 @@
    * @param {function} defineProperty
    * @return {function} The function be exported
    */
-  function (isObject, defineProperty) {
+  function (isObject, defineProperty, useShims) {
     'use strict';
 
     /* constants */
@@ -217,7 +219,9 @@
       },
 
       symIt = (function (typeFunction) {
-        return typeof Symbol === typeFunction ? Symbol.iterator : '@@iterator';
+        return typeof Symbol === typeFunction && !useShims ?
+          Symbol.iterator :
+          '@@iterator';
       }(typeof isObject)),
 
       /**
@@ -473,7 +477,7 @@
       sign = (function (ms) {
         var fn;
 
-        if (ms) {
+        if (ms && !useShims) {
           fn = ms;
         } else {
           fn = function (value) {
@@ -487,7 +491,7 @@
       numIsNaN = (function (nin, typeNumber) {
         var fn;
 
-        if (nin) {
+        if (nin && !useShims) {
           fn = nin;
         } else {
           fn = function (subject) {
@@ -501,7 +505,7 @@
       numIsFinite = (function (nif, typeNumber) {
         var fn;
 
-        if (nif) {
+        if (nif && !useShims) {
           fn = nif;
         } else {
           fn = function (subject) {
@@ -636,9 +640,9 @@
       isArray = (function (ai, tag) {
         var fn;
 
-        if (ai) {
+        if (ai && !useShims) {
           fn = ai;
-        } else if (tag === '[object Array]') {
+        } else if (tag === '[object Array]' && !useShims) {
           fn = function (subject) {
             return isArrayLike(subject) && toStringTag(subject) === tag;
           };
@@ -647,7 +651,7 @@
             return isArrayLike(subject) &&
               !isString(subject) &&
               hasOwn(subject, 'length') &&
-              hasOwn(subject, 'callee');
+              !hasOwn(subject, 'callee');
           };
         }
 
@@ -695,7 +699,7 @@
       codePointAt = (function (spc) {
         var fn;
 
-        if (spc) {
+        if (spc && !useShims) {
           fn = function (string, position) {
             return spc.call(string, position);
           };
@@ -741,7 +745,7 @@
       fromCodePoint = (function (sf, stringFromCharCode) {
         var fn;
 
-        if (sf) {
+        if (sf && !useShims) {
           fn = sf;
         } else {
           fn = function () {
@@ -924,7 +928,7 @@
       map = (function (apm) {
         var fn;
 
-        if (apm) {
+        if (apm && !useShims) {
           fn = function (array) {
             return apm.apply(array, chop(arguments, 1));
           };
@@ -962,7 +966,7 @@
       filter = (function (apf) {
         var fn;
 
-        if (apf) {
+        if (apf && !useShims) {
           fn = function (array) {
             return apf.apply(array, chop(arguments, 1));
           };
@@ -1025,7 +1029,7 @@
       forEach = (function (apf) {
         var fn;
 
-        if (apf) {
+        if (apf && !useShims) {
           fn = function (array) {
             return apf.apply(array, chop(arguments, 1));
           };
@@ -1069,7 +1073,7 @@
         var msg,
           fn;
 
-        if (apr) {
+        if (apr && !useShims) {
           fn = function (array) {
             return apr.apply(array, chop(arguments, 1));
           };
@@ -1130,7 +1134,7 @@
       every = (function (ape) {
         var fn;
 
-        if (ape) {
+        if (ape && !useShims) {
           fn = function (array) {
             return ape.apply(array, chop(arguments, 1));
           };
@@ -1166,7 +1170,7 @@
       objectKeys = (function (ok) {
         var fn;
 
-        if (ok) {
+        if (ok && !useShims) {
           fn = ok;
         } else {
           fn = function (subject) {
@@ -1199,7 +1203,7 @@
       assign = (function (oa) {
         var fn;
 
-        if (oa) {
+        if (oa && !useShims) {
           fn = oa;
         } else {
           fn = function (target) {
@@ -1226,7 +1230,7 @@
       indexOf = (function (api) {
         var fn = api;
 
-        if (api) {
+        if (api && !useShims) {
           fn = function (array) {
             return api.apply(array, chop(arguments, 1));
           };
@@ -1300,7 +1304,7 @@
         var s = typeof Set === typeFunction && Set,
           fn;
 
-        if (s) {
+        if (s && !useShims) {
           fn = s;
         } else {
           fn = function (iterable) {
@@ -1476,7 +1480,7 @@
         var m = typeof Map === typeFunction && Map,
           fn;
 
-        if (false && m) {
+        if (m && !useShims) {
           fn = m;
         } else {
           fn = function (iterable) {
@@ -1944,7 +1948,7 @@
             index += 1;
           }
 
-          return setValue(result, 'length', index);
+          return result;
         },
 
         asMap: function () {
@@ -3509,6 +3513,7 @@
       setValue(reiterate, 'iterator', symIt);
       setValue(reiterate, 'Map', MapObject);
       setValue(reiterate, 'Set', SetObject);
+      setValue(reiterate, 'useShims', useShims);
 
       return reiterate;
     }());

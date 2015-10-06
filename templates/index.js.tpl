@@ -3,7 +3,7 @@
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:3, maxstatements:25,
+    esnext:false, plusplus:true, maxparams:3, maxdepth:3, maxstatements:25,
     maxcomplexity:10
 */
 /*global module, require, process */
@@ -67,14 +67,12 @@
     return false;
   }());
 
-  module.exports.iterator = typeof Symbol === 'function' ?
-    Symbol.iterator :
-    '@@iterator';
+  module.exports.iterator = module.exports.subject.iterator;
 
   module.exports.forOf = (function () {
     var fn;
 
-    if (module.exports.isForOfSupported) {
+    if (module.exports.isForOfSupported && !module.exports.subject.useShims) {
       /*jshint evil:true */
       fn = new Function('return function(iterable,callback,thisArg){for(var ' +
         'item of iterable)if(callback.call(thisArg,item))' +

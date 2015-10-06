@@ -28,7 +28,6 @@
         2: 5
       });
 
-      expect(array.length).to.be(3);
       array = reiterate(a).values().difference([4, 2]).asMap();
       expect(array.size).to.be(3);
       expect(array.get(0)).to.be(1);

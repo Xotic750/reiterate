@@ -50,7 +50,9 @@
 (function (root, factory) {
   'use strict';
 
-  var typeFunction = typeof factory,
+  var useShims = true,
+
+    typeFunction = typeof factory,
 
     typeObject = typeof Object.prototype,
 
@@ -88,7 +90,7 @@
         } catch (ignore) {}
       }
 
-      if (!fn) {
+      if (!fn || useShims) {
         fn = function (object, property, descriptor) {
           if (!isObject(object)) {
             throw new TypeError('called on non-object');
@@ -108,7 +110,7 @@
      * AMD. Register as an anonymous module.
      */
     define([], function () {
-      return factory(isObject, defineProperty);
+      return factory(isObject, defineProperty, useShims);
     });
 
   } else if (typeof module === typeObject && module.exports) {
@@ -117,7 +119,7 @@
      * only CommonJS-like environments that support module.exports,
      * like Node.
      */
-    module.exports = factory(isObject, defineProperty);
+    module.exports = factory(isObject, defineProperty, useShims);
   } else {
     /*
      * Browser globals (root is window)
@@ -130,7 +132,7 @@
       enumerable: false,
       writable: true,
       configurable: true,
-      value: factory(isObject, defineProperty)
+      value: factory(isObject, defineProperty, useShims)
     });
   }
 }(
@@ -148,7 +150,7 @@
    * @param {function} defineProperty
    * @return {function} The function be exported
    */
-  function (isObject, defineProperty) {
+  function (isObject, defineProperty, useShims) {
     'use strict';
 
     /* constants */
@@ -218,7 +220,9 @@
       },
 
       symIt = (function (typeFunction) {
-        return typeof Symbol === typeFunction ? Symbol.iterator : '@@iterator';
+        return typeof Symbol === typeFunction && !useShims ?
+          Symbol.iterator :
+          '@@iterator';
       }(typeof isObject)),
 
       /**
@@ -474,7 +478,7 @@
       sign = (function (ms) {
         var fn;
 
-        if (ms) {
+        if (ms && !useShims) {
           fn = ms;
         } else {
           fn = function (value) {
@@ -488,7 +492,7 @@
       numIsNaN = (function (nin, typeNumber) {
         var fn;
 
-        if (nin) {
+        if (nin && !useShims) {
           fn = nin;
         } else {
           fn = function (subject) {
@@ -502,7 +506,7 @@
       numIsFinite = (function (nif, typeNumber) {
         var fn;
 
-        if (nif) {
+        if (nif && !useShims) {
           fn = nif;
         } else {
           fn = function (subject) {
@@ -637,9 +641,9 @@
       isArray = (function (ai, tag) {
         var fn;
 
-        if (ai) {
+        if (ai && !useShims) {
           fn = ai;
-        } else if (tag === '[object Array]') {
+        } else if (tag === '[object Array]' && !useShims) {
           fn = function (subject) {
             return isArrayLike(subject) && toStringTag(subject) === tag;
           };
@@ -648,7 +652,7 @@
             return isArrayLike(subject) &&
               !isString(subject) &&
               hasOwn(subject, 'length') &&
-              hasOwn(subject, 'callee');
+              !hasOwn(subject, 'callee');
           };
         }
 
@@ -696,7 +700,7 @@
       codePointAt = (function (spc) {
         var fn;
 
-        if (spc) {
+        if (spc && !useShims) {
           fn = function (string, position) {
             return spc.call(string, position);
           };
@@ -742,7 +746,7 @@
       fromCodePoint = (function (sf, stringFromCharCode) {
         var fn;
 
-        if (sf) {
+        if (sf && !useShims) {
           fn = sf;
         } else {
           fn = function () {
@@ -925,7 +929,7 @@
       map = (function (apm) {
         var fn;
 
-        if (apm) {
+        if (apm && !useShims) {
           fn = function (array) {
             return apm.apply(array, chop(arguments, 1));
           };
@@ -963,7 +967,7 @@
       filter = (function (apf) {
         var fn;
 
-        if (apf) {
+        if (apf && !useShims) {
           fn = function (array) {
             return apf.apply(array, chop(arguments, 1));
           };
@@ -1026,7 +1030,7 @@
       forEach = (function (apf) {
         var fn;
 
-        if (apf) {
+        if (apf && !useShims) {
           fn = function (array) {
             return apf.apply(array, chop(arguments, 1));
           };
@@ -1070,7 +1074,7 @@
         var msg,
           fn;
 
-        if (apr) {
+        if (apr && !useShims) {
           fn = function (array) {
             return apr.apply(array, chop(arguments, 1));
           };
@@ -1131,7 +1135,7 @@
       every = (function (ape) {
         var fn;
 
-        if (ape) {
+        if (ape && !useShims) {
           fn = function (array) {
             return ape.apply(array, chop(arguments, 1));
           };
@@ -1167,7 +1171,7 @@
       objectKeys = (function (ok) {
         var fn;
 
-        if (ok) {
+        if (ok && !useShims) {
           fn = ok;
         } else {
           fn = function (subject) {
@@ -1200,7 +1204,7 @@
       assign = (function (oa) {
         var fn;
 
-        if (oa) {
+        if (oa && !useShims) {
           fn = oa;
         } else {
           fn = function (target) {
@@ -1227,7 +1231,7 @@
       indexOf = (function (api) {
         var fn = api;
 
-        if (api) {
+        if (api && !useShims) {
           fn = function (array) {
             return api.apply(array, chop(arguments, 1));
           };
@@ -1301,7 +1305,7 @@
         var s = typeof Set === typeFunction && Set,
           fn;
 
-        if (s) {
+        if (s && !useShims) {
           fn = s;
         } else {
           fn = function (iterable) {
@@ -1477,7 +1481,7 @@
         var m = typeof Map === typeFunction && Map,
           fn;
 
-        if (false && m) {
+        if (m && !useShims) {
           fn = m;
         } else {
           fn = function (iterable) {
@@ -1945,7 +1949,7 @@
             index += 1;
           }
 
-          return setValue(result, 'length', index);
+          return result;
         },
 
         asMap: function () {
@@ -3510,6 +3514,7 @@
       setValue(reiterate, 'iterator', symIt);
       setValue(reiterate, 'Map', MapObject);
       setValue(reiterate, 'Set', SetObject);
+      setValue(reiterate, 'useShims', useShims);
 
       return reiterate;
     }());
@@ -6700,7 +6705,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:3, maxdepth:3, maxstatements:25,
+    esnext:false, plusplus:true, maxparams:3, maxdepth:3, maxstatements:25,
     maxcomplexity:10
 */
 /*global module, require, process */
@@ -6764,14 +6769,12 @@ process.umask = function() { return 0; };
     return false;
   }());
 
-  module.exports.iterator = typeof Symbol === 'function' ?
-    Symbol.iterator :
-    '@@iterator';
+  module.exports.iterator = module.exports.subject.iterator;
 
   module.exports.forOf = (function () {
     var fn;
 
-    if (module.exports.isForOfSupported) {
+    if (module.exports.isForOfSupported && !module.exports.subject.useShims) {
       /*jshint evil:true */
       fn = new Function('return function(iterable,callback,thisArg){for(var ' +
         'item of iterable)if(callback.call(thisArg,item))' +
@@ -7014,7 +7017,7 @@ process.umask = function() { return 0; };
     MIN_SAFE_INTEGER = required.MIN_SAFE_INTEGER,
     aGenerator;
 
-  if (isGeneratorSupported) {
+  if (isGeneratorSupported && !reiterate.useShims) {
     /*jshint evil:true */
     aGenerator = new Function('reduce', 'return function*(){var x=reduce(' +
       'arguments,function(acc,arg){return acc+arg},0),item;' +
@@ -9552,7 +9555,6 @@ process.umask = function() { return 0; };
         2: 5
       });
 
-      expect(array.length).to.be(3);
       array = reiterate(a).values().difference([4, 2]).asMap();
       expect(array.size).to.be(3);
       expect(array.get(0)).to.be(1);
@@ -9581,7 +9583,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    esnext:false, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
     maxcomplexity:9
 */
 /*global require, describe, it */
@@ -9600,7 +9602,7 @@ process.umask = function() { return 0; };
       var array,
         a;
 
-      if (typeof Map === 'function') {
+      if (typeof Map === 'function' && !reiterate.useShims) {
         a = new Map().set(0, 1).set(1, 2).set(2, 3);
       } else {
         a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3);
@@ -9617,7 +9619,7 @@ process.umask = function() { return 0; };
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
-      if (typeof Set === 'function') {
+      if (typeof Set === 'function' && !reiterate.useShims) {
         a = new Set().add(0).add(1).add(2);
       } else {
         a = new reiterate.Set().add(0).add(1).add(2);
@@ -9632,7 +9634,7 @@ process.umask = function() { return 0; };
         c: 3
       };
 
-      if (isGeneratorSupported) {
+      if (isGeneratorSupported && !reiterate.useShims) {
         /*jshint evil:true */
         a[symIt] = new Function('return function*(){for(var key in this)' +
           'if(this.hasOwnProperty(key))yield this[key]};')();
@@ -9651,7 +9653,8 @@ process.umask = function() { return 0; };
                   key;
 
                 for (key in iterable) {
-                  if (Object.prototype.hasOwnProperty.call(iterable, key)) {
+                  if (key !== symIt &&
+                    Object.prototype.hasOwnProperty.call(iterable, key)) {
                     result.push(iterable[key]);
                   }
                 }
@@ -9682,7 +9685,7 @@ process.umask = function() { return 0; };
       array = reiterate(a).asArray();
       expect(array.sort()).to.eql([1, 2, 3]);
 
-      if (isGeneratorSupported) {
+      if (isGeneratorSupported && !reiterate.useShims) {
         /*jshint evil:true */
         a[symIt] = new Function('return function*(){for(var key in this)' +
           'if(this.hasOwnProperty(key))yield key};')();
@@ -9701,7 +9704,8 @@ process.umask = function() { return 0; };
                   key;
 
                 for (key in iterable) {
-                  if (Object.prototype.hasOwnProperty.call(iterable, key)) {
+                  if (key !== symIt &&
+                      Object.prototype.hasOwnProperty.call(iterable, key)) {
                     result.push(key);
                   }
                 }
@@ -9773,7 +9777,6 @@ process.umask = function() { return 0; };
         3: 4
       });
 
-      expect(array.length).to.be(4);
       array = reiterate(a).values().initial().asMap();
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(1);
@@ -9901,7 +9904,6 @@ process.umask = function() { return 0; };
         3: 5
       });
 
-      expect(array.length).to.be(4);
       array = reiterate(a).values().rest().asMap();
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(2);
@@ -9983,7 +9985,7 @@ process.umask = function() { return 0; };
       value = reiterate([]).union([1]).asArray();
       expect(value).to.eql([1]);
       value = reiterate([]).union().asSet();
-      expect(value).to.eql([]);
+      expect(value.size).to.be(0);
       value = reiterate([]).union([]).asSet();
       expect(value.size).to.be(0);
       value = reiterate([]).union([1]).asSet();
@@ -10000,7 +10002,7 @@ process.umask = function() { return 0; };
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
+    esnext:false, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
     maxcomplexity:9
 */
 /*global require, describe, it */

@@ -54,7 +54,7 @@
       value = reiterate([]).union([1]).asArray();
       expect(value).to.eql([1]);
       value = reiterate([]).union().asSet();
-      expect(value).to.eql([]);
+      expect(value.size).to.be(0);
       value = reiterate([]).union([]).asSet();
       expect(value.size).to.be(0);
       value = reiterate([]).union([1]).asSet();

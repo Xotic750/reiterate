@@ -22,7 +22,7 @@
     MIN_SAFE_INTEGER = required.MIN_SAFE_INTEGER,
     aGenerator;
 
-  if (isGeneratorSupported) {
+  if (isGeneratorSupported && !reiterate.useShims) {
     /*jshint evil:true */
     aGenerator = new Function('reduce', 'return function*(){var x=reduce(' +
       'arguments,function(acc,arg){return acc+arg},0),item;' +

@@ -29,7 +29,6 @@
         3: 5
       });
 
-      expect(array.length).to.be(4);
       array = reiterate(a).values().rest().asMap();
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(2);
