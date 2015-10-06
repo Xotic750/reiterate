@@ -57,27 +57,39 @@
     return false;
   }());
 
-  module.exports.isForOfSupported = (function () {
-    try {
-      /*jslint evil:true */
-      eval("for (var e of ['a']) {}");
-      return true;
-    } catch (ignore) {}
-
-    return false;
-  }());
-
   module.exports.iterator = module.exports.subject.iterator;
 
   module.exports.forOf = (function () {
-    var fn;
+    var val,
+      fn;
 
-    if (module.exports.isForOfSupported && !module.exports.subject.useShims) {
-      /*jshint evil:true */
-      fn = new Function('return function(iterable,callback,thisArg){for(var ' +
-        'item of iterable)if(callback.call(thisArg,item))' +
-        'break};')();
-    } else {
+    if (!module.exports.subject.useShims) {
+      try {
+        /*jshint evil:true */
+        fn = new Function('return function(iterable,callback,thisArg){for(' +
+          'var item of iterable)if(callback.call(thisArg,item))break};')();
+
+        val = 1;
+        fn([1, 2, 3], function (entry) {
+          if (entry !== val) {
+            throw new Error();
+          }
+
+          val += 1;
+        });
+
+        if (val !== 4) {
+          throw new Error();
+        }
+
+        module.exports.isForOfSupported = true;
+      } catch(e) {
+        module.exports.isForOfSupported = false;
+        fn = null;
+      }
+    }
+
+    if (!fn) {
       fn = function (iterable, callback, thisArg) {
         var generator = iterable[module.exports.iterator],
           iterator = generator(),

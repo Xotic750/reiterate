@@ -643,11 +643,12 @@
 
         if (ai && !useShims) {
           fn = ai;
-        } else if (tag === '[object Array]' && !useShims) {
+        } else if (tag === '[object Array]') {
           fn = function (subject) {
             return isArrayLike(subject) && toStringTag(subject) === tag;
           };
         } else {
+          // fallback
           fn = function (subject) {
             return isArrayLike(subject) &&
               !isString(subject) &&
@@ -1311,12 +1312,14 @@
             s = new S([1]);
             if (!s.has(1) ||
               s.size !== 1 ||
-              !s.keys ||
-              !s.values ||
-              !s.entries ||
-              !s.forEach ||
-              !s.clear ||
-              !s[symIt]) {
+              typeof s.add !== typeFunction ||
+              typeof s.keys !== typeFunction ||
+              typeof s.values !== typeFunction ||
+              typeof s.entries !== typeFunction ||
+              typeof s.forEach !== typeFunction ||
+              typeof s.clear !== typeFunction ||
+              typeof s[strDelete] !== typeFunction ||
+              typeof s[symIt] !== typeFunction) {
               throw new Error();
             }
           } catch (e) {
@@ -1503,15 +1506,19 @@
 
         if (M) {
           try {
-            m = new M([[0, 1]]);
+            m = new M([
+              [0, 1]
+            ]);
             if (!m.has(0) ||
               m.size !== 1 ||
-              !m.keys ||
-              !m.values ||
-              !m.entries ||
-              !m.forEach ||
-              !m.clear ||
-              !m[symIt]) {
+              m.set !== typeFunction ||
+              m.keys !== typeFunction ||
+              m.values !== typeFunction ||
+              m.entries !== typeFunction ||
+              m.forEach !== typeFunction ||
+              m.clear !== typeFunction ||
+              m[strDelete] !== typeFunction ||
+              m[symIt] !== typeFunction) {
               throw new Error();
             }
           } catch (e) {
@@ -6797,27 +6804,39 @@ process.umask = function() { return 0; };
     return false;
   }());
 
-  module.exports.isForOfSupported = (function () {
-    try {
-      /*jslint evil:true */
-      eval("for (var e of ['a']) {}");
-      return true;
-    } catch (ignore) {}
-
-    return false;
-  }());
-
   module.exports.iterator = module.exports.subject.iterator;
 
   module.exports.forOf = (function () {
-    var fn;
+    var val,
+      fn;
 
-    if (module.exports.isForOfSupported && !module.exports.subject.useShims) {
-      /*jshint evil:true */
-      fn = new Function('return function(iterable,callback,thisArg){for(var ' +
-        'item of iterable)if(callback.call(thisArg,item))' +
-        'break};')();
-    } else {
+    if (!module.exports.subject.useShims) {
+      try {
+        /*jshint evil:true */
+        fn = new Function('return function(iterable,callback,thisArg){for(' +
+          'var item of iterable)if(callback.call(thisArg,item))break};')();
+
+        val = 1;
+        fn([1, 2, 3], function (entry) {
+          if (entry !== val) {
+            throw new Error();
+          }
+
+          val += 1;
+        });
+
+        if (val !== 4) {
+          throw new Error();
+        }
+
+        module.exports.isForOfSupported = true;
+      } catch(e) {
+        module.exports.isForOfSupported = false;
+        fn = null;
+      }
+    }
+
+    if (!fn) {
       fn = function (iterable, callback, thisArg) {
         var generator = iterable[module.exports.iterator],
           iterator = generator(),
