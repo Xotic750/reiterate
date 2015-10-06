@@ -39,7 +39,6 @@
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
-      a = new Set().add(0).add(1).add(2);
       if (typeof Set === 'function') {
         a = new Set().add(0).add(1).add(2);
       } else {
