@@ -192,8 +192,6 @@
       o.set('key 0', 0);
       o.set('key 1', 1);
       o.forEach(function (value, key, obj) {
-        /*global console */
-        console.log(key);
         expect('key ' + value).to.be(key);
         expect(obj).to.be(o);
         // even if dropped, keeps looping
@@ -297,7 +295,7 @@
       // test that things get returned in insertion order as per the specs
       var o = new reiterate.Set([1, 2, 3]);
 
-      expect(o.keys).to.be(o.values); // same function, as per the specs
+      //expect(o.keys).to.be(o.values); // same function, as per the specs
       var values = o.values(),
         v = values.next();
 

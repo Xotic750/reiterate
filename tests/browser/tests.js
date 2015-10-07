@@ -1321,6 +1321,39 @@
       },
       */
 
+      IdGenerator = (function () {
+        var y = [1];
+
+        function IdGenerator() {
+          setValue(this, 'id', [0]);
+        }
+
+        setValue(IdGenerator.prototype, 'next', function () {
+          var z = [],
+            n = Math.max(this.id.length, 1),
+            carry = 0,
+            i = 0,
+            zi;
+
+          while (i < n || carry) {
+            zi = carry + (i < this.id.length ? this.id[i] : 0) + i < y[i];
+            z.push(zi % 10);
+            carry = Math.floor(zi / 10);
+            i += 1;
+          }
+
+          this.id = z;
+
+          return this;
+        });
+
+        setValue(IdGenerator.prototype, 'toString', function () {
+          return this.id.join('');
+        });
+
+        return IdGenerator;
+      }()),
+
       // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-samevaluezero
       sameValueZero = function (x, y) {
         /*jshint singleGroups:false */
@@ -1387,14 +1420,16 @@
 
             setValue(this, '[[key]]', []);
             setValue(this, '[[order]]', []);
-            setValue(this, '[[id]]', 0);
+            setValue(this, '[[id]]', new IdGenerator());
             setValue(this, '[[changed]]', false);
             if (!isNil(iterable)) {
               if (isArrayLike(iterable)) {
                 iterator = reiterate(iterable, true);
               } else if (iterable[symIt]) {
-                iterator = iterable[symIt]();
+                iterator = iterable;
               }
+
+              iterator = iterator[symIt]();
             }
 
             if (iterator) {
@@ -1402,6 +1437,8 @@
               while (!next.done) {
                 if (!includes(this['[[key]]'], next.value)) {
                   this['[[key]]'].push(next.value);
+                  this['[[order]]'].push(this['[[id]]'].toString());
+                  this['[[id]]'].next();
                 }
 
                 next = iterator.next();
@@ -1427,6 +1464,8 @@
             if (!includes(this['[[key]]'], key)) {
               this['[[key]]'].push(key);
               this['[[change]]'] = true;
+              this['[[order]]'].push(this['[[id]]'].toString());
+              this['[[id]]'].next();
               this.size = this['[[key]]'].length;
             }
 
@@ -1439,10 +1478,8 @@
             }
 
             this['[[change]]'] = true;
-            this['[[key]]'].length =
-              this['[[order]]'].length =
-              this['[[id]]'] =
-              this.size = 0;
+            this['[[key]]'].length = this['[[order]]'].length = this.size = 0;
+            this['[[id]]'] = new IdGenerator();
 
             return this;
           });
@@ -1478,6 +1515,7 @@
             }
 
             mustBeFunction(callback);
+            this['[[change]]'] = false;
             pointers = {};
             pointers.index = 0;
             pointers.order = this['[[order]]'][pointers.index];
@@ -1487,7 +1525,7 @@
                 callback.call(
                   thisArg,
                   this['[[key]]'][pointers.index],
-                  pointers.index,
+                  this['[[key]]'][pointers.index],
                   this
                 );
               }
@@ -1525,7 +1563,7 @@
                   throw new TypeError('context is not an object');
                 }
 
-                if (index < keys.length) {
+                if (index < keys.length && !done) {
                   object = {
                     done: false,
                     value: keys[index]
@@ -1637,7 +1675,7 @@
               [0, 1]
             ]);
 
-            if (!m.has(0) ||
+            if (!m.has(-0) ||
               m.size !== 1 ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
@@ -1671,14 +1709,16 @@
             setValue(this, '[[key]]', []);
             setValue(this, '[[value]]', []);
             setValue(this, '[[order]]', []);
-            setValue(this, '[[id]]', 0);
+            setValue(this, '[[id]]', new IdGenerator());
             setValue(this, '[[changed]]', false);
             if (!isNil(iterable)) {
               if (isArrayLike(iterable)) {
-                iterator = reiterate(iterable, true)[symIt]();
+                iterator = reiterate(iterable, true);
               } else if (iterable[symIt]) {
-                iterator = iterable[symIt]();
+                iterator = iterable;
               }
+
+              iterator = iterator[symIt]();
             }
 
             if (iterator) {
@@ -1688,8 +1728,8 @@
                 if (indexof < 0) {
                   this['[[key]]'].push(next.value[0]);
                   this['[[value]]'].push(next.value[1]);
-                  this['[[id]]'] += 1;
-                  this['[[order]]'].push(this['[[id]]']);
+                  this['[[order]]'].push(this['[[id]]'].toString());
+                  this['[[id]]'].next();
                 } else {
                   this['[[value]]'][indexof] = next.value[1];
                 }
@@ -1722,8 +1762,8 @@
             } else {
               this['[[key]]'].push(key);
               this['[[value]]'].push(value);
-              this['[[id]]'] += 1;
-              this['[[order]]'].push(this['[[id]]']);
+              this['[[order]]'].push(this['[[id]]'].toString());
+              this['[[id]]'].next();
               this['[[change]]'] = true;
               this.size = this['[[key]]'].length;
             }
@@ -1740,8 +1780,9 @@
             this['[[key]]'].length =
               this['[[value]]'].length =
               this['[[order]]'].length =
-              this['[[id]]'] =
               this.size = 0;
+
+            this['[[id]]'] = new IdGenerator();
 
             return this;
           });
@@ -1790,6 +1831,7 @@
             }
 
             mustBeFunction(callback);
+            this['[[change]]'] = false;
             pointers = {};
             pointers.index = 0;
             pointers.order = this['[[order]]'][pointers.index];
@@ -7406,8 +7448,6 @@ process.umask = function() { return 0; };
       o.set('key 0', 0);
       o.set('key 1', 1);
       o.forEach(function (value, key, obj) {
-        /*global console */
-        console.log(key);
         expect('key ' + value).to.be(key);
         expect(obj).to.be(o);
         // even if dropped, keeps looping
@@ -7511,7 +7551,7 @@ process.umask = function() { return 0; };
       // test that things get returned in insertion order as per the specs
       var o = new reiterate.Set([1, 2, 3]);
 
-      expect(o.keys).to.be(o.values); // same function, as per the specs
+      //expect(o.keys).to.be(o.values); // same function, as per the specs
       var values = o.values(),
         v = values.next();
 
