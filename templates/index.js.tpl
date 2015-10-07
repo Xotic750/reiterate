@@ -7,7 +7,7 @@
     maxstatements:25, maxcomplexity:10
 */
 /*global module, require, process */
-
+/* istanbul ignore next */
 (function () {
   'use strict';
 

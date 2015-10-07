@@ -90,8 +90,10 @@
         } catch (ignore) {}
       }
 
+      /* istanbul ignore if */
       if (!fn || useShims) {
         fn = function (object, property, descriptor) {
+          /* istanbul ignore if  */
           if (!isObject(object)) {
             throw new TypeError('called on non-object');
           }
@@ -109,6 +111,7 @@
     /*
      * AMD. Register as an anonymous module.
      */
+    /* istanbul ignore next */
     define([], function () {
       return factory(isObject, defineProperty, useShims);
     });
@@ -124,6 +127,8 @@
     /*
      * Browser globals (root is window)
      */
+    /* istanbul ignore if */
+    /* istanbul ignore else */
     if (Object.prototype.hasOwnProperty.call(root, 'reiterate')) {
       throw new Error('Unable to define "reiterate"');
     }
@@ -330,6 +335,7 @@
        */
       setValue = (function (descriptor) {
         return function (object, property, value, noCheck) {
+          /* istanbul ignore if */
           if (!noCheck && hasOwn(object, property)) {
             throw new Error(
               'property "' + property + '" already exists on object'
@@ -425,6 +431,7 @@
               index += 1;
             }
 
+            /* istanbul ignore next */
             throw new TypeError('ordinaryToPrimitive returned an object');
           }
 
@@ -461,6 +468,7 @@
             } else if (type === typeString) {
               val = Number(subject);
             } else {
+              /* istanbul ignore if */
               if (typeSymbol && type === typeSymbol) {
                 throw new TypeError('Can not convert symbol to a number');
               }
@@ -641,6 +649,7 @@
       isArray = (function (ai, tag) {
         var fn;
 
+        /* istanbul ignore else */
         if (ai && !useShims) {
           fn = ai;
         } else if (tag === '[object Array]') {
@@ -1031,6 +1040,7 @@
       forEach = (function (apf) {
         var fn;
 
+        /* istanbul ignore else */
         if (apf && !useShims) {
           fn = function (array) {
             return apf.apply(array, chop(arguments, 1));
@@ -1060,6 +1070,7 @@
       some = (function (aps) {
         var fn;
 
+        /* istanbul ignore else */
         if (aps && !useShims) {
           fn = function (array) {
             return aps.apply(array, chop(arguments, 1));
@@ -1111,6 +1122,7 @@
         var msg,
           fn;
 
+        /* istanbul ignore else */
         if (apr && !useShims) {
           fn = function (array) {
             return apr.apply(array, chop(arguments, 1));
@@ -1172,6 +1184,7 @@
       every = (function (ape) {
         var fn;
 
+        /* istanbul ignore else */
         if (ape && !useShims) {
           fn = function (array) {
             return ape.apply(array, chop(arguments, 1));
@@ -1208,6 +1221,7 @@
       objectKeys = (function (ok) {
         var fn;
 
+        /* istanbul ignore else */
         if (ok && !useShims) {
           fn = ok;
         } else {
@@ -1241,6 +1255,7 @@
       assign = (function (oa) {
         var fn;
 
+        /* istanbul ignore else */
         if (oa && !useShims) {
           fn = oa;
         } else {
@@ -1268,6 +1283,7 @@
       indexOf = (function (api) {
         var fn = api;
 
+        /* istanbul ignore else */
         if (api && !useShims) {
           fn = function (array) {
             return api.apply(array, chop(arguments, 1));
@@ -1384,7 +1400,7 @@
       },
 
       includes = function (array, item) {
-        return -1 < getIndex(array, item);
+        return getIndex(array, item) > -1;
       },
 
       SetObject = (function (typeFunction) {
@@ -1397,6 +1413,7 @@
         if (S) {
           try {
             s = new S([0, -0]);
+            /* istanbul ignore if */
             if (typeof s.has !== typeFunction ||
               typeof s.add !== typeFunction ||
               typeof s.keys !== typeFunction ||
@@ -1419,6 +1436,7 @@
             s.add('key');
             s.add(-0);
             s.add(0);
+            /* istanbul ignore if */
             if (s.size !== 7) {
               throw new Error('Incorrect size');
             }
@@ -1427,6 +1445,7 @@
           }
         }
 
+        /* istanbul ignore else */
         if (S) {
           fn = S;
         } else {
@@ -1699,6 +1718,7 @@
               [1, 1],
               [2, 2]
             ]);
+            /* istanbul ignore if */
             if (typeof m.has !== typeFunction ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
@@ -1722,6 +1742,7 @@
             m.set('key', undefined);
             m.set(-0, callback);
             m.set(0, generic);
+            /* istanbul ignore if */
             if (m.get(0) !== generic || m.get(-0) !== generic || m.size !== 7) {
               throw new Error('Incorrect result');
             }
@@ -1731,6 +1752,7 @@
           }
         }
 
+        /* istanbul ignore else */
         if (M) {
           fn = M;
         } else {
@@ -2164,7 +2186,7 @@
                 var object;
 
                 itertor = itertor || generator();
-                next = itertor.next();
+                next = next && next.done ? next : itertor.next();
                 if (!next.done) {
                   callback.call(thisArg, next.value, index);
                   object = {
@@ -2195,15 +2217,13 @@
           iterator = this[symIt]();
           next = iterator.next();
           result = true;
-          if (!next.done) {
-            index = 0;
-            while (result && !next.done) {
-              if (!callback.call(thisArg, next.value, index)) {
-                result = false;
-              } else {
-                next = iterator.next();
-                index += 1;
-              }
+          index = 0;
+          while (result && !next.done) {
+            if (!callback.call(thisArg, next.value, index)) {
+              result = false;
+            } else {
+              next = iterator.next();
+              index += 1;
             }
           }
 
@@ -2220,15 +2240,13 @@
           iterator = this[symIt]();
           next = iterator.next();
           result = false;
-          if (!next.done) {
-            index = 0;
-            while (!result && !next.done) {
-              if (callback.call(thisArg, next.value, index)) {
-                result = true;
-              } else {
-                next = iterator.next();
-                index += 1;
-              }
+          index = 0;
+          while (!result && !next.done) {
+            if (callback.call(thisArg, next.value, index)) {
+              result = true;
+            } else {
+              next = iterator.next();
+              index += 1;
             }
           }
 
@@ -2327,6 +2345,7 @@
           return result;
         },
 
+        /*
         asSetOwn: function () {
           var iterator = this[symIt](),
             next;
@@ -2337,6 +2356,7 @@
 
           return next.value;
         },
+        */
 
         dropGenerator: function (number) {
           var generator = this[symIt],
@@ -2352,7 +2372,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && index < howMany ? next : iterator.next();
                 while (!next.done && index < howMany) {
                   next = iterator.next();
                   index += 1;
@@ -2397,7 +2417,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && !dropped ? next : iterator.next();
                 while (!dropped && !next.done && callback.call(
                     thisArg,
                     next.value,
@@ -2441,7 +2461,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && index >= howMany ? next : iterator.next();
                 if (!next.done && index < howMany) {
                   object = {
                     done: false,
@@ -2476,7 +2496,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && next.done ? next : iterator.next();
                 if (!next.done && callback.call(thisArg, next.value, index)) {
                   object = {
                     done: false,
@@ -2550,7 +2570,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && next.done ? next : iterator.next();
                 while (!next.done && !next.value) {
                   next = iterator.next();
                 }
@@ -2585,7 +2605,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && next.done ? next : iterator.next();
                 set = set || new SetObject(reiterate(values).values());
                 while (!next.done && set.has(next.value)) {
                   next = iterator.next();
@@ -2738,7 +2758,7 @@
                   argSets = argSets || reduce(args, push, []);
                   seen = seen || new SetObject();
                   iterator = iterator || generator();
-                  next = iterator.next();
+                  next = next && next.done ? next : iterator.next();
                   while (!next.done) {
                     if (!seen.has(next.value)) {
                       if (every(argSets, has, next)) {
@@ -2791,7 +2811,7 @@
 
                 iterator = iterator || generator();
                 seen = seen || new SetObject();
-                next = iterator.next();
+                next = next && next.done ? next : iterator.next();
                 while (!next.done && !outerIt) {
                   if (!seen.has(next.value)) {
                     seen.add(next.value);
@@ -3086,7 +3106,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && next.done ? next : iterator.next();
                 if (!next.done) {
                   object = {
                     done: false,
@@ -3121,7 +3141,7 @@
                 var object;
 
                 iterator = iterator || generator();
-                next = iterator.next();
+                next = next && next.done ? next : iterator.next();
                 while (!next.done &&
                   !callback.call(thisArg, next.value, index)) {
                   next = iterator.next();
@@ -3170,7 +3190,7 @@
                   var object;
 
                   iterator = iterator || generator();
-                  next = iterator.next();
+                  next = next && next.done ? next : iterator.next();
                   if (!next.done) {
                     object = {
                       done: false,
@@ -3219,7 +3239,7 @@
                   }
                 }
 
-                next = iterator.next();
+                next = next && next.done ? next : iterator.next();
                 if (!next.done) {
                   object = {
                     done: false,
@@ -3320,7 +3340,8 @@
           }
 
           function countGenerator(opts) {
-            var iterator;
+            var iterator,
+              next;
 
             if (!iterator) {
               if (opts.reversed) {
@@ -3332,7 +3353,9 @@
 
             return {
               next: function () {
-                return iterator.next();
+                next = next && next.done ? next : iterator.next();
+
+                return next;
               }
             };
           }
@@ -3396,19 +3419,17 @@
               generator = g.CounterGenerator();
               generator.from(opts.from).to(opts.to).by(opts.by);
               setReverseIfOpt(opts, generator);
-              counter = generator[symIt]();
-              next = counter.next();
               iterator = {
                 next: function () {
                   var object;
 
+                  counter = counter || generator[symIt]();
+                  next = next && next.done ? next : counter.next();
                   if (!next.done) {
                     object = {
                       done: false,
                       value: getYieldValue(opts, subject, next.value)
                     };
-
-                    next = counter.next();
                   } else {
                     object = assign({}, $.DONE);
                   }
@@ -3511,14 +3532,14 @@
             generator = g.CounterGenerator(opts);
             generator.from(opts.from).to(opts.to).by(opts.by);
             setReverseIfOpt(opts, generator);
-            counter = generator[symIt]();
-            next = counter.next();
             iterator = {
               next: function () {
                 var object,
                   char1,
                   char2;
 
+                counter = counter || generator[symIt]();
+                next = next || counter.next();
                 if (!next.done) {
                   while (!next.done && !object) {
                     if (!isPair) {
@@ -3661,19 +3682,17 @@
               }
             }
 
-            iterator = new g.ArrayGenerator(keys)[symIt]();
-            next = iterator.next();
             return {
               next: function () {
                 var object;
 
+                iterator = iterator || new g.ArrayGenerator(keys)[symIt]();
+                next = next && next.done ? next : iterator.next();
                 if (!next.done) {
                   object = {
                     done: false,
                     value: getYieldValue(opts, subject, next.value)
                   };
-
-                  next = iterator.next();
                 } else {
                   object = assign({}, $.DONE);
                 }
@@ -3767,23 +3786,21 @@
               first = rest = [];
             }
 
-            iterator = p.zipGenerator.apply(
-              reiterate(first, true),
-              rest
-            )[symIt]();
-
-            next = iterator.next();
             return {
               next: function () {
                 var object;
 
+                iterator = iterator || p.zipGenerator.apply(
+                  reiterate(first, true),
+                  rest
+                )[symIt]();
+
+                next = next && next.done ? next : iterator.next();
                 if (!next.done) {
                   object = {
                     done: false,
                     value: next.value
                   };
-
-                  next = iterator.next();
                 } else {
                   object = assign({}, $.DONE);
                 }
@@ -7055,7 +7072,7 @@ process.umask = function() { return 0; };
     maxstatements:25, maxcomplexity:10
 */
 /*global module, require, process */
-
+/* istanbul ignore next */
 (function () {
   'use strict';
 
