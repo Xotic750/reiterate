@@ -1536,9 +1536,68 @@
         };
       }()),
 
+      hasMapSet = function (key) {
+        return includes(mustBeObject(this)['[[key]]'], key);
+      },
+
+      clearMapSet = function (kind, context) {
+        mustBeObject(context);
+        context['[[id]]'] = new IdGenerator();
+        context['[[change]]'] = true;
+        context['[[key]]'].length =
+          context['[[order]]'].length =
+          context.size = 0;
+
+        if (kind === 'map') {
+          context['[[value]]'].length = 0;
+        }
+
+        return context;
+      },
+
+      deleteMapSet = function (kind, context, key) {
+        var indexof = getIndex(mustBeObject(context)['[[key]]'], key),
+          result = false;
+
+        if (indexof > -1) {
+          if (kind === 'map') {
+            context['[[value]]'].splice(indexof, 1);
+          }
+
+          context['[[key]]'].splice(indexof, 1);
+          context['[[order]]'].splice(indexof, 1);
+          context['[[change]]'] = true;
+          context.size = context['[[key]]'].length;
+          result = true;
+        }
+
+        return result;
+      },
+
+      setMapSet = function (kind, context, key, value) {
+        var index = getIndex(mustBeObject(context)['[[key]]'], key);
+
+        if (kind === 'map' && index > -1) {
+          context['[[value]]'][index] = value;
+        } else {
+          if (kind === 'map') {
+            context['[[value]]'].push(value);
+          }
+
+          context['[[key]]'].push(key);
+          context['[[order]]'].push(context['[[id]]'].get());
+          context['[[id]]'].next();
+          context['[[change]]'] = true;
+          context.size = context['[[key]]'].length;
+        }
+
+        return context;
+      },
+
       SetObject = (function (typeFunction) {
         var S = typeof Set === typeFunction && !useShims && Set,
           callback,
+          kind,
           fn,
           s;
 
@@ -1580,59 +1639,27 @@
         if (S) {
           fn = S;
         } else {
+          kind = 'set';
           fn = function Set(iterable) {
-            initMapSet('set', this, iterable);
+            initMapSet(kind, this, iterable);
           };
 
-          setValue(fn.prototype, 'has', function (key) {
-            mustBeObject(this);
-
-            return includes(this['[[key]]'], key);
-          });
+          setValue(fn.prototype, 'has', hasMapSet);
 
           setValue(fn.prototype, 'add', function (key) {
-            mustBeObject(this);
-            if (!includes(this['[[key]]'], key)) {
-              this['[[key]]'].push(key);
-              this['[[change]]'] = true;
-              this['[[order]]'].push(this['[[id]]'].get());
-              this['[[id]]'].next();
-              this.size = this['[[key]]'].length;
-            }
-
-            return this;
+            return setMapSet(kind, this, key);
           });
 
           setValue(fn.prototype, 'clear', function () {
-            mustBeObject(this);
-            this['[[change]]'] = true;
-            this['[[key]]'].length = this['[[order]]'].length = this.size = 0;
-            this['[[id]]'] = new IdGenerator();
-
-            return this;
+            return clearMapSet(kind, this);
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            var index,
-              result;
-
-            mustBeObject(this);
-            index = getIndex(this['[[key]]'], key);
-            if (-1 < index) {
-              this['[[key]]'].splice(index, 1);
-              this['[[order]]'].splice(index, 1);
-              this['[[change]]'] = true;
-              this.size = this['[[key]]'].length;
-              result = true;
-            } else {
-              result = false;
-            }
-
-            return result;
+            return deleteMapSet(kind, this, key);
           });
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            return forEachMapSet('set', this, callback, thisArg);
+            return forEachMapSet(kind, this, callback, thisArg);
           });
 
           setValue(fn.prototype, 'values', function () {
@@ -1749,6 +1776,7 @@
         var M = typeof Map === typeFunction && !useShims && Map,
           generic,
           callback,
+          kind,
           fn,
           m;
 
@@ -1795,79 +1823,33 @@
         if (M) {
           fn = M;
         } else {
+          kind = 'map';
           fn = function Map(iterable) {
-            initMapSet('map', this, iterable);
+            initMapSet(kind, this, iterable);
           };
 
-          setValue(fn.prototype, 'has', function (key) {
-            mustBeObject(this);
-
-            return includes(this['[[key]]'], key);
-          });
+          setValue(fn.prototype, 'has', hasMapSet);
 
           setValue(fn.prototype, 'set', function (key, value) {
-            var index;
-
-            mustBeObject(this);
-            index = getIndex(this['[[key]]'], key);
-            if (-1 < index) {
-              this['[[value]]'][index] = value;
-            } else {
-              this['[[key]]'].push(key);
-              this['[[value]]'].push(value);
-              this['[[order]]'].push(this['[[id]]'].get());
-              this['[[id]]'].next();
-              this['[[change]]'] = true;
-              this.size = this['[[key]]'].length;
-            }
-
-            return this;
+            return setMapSet(kind, this, key, value);
           });
 
           setValue(fn.prototype, 'clear', function () {
-            mustBeObject(this);
-            this['[[change]]'] = true;
-            this['[[key]]'].length =
-              this['[[value]]'].length =
-              this['[[order]]'].length =
-              this.size = 0;
-
-            this['[[id]]'] = new IdGenerator();
-
-            return this;
+            return clearMapSet(kind, this);
           });
 
           setValue(fn.prototype, 'get', function (key) {
-            var index;
+            var index = getIndex(mustBeObject(this)['[[key]]'], key);
 
-            mustBeObject(this);
-            index = getIndex(this['[[key]]'], key);
-
-            return -1 < index ? this['[[value]]'][index] : undefined;
+            return index > -1 ? this['[[value]]'][index] : undefined;
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            var indexof,
-              result;
-
-            mustBeObject(this);
-            indexof = getIndex(this['[[key]]'], key);
-            if (-1 < indexof) {
-              this['[[key]]'].splice(indexof, 1);
-              this['[[value]]'].splice(indexof, 1);
-              this['[[order]]'].splice(indexof, 1);
-              this['[[change]]'] = true;
-              this.size = this['[[key]]'].length;
-              result = true;
-            } else {
-              result = false;
-            }
-
-            return result;
+            return deleteMapSet(kind, this, key);
           });
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            return forEachMapSet('map', this, callback, thisArg);
+            return forEachMapSet(kind, this, callback, thisArg);
           });
 
           setValue(fn.prototype, 'values', function () {
