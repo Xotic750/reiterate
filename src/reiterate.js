@@ -830,6 +830,14 @@
         return subject;
       },
 
+      mustBeObject = function (subject) {
+        if (!isObject(subject)) {
+          throw new TypeError('argument must be a object');
+        }
+
+        return subject;
+      },
+
       /**
        * Converts the subject into a safe number within the max and min safe
        * integer range.
@@ -1424,15 +1432,117 @@
         return getIndex(array, item) > -1;
       },
 
+      initMapSet = (function () {
+        function getMapSetIterator(iterable) {
+          var iterator;
+
+          if (!isNil(iterable)) {
+            if (isArrayLike(iterable)) {
+              iterator = reiterate(iterable, true);
+            } else if (iterable[symIt]) {
+              iterator = iterable;
+            }
+
+            iterator = iterator[symIt]();
+          }
+
+          return iterator;
+        }
+
+        return function (kind, context, iterable) {
+          var iterator = getMapSetIterator(iterable),
+            indexof,
+            next,
+            key;
+
+          if (kind === 'map') {
+            setValue(context, '[[value]]', []);
+          }
+
+          setValue(context, '[[key]]', []);
+          setValue(context, '[[order]]', []);
+          setValue(context, '[[id]]', new IdGenerator());
+          setValue(context, '[[changed]]', false);
+          if (iterator) {
+            next = iterator.next();
+            while (!next.done) {
+              key = kind === 'map' ? next.value[0] : next.value;
+              if (!includes(context['[[key]]'], key)) {
+                if (kind === 'map') {
+                  context['[[value]]'].push(next.value[1]);
+                }
+
+                context['[[key]]'].push(key);
+                context['[[order]]'].push(context['[[id]]'].get());
+                context['[[id]]'].next();
+              } else if (kind === 'map') {
+                context['[[value]]'][indexof] = next.value[1];
+              }
+
+              next = iterator.next();
+            }
+          }
+
+          setValue(context, 'size', context['[[key]]'].length);
+        };
+      })(),
+
+      forEachMapSet = (function () {
+        function changedMapSet(id, count) {
+          /*jshint validthis:true */
+          this.index = count;
+
+          return id > this.order;
+        }
+
+        return function (kind, context, callback, thisArg) {
+          var pointers,
+            length,
+            value,
+            key;
+
+          mustBeObject(context);
+          mustBeFunction(callback);
+          pointers = {
+            index: 0,
+            order: context['[[order]]'][0]
+          };
+
+          context['[[change]]'] = false;
+          length = context['[[key]]'].length;
+          while (pointers.index < length) {
+            if (hasOwn(context['[[key]]'], pointers.index)) {
+              key = context['[[key]]'][pointers.index];
+              value = kind === 'map' ?
+                context['[[value]]'][pointers.index] :
+                key;
+
+              callback.call(thisArg, value, key, context);
+            }
+
+            if (context['[[change]]']) {
+              length = context['[[key]]'].length;
+              some(context['[[order]]'], changedMapSet, pointers);
+              context['[[change]]'] = false;
+            } else {
+              pointers.index += 1;
+            }
+
+            pointers.order = context['[[order]]'][pointers.index];
+          }
+
+          return context;
+        };
+      }()),
+
       SetObject = (function (typeFunction) {
         var S = typeof Set === typeFunction && !useShims && Set,
-          changed,
           callback,
           fn,
           s;
 
         /* istanbul ignore if */
-        if (S) {
+        if (false && S) {
           try {
             s = new S([0, -0]);
             if (typeof s.has !== typeFunction ||
@@ -1469,59 +1579,18 @@
         if (S) {
           fn = S;
         } else {
-          changed = function (id, count) {
-            this.index = count;
-
-            return id > this.order;
-          };
-
           fn = function Set(iterable) {
-            var iterator,
-              next;
-
-            setValue(this, '[[key]]', []);
-            setValue(this, '[[order]]', []);
-            setValue(this, '[[id]]', new IdGenerator());
-            setValue(this, '[[changed]]', false);
-            if (!isNil(iterable)) {
-              if (isArrayLike(iterable)) {
-                iterator = reiterate(iterable, true);
-              } else if (iterable[symIt]) {
-                iterator = iterable;
-              }
-
-              iterator = iterator[symIt]();
-            }
-
-            if (iterator) {
-              next = iterator.next();
-              while (!next.done) {
-                if (!includes(this['[[key]]'], next.value)) {
-                  this['[[key]]'].push(next.value);
-                  this['[[order]]'].push(this['[[id]]'].get());
-                  this['[[id]]'].next();
-                }
-
-                next = iterator.next();
-              }
-            }
-
-            setValue(this, 'size', this['[[key]]'].length);
+            initMapSet('set', this, iterable);
           };
 
           setValue(fn.prototype, 'has', function (key) {
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
+            mustBeObject(this);
 
             return includes(this['[[key]]'], key);
           });
 
           setValue(fn.prototype, 'add', function (key) {
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
+            mustBeObject(this);
             if (!includes(this['[[key]]'], key)) {
               this['[[key]]'].push(key);
               this['[[change]]'] = true;
@@ -1534,10 +1603,7 @@
           });
 
           setValue(fn.prototype, 'clear', function () {
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
+            mustBeObject(this);
             this['[[change]]'] = true;
             this['[[key]]'].length = this['[[order]]'].length = this.size = 0;
             this['[[id]]'] = new IdGenerator();
@@ -1549,10 +1615,7 @@
             var index,
               result;
 
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
+            mustBeObject(this);
             index = getIndex(this['[[key]]'], key);
             if (-1 < index) {
               this['[[key]]'].splice(index, 1);
@@ -1568,41 +1631,7 @@
           });
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            var pointers,
-              length;
-
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
-            mustBeFunction(callback);
-            this['[[change]]'] = false;
-            pointers = {};
-            pointers.index = 0;
-            pointers.order = this['[[order]]'][pointers.index];
-            length = this['[[key]]'].length;
-            while (pointers.index < length) {
-              if (hasOwn(this['[[key]]'], pointers.index)) {
-                callback.call(
-                  thisArg,
-                  this['[[key]]'][pointers.index],
-                  this['[[key]]'][pointers.index],
-                  this
-                );
-              }
-
-              if (this['[[change]]']) {
-                length = this['[[key]]'].length;
-                some(this['[[order]]'], changed, pointers);
-                this['[[change]]'] = false;
-              } else {
-                pointers.index += 1;
-              }
-
-              pointers.order = this['[[order]]'][pointers.index];
-            }
-
-            return this;
+            return forEachMapSet('set', this, callback, thisArg);
           });
 
           setValue(fn.prototype, 'values', function () {
@@ -1620,10 +1649,7 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (!isObject(context)) {
-                  throw new TypeError('context is not an object');
-                }
-
+                mustBeObject(context);
                 if (index < keys.length && !done) {
                   object = {
                     done: false,
@@ -1657,10 +1683,7 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (!isObject(context)) {
-                  throw new TypeError('context is not an object');
-                }
-
+                mustBeObject(context);
                 if (index < keys.length && !done) {
                   object = {
                     done: false,
@@ -1694,10 +1717,7 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (!isObject(context)) {
-                  throw new TypeError('context is not an object');
-                }
-
+                mustBeObject(context);
                 if (index < keys.length && !done) {
                   object = {
                     done: false,
@@ -1726,7 +1746,6 @@
 
       MapObject = (function (typeFunction) {
         var M = typeof Map === typeFunction && !useShims && Map,
-          changed,
           generic,
           callback,
           fn,
@@ -1775,56 +1794,12 @@
         if (M) {
           fn = M;
         } else {
-          changed = function (id, count) {
-            this.index = count;
-
-            return id > this.order;
-          };
-
           fn = function Map(iterable) {
-            var iterator,
-              indexof,
-              next;
-
-            setValue(this, '[[key]]', []);
-            setValue(this, '[[value]]', []);
-            setValue(this, '[[order]]', []);
-            setValue(this, '[[id]]', new IdGenerator());
-            setValue(this, '[[changed]]', false);
-            if (!isNil(iterable)) {
-              if (isArrayLike(iterable)) {
-                iterator = reiterate(iterable, true);
-              } else if (iterable[symIt]) {
-                iterator = iterable;
-              }
-
-              iterator = iterator[symIt]();
-            }
-
-            if (iterator) {
-              next = iterator.next();
-              while (!next.done) {
-                indexof = getIndex(this['[[key]]'], next.value[0]);
-                if (indexof < 0) {
-                  this['[[key]]'].push(next.value[0]);
-                  this['[[value]]'].push(next.value[1]);
-                  this['[[order]]'].push(this['[[id]]'].get());
-                  this['[[id]]'].next();
-                } else {
-                  this['[[value]]'][indexof] = next.value[1];
-                }
-
-                next = iterator.next();
-              }
-            }
-
-            setValue(this, 'size', this['[[key]]'].length);
+            initMapSet('map', this, iterable);
           };
 
           setValue(fn.prototype, 'has', function (key) {
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
+            mustBeObject(this);
 
             return includes(this['[[key]]'], key);
           });
@@ -1832,10 +1807,7 @@
           setValue(fn.prototype, 'set', function (key, value) {
             var index;
 
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
+            mustBeObject(this);
             index = getIndex(this['[[key]]'], key);
             if (-1 < index) {
               this['[[value]]'][index] = value;
@@ -1852,10 +1824,7 @@
           });
 
           setValue(fn.prototype, 'clear', function () {
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
+            mustBeObject(this);
             this['[[change]]'] = true;
             this['[[key]]'].length =
               this['[[value]]'].length =
@@ -1870,10 +1839,7 @@
           setValue(fn.prototype, 'get', function (key) {
             var index;
 
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
+            mustBeObject(this);
             index = getIndex(this['[[key]]'], key);
 
             return -1 < index ? this['[[value]]'][index] : undefined;
@@ -1883,10 +1849,7 @@
             var indexof,
               result;
 
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
+            mustBeObject(this);
             indexof = getIndex(this['[[key]]'], key);
             if (-1 < indexof) {
               this['[[key]]'].splice(indexof, 1);
@@ -1903,41 +1866,7 @@
           });
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            var pointers,
-              length;
-
-            if (!isObject(this)) {
-              throw new TypeError('context is not an object');
-            }
-
-            mustBeFunction(callback);
-            this['[[change]]'] = false;
-            pointers = {};
-            pointers.index = 0;
-            pointers.order = this['[[order]]'][pointers.index];
-            length = this['[[key]]'].length;
-            while (pointers.index < length) {
-              if (hasOwn(this['[[key]]'], pointers.index)) {
-                callback.call(
-                  thisArg,
-                  this['[[value]]'][pointers.index],
-                  this['[[key]]'][pointers.index],
-                  this
-                );
-              }
-
-              if (this['[[change]]']) {
-                length = this['[[key]]'].length;
-                some(this['[[order]]'], changed, pointers);
-                this['[[change]]'] = false;
-              } else {
-                pointers.index += 1;
-              }
-
-              pointers.order = this['[[order]]'][pointers.index];
-            }
-
-            return this;
+            return forEachMapSet('map', this, callback, thisArg);
           });
 
           setValue(fn.prototype, 'values', function () {
@@ -1956,10 +1885,7 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (!isObject(context)) {
-                  throw new TypeError('context is not an object');
-                }
-
+                mustBeObject(context);
                 if (index < keys.length && !done) {
                   object = {
                     done: false,
@@ -1993,10 +1919,7 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (!isObject(context)) {
-                  throw new TypeError('context is not an object');
-                }
-
+                mustBeObject(context);
                 if (index < keys.length && !done) {
                   object = {
                     done: false,
@@ -2031,10 +1954,7 @@
               setValue(this, 'next', function () {
                 var object;
 
-                if (!isObject(context)) {
-                  throw new TypeError('context is not an object');
-                }
-
+                mustBeObject(context);
                 if (index < keys.length && !done) {
                   object = {
                     done: false,
