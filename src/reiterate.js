@@ -127,11 +127,11 @@
      * Browser globals (root is window)
      */
     /* istanbul ignore if */
-    /* istanbul ignore else */
     if (Object.prototype.hasOwnProperty.call(root, '@@MODULE')) {
       throw new Error('Unable to define "@@MODULE"');
     }
 
+    /* istanbul ignore next */
     defineProperty(root, '@@MODULE', {
       enumerable: false,
       writable: true,
@@ -251,6 +251,7 @@
        * @return {*} The subject if coercible.
        */
       requireObjectCoercible = function (subject) {
+        /* istanbul ignore if */
         if (isNil(subject)) {
           throw new TypeError('Cannot convert argument to object');
         }
@@ -267,19 +268,19 @@
        * @return {Object} Value of subject as type Object.
        * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
        */
-      toObject = (function (asArray) {
+      toObject = (function (valueOf) {
         return function (subject) {
           var object;
 
           if (isObject(requireObjectCoercible(subject))) {
             object = subject;
           } else {
-            object = asArray.call(subject);
+            object = valueOf.call(subject);
           }
 
           return object;
         };
-      }(Object.prototype.asArray)),
+      }(Object.prototype.valueOf)),
 
       /**
        * Returns a boolean indicating whether the object has the specified
