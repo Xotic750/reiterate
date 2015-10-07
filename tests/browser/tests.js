@@ -1388,7 +1388,8 @@
         if (S) {
           try {
             s = new S([0]);
-            if (!s.has(-0) ||
+            if (!s.has(0) ||
+              !s.has(-0) ||
               s.size !== 1 ||
               typeof s.add !== typeFunction ||
               typeof s.keys !== typeFunction ||
@@ -1406,6 +1407,8 @@
         }
 
         if (S) {
+          /*global console */
+          console.log('NATIVE SET');
           fn = S;
         } else {
           changed = function (id, count) {
@@ -1675,7 +1678,8 @@
               [0, 1]
             ]);
 
-            if (!m.has(-0) ||
+            if (!m.has(0) ||
+              !m.has(-0) ||
               m.size !== 1 ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
@@ -1693,6 +1697,8 @@
         }
 
         if (M) {
+          /*global console */
+          console.log('NATIVE MAP');
           fn = M;
         } else {
           changed = function (id, count) {
