@@ -16,7 +16,7 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     es3:true, esnext:true, plusplus:true, maxparams:4, maxdepth:6,
-    maxstatements:49, maxcomplexity:24
+    maxstatements:false, maxcomplexity:24
 */
 
 /*global
@@ -1382,6 +1382,7 @@
       SetObject = (function (typeFunction) {
         var S = typeof Set === typeFunction && !useShims && Set,
           changed,
+          callback,
           fn,
           s;
 
@@ -1400,31 +1401,21 @@
               throw new Error('Missing methods');
             }
 
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
-              throw new Error('Zeros test 1');
-            }
-
-            s = new S();
-            s.add(0);
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
-              throw new Error('Zeros test 2');
-            }
-
-            s = new S();
+            callback = function () {};
+            s.add(callback);
+            s.add(callback);
+            s.add(callback);
+            s.add(s);
+            s.add(NaN);
+            s.add(NaN);
+            s.add('key');
             s.add(-0);
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
-              throw new Error('Zeros test 3');
-            }
-
-            s.add(NaN);
-            s.add(NaN);
-            if (!s.has(NaN) || s.size !== 1) {
-              throw new Error('NaN test');
+            s.add(0);
+            if (s.size !== 7) {
+              throw new Error('Incorrect size');
             }
           } catch (e) {
             S = null;
-            /*global console */
-            console.log('SET: ' + e);
           }
         }
 
@@ -1691,16 +1682,14 @@
       MapObject = (function (typeFunction) {
         var M = typeof Map === typeFunction && !useShims && Map,
           changed,
+          generic,
+          callback,
           fn,
           m;
 
         if (M) {
           try {
-            m = new M([
-              [0, {}],
-              [-0, function () {}]
-            ]);
-
+            m = new M([[1, 1], [2, 2]]);
             if (typeof m.has !== typeFunction ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
@@ -1713,56 +1702,23 @@
               throw new Error('missing methods');
             }
 
-            if (!m.has(0)) {
-              throw new Error('Zeros test 1.1');
+            generic = {};
+            callback = function () {};
+            m.set(callback, generic);
+            m.set(callback, callback);
+            m.set(callback, m);
+            m.set(m, callback);
+            m.set(NaN, generic);
+            m.set(NaN, callback);
+            m.set('key', undefined);
+            m.set(-0, callback);
+            m.set(0, generic);
+            if (m.size !== 7) {
+              throw new Error('Incorrect size');
             }
 
-            if (!m.has(-0)) {
-              throw new Error('Zeros test 1.2');
-            }
-
-            if (m.size !== 1) {
-              throw new Error('Zeros test 1.3');
-            }
-
-            m = new M();
-            m.set(0, {});
-            if (!m.has(0)) {
-              throw new Error('Zeros test 2.1');
-            }
-
-            if (!m.has(-0)) {
-              throw new Error('Zeros test 2.2');
-            }
-
-            if (m.size !== 1) {
-              throw new Error('Zeros test 2.3');
-            }
-
-            m = new M();
-            m.set(-0, function () {});
-            if (!m.has(0)) {
-              throw new Error('Zeros test 3.1');
-            }
-
-            if (!m.has(-0)) {
-              throw new Error('Zeros test 3.2');
-            }
-
-            if (m.size !== 1) {
-              throw new Error('Zeros test 3.3');
-            }
-
-            m = new M();
-            m.set(NaN, 1);
-            m.set(NaN, 2);
-            if (!m.has(NaN) || m.size !== 1) {
-              throw new Error('NaN test');
-            }
           } catch (e) {
             M = null;
-            /*global console */
-            console.log('MAP: ' + e);
           }
         }
 
@@ -3955,20 +3911,22 @@ var rootParent = {}
  */
 Buffer.TYPED_ARRAY_SUPPORT = global.TYPED_ARRAY_SUPPORT !== undefined
   ? global.TYPED_ARRAY_SUPPORT
-  : (function () {
-      function Bar () {}
-      try {
-        var arr = new Uint8Array(1)
-        arr.foo = function () { return 42 }
-        arr.constructor = Bar
-        return arr.foo() === 42 && // typed array instances can be augmented
-            arr.constructor === Bar && // constructor can be set
-            typeof arr.subarray === 'function' && // chrome 9-10 lack `subarray`
-            arr.subarray(1, 1).byteLength === 0 // ie10 has broken `subarray`
-      } catch (e) {
-        return false
-      }
-    })()
+  : typedArraySupport()
+
+function typedArraySupport () {
+  function Bar () {}
+  try {
+    var arr = new Uint8Array(1)
+    arr.foo = function () { return 42 }
+    arr.constructor = Bar
+    return arr.foo() === 42 && // typed array instances can be augmented
+        arr.constructor === Bar && // constructor can be set
+        typeof arr.subarray === 'function' && // chrome 9-10 lack `subarray`
+        arr.subarray(1, 1).byteLength === 0 // ie10 has broken `subarray`
+  } catch (e) {
+    return false
+  }
+}
 
 function kMaxLength () {
   return Buffer.TYPED_ARRAY_SUPPORT
@@ -4922,7 +4880,7 @@ Buffer.prototype.writeUInt8 = function writeUInt8 (value, offset, noAssert) {
   offset = offset | 0
   if (!noAssert) checkInt(this, value, offset, 1, 0xff, 0)
   if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
-  this[offset] = value
+  this[offset] = (value & 0xff)
   return offset + 1
 }
 
@@ -4939,7 +4897,7 @@ Buffer.prototype.writeUInt16LE = function writeUInt16LE (value, offset, noAssert
   offset = offset | 0
   if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = value
+    this[offset] = (value & 0xff)
     this[offset + 1] = (value >>> 8)
   } else {
     objectWriteUInt16(this, value, offset, true)
@@ -4953,7 +4911,7 @@ Buffer.prototype.writeUInt16BE = function writeUInt16BE (value, offset, noAssert
   if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 8)
-    this[offset + 1] = value
+    this[offset + 1] = (value & 0xff)
   } else {
     objectWriteUInt16(this, value, offset, false)
   }
@@ -4975,7 +4933,7 @@ Buffer.prototype.writeUInt32LE = function writeUInt32LE (value, offset, noAssert
     this[offset + 3] = (value >>> 24)
     this[offset + 2] = (value >>> 16)
     this[offset + 1] = (value >>> 8)
-    this[offset] = value
+    this[offset] = (value & 0xff)
   } else {
     objectWriteUInt32(this, value, offset, true)
   }
@@ -4990,7 +4948,7 @@ Buffer.prototype.writeUInt32BE = function writeUInt32BE (value, offset, noAssert
     this[offset] = (value >>> 24)
     this[offset + 1] = (value >>> 16)
     this[offset + 2] = (value >>> 8)
-    this[offset + 3] = value
+    this[offset + 3] = (value & 0xff)
   } else {
     objectWriteUInt32(this, value, offset, false)
   }
@@ -5043,7 +5001,7 @@ Buffer.prototype.writeInt8 = function writeInt8 (value, offset, noAssert) {
   if (!noAssert) checkInt(this, value, offset, 1, 0x7f, -0x80)
   if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
   if (value < 0) value = 0xff + value + 1
-  this[offset] = value
+  this[offset] = (value & 0xff)
   return offset + 1
 }
 
@@ -5052,7 +5010,7 @@ Buffer.prototype.writeInt16LE = function writeInt16LE (value, offset, noAssert) 
   offset = offset | 0
   if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = value
+    this[offset] = (value & 0xff)
     this[offset + 1] = (value >>> 8)
   } else {
     objectWriteUInt16(this, value, offset, true)
@@ -5066,7 +5024,7 @@ Buffer.prototype.writeInt16BE = function writeInt16BE (value, offset, noAssert) 
   if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 8)
-    this[offset + 1] = value
+    this[offset + 1] = (value & 0xff)
   } else {
     objectWriteUInt16(this, value, offset, false)
   }
@@ -5078,7 +5036,7 @@ Buffer.prototype.writeInt32LE = function writeInt32LE (value, offset, noAssert) 
   offset = offset | 0
   if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = value
+    this[offset] = (value & 0xff)
     this[offset + 1] = (value >>> 8)
     this[offset + 2] = (value >>> 16)
     this[offset + 3] = (value >>> 24)
@@ -5097,7 +5055,7 @@ Buffer.prototype.writeInt32BE = function writeInt32BE (value, offset, noAssert) 
     this[offset] = (value >>> 24)
     this[offset + 1] = (value >>> 16)
     this[offset + 2] = (value >>> 8)
-    this[offset + 3] = value
+    this[offset + 3] = (value & 0xff)
   } else {
     objectWriteUInt32(this, value, offset, false)
   }

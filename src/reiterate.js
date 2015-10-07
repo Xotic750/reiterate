@@ -15,7 +15,7 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     es3:true, esnext:true, plusplus:true, maxparams:4, maxdepth:6,
-    maxstatements:49, maxcomplexity:24
+    maxstatements:false, maxcomplexity:24
 */
 
 /*global
@@ -1381,6 +1381,7 @@
       SetObject = (function (typeFunction) {
         var S = typeof Set === typeFunction && !useShims && Set,
           changed,
+          callback,
           fn,
           s;
 
@@ -1399,31 +1400,21 @@
               throw new Error('Missing methods');
             }
 
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
-              throw new Error('Zeros test 1');
-            }
-
-            s = new S();
-            s.add(0);
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
-              throw new Error('Zeros test 2');
-            }
-
-            s = new S();
+            callback = function () {};
+            s.add(callback);
+            s.add(callback);
+            s.add(callback);
+            s.add(s);
+            s.add(NaN);
+            s.add(NaN);
+            s.add('key');
             s.add(-0);
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
-              throw new Error('Zeros test 3');
-            }
-
-            s.add(NaN);
-            s.add(NaN);
-            if (!s.has(NaN) || s.size !== 1) {
-              throw new Error('NaN test');
+            s.add(0);
+            if (s.size !== 7) {
+              throw new Error('Incorrect size');
             }
           } catch (e) {
             S = null;
-            /*global console */
-            console.log('SET: ' + e);
           }
         }
 
@@ -1690,16 +1681,14 @@
       MapObject = (function (typeFunction) {
         var M = typeof Map === typeFunction && !useShims && Map,
           changed,
+          generic,
+          callback,
           fn,
           m;
 
         if (M) {
           try {
-            m = new M([
-              [0, {}],
-              [-0, function () {}]
-            ]);
-
+            m = new M([[1, 1], [2, 2]]);
             if (typeof m.has !== typeFunction ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
@@ -1712,56 +1701,23 @@
               throw new Error('missing methods');
             }
 
-            if (!m.has(0)) {
-              throw new Error('Zeros test 1.1');
+            generic = {};
+            callback = function () {};
+            m.set(callback, generic);
+            m.set(callback, callback);
+            m.set(callback, m);
+            m.set(m, callback);
+            m.set(NaN, generic);
+            m.set(NaN, callback);
+            m.set('key', undefined);
+            m.set(-0, callback);
+            m.set(0, generic);
+            if (m.size !== 7) {
+              throw new Error('Incorrect size');
             }
 
-            if (!m.has(-0)) {
-              throw new Error('Zeros test 1.2');
-            }
-
-            if (m.size !== 1) {
-              throw new Error('Zeros test 1.3');
-            }
-
-            m = new M();
-            m.set(0, {});
-            if (!m.has(0)) {
-              throw new Error('Zeros test 2.1');
-            }
-
-            if (!m.has(-0)) {
-              throw new Error('Zeros test 2.2');
-            }
-
-            if (m.size !== 1) {
-              throw new Error('Zeros test 2.3');
-            }
-
-            m = new M();
-            m.set(-0, function () {});
-            if (!m.has(0)) {
-              throw new Error('Zeros test 3.1');
-            }
-
-            if (!m.has(-0)) {
-              throw new Error('Zeros test 3.2');
-            }
-
-            if (m.size !== 1) {
-              throw new Error('Zeros test 3.3');
-            }
-
-            m = new M();
-            m.set(NaN, 1);
-            m.set(NaN, 2);
-            if (!m.has(NaN) || m.size !== 1) {
-              throw new Error('NaN test');
-            }
           } catch (e) {
             M = null;
-            /*global console */
-            console.log('MAP: ' + e);
           }
         }
 
