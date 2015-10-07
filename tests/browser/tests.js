@@ -16,7 +16,7 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     es3:true, esnext:true, plusplus:true, maxparams:4, maxdepth:6,
-    maxstatements:34, maxcomplexity:23
+    maxstatements:37, maxcomplexity:24
 */
 
 /*global
@@ -1388,9 +1388,7 @@
         if (S) {
           try {
             s = new S([0, -0]);
-            if (!s.has(0) ||
-              !s.has(-0) ||
-              s.size !== 1 ||
+            if (typeof s.has !== typeFunction ||
               typeof s.add !== typeFunction ||
               typeof s.keys !== typeFunction ||
               typeof s.values !== typeFunction ||
@@ -1399,7 +1397,29 @@
               typeof s.clear !== typeFunction ||
               typeof s[strDelete] !== typeFunction ||
               typeof s[symIt] !== typeFunction) {
-              throw new Error();
+              throw new Error('Missing methods');
+            }
+
+            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
+              throw new Error('Zeros test 1');
+            }
+
+            s = new S();
+            s.add(0);
+            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
+              throw new Error('Zeros test 2');
+            }
+
+            s = new S();
+            s.add(-0);
+            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
+              throw new Error('Zeros test 3');
+            }
+
+            s.add(NaN);
+            s.add(NaN);
+            if (!s.has(NaN) || s.size !== 1) {
+              throw new Error('NaN test');
             }
           } catch (e) {
             S = null;
@@ -1679,9 +1699,7 @@
               [-0, 1]
             ]);
 
-            if (!m.has(0) ||
-              !m.has(-0) ||
-              m.size !== 1 ||
+            if (typeof m.has !== typeFunction ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
               typeof m.values !== typeFunction ||
@@ -1690,7 +1708,30 @@
               typeof m.clear !== typeFunction ||
               typeof m[strDelete] !== typeFunction ||
               typeof m[symIt] !== typeFunction) {
-              throw new Error();
+              throw new Error('missing methods');
+            }
+
+            if (!m.has(0) || !m.has(-0) || m.size !== 1) {
+              throw new Error('Zeros test 1');
+            }
+
+            m = new M();
+            m.set(0, 1);
+            if (!m.has(0) || !m.has(-0) || m.size !== 1) {
+              throw new Error('Zeros test 2');
+            }
+
+            m = new M();
+            m.set(-0, 1);
+            if (!m.has(0) || !m.has(-0) || m.size !== 1) {
+              throw new Error('Zeros test 3');
+            }
+
+            m = new M();
+            m.set(NaN, 1);
+            m.set(NaN, 2);
+            if (!m.has(NaN) || m.size !== 1) {
+              throw new Error('NaN test');
             }
           } catch (e) {
             M = null;
