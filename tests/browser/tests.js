@@ -397,6 +397,7 @@
 
       /* istanbul ignore next */
       isDate = (function (tag) {
+        /* istanbul ignore next */
         return function (value) {
           return isObjectLike(value) && toStringTag(value) === tag;
         };
@@ -407,6 +408,7 @@
         var stringOrder = ['toString', 'valueOf'],
           numberOrder = stringOrder.reverse();
 
+        /* istanbul ignore next */
         return function (subject, hint) {
           var methodNames,
             method,
@@ -494,6 +496,7 @@
       sign = (function (ms) {
         var fn;
 
+        /* istanbul ignore else */
         if (ms && !useShims) {
           fn = ms;
         } else {
@@ -508,6 +511,7 @@
       numIsNaN = (function (nin, typeNumber) {
         var fn;
 
+        /* istanbul ignore else */
         if (nin && !useShims) {
           fn = nin;
         } else {
@@ -522,6 +526,7 @@
       numIsFinite = (function (nif, typeNumber) {
         var fn;
 
+        /* istanbul ignore else */
         if (nif && !useShims) {
           fn = nif;
         } else {
@@ -718,6 +723,7 @@
       codePointAt = (function (spc) {
         var fn;
 
+        /* istanbul ignore else */
         if (spc && !useShims) {
           fn = function (string, position) {
             return spc.call(string, position);
@@ -757,6 +763,7 @@
        * @param {*} subject
        * @return {boolean}
        */
+      /* istanbul ignore next */
       isInteger = function (subject) {
         return numIsFinite(subject) && toInteger(subject) === subject;
       },
@@ -764,6 +771,7 @@
       fromCodePoint = (function (sf, stringFromCharCode) {
         var fn;
 
+        /* istanbul ignore else */
         if (sf && !useShims) {
           fn = sf;
         } else {
@@ -858,6 +866,7 @@
       toLength = function (subject) {
         var length = toInteger(subject);
 
+        /* istanbul ignore else */
         if (length <= 0) {
           length = 0;
         } else if (length > MAX_SAFE_INTEGER) {
@@ -911,18 +920,21 @@
           finalEnd,
           k;
 
+          /* istanbul ignore if */
         if (relativeStart < 0) {
           k = Math.max(length + relativeStart, 0);
         } else {
           k = Math.min(relativeStart, length);
         }
 
+        /* istanbul ignore else */
         if (isUndefined(end)) {
           relativeEnd = length;
         } else {
           relativeEnd = toInteger(end);
         }
 
+        /* istanbul ignore if */
         if (relativeEnd < 0) {
           finalEnd = Math.max(length + relativeEnd, 0);
         } else {
@@ -1050,6 +1062,7 @@
 
         /* istanbul ignore else */
         if (apf && !useShims) {
+          /* istanbul ignore next */
           fn = function (array) {
             return apf.apply(array, chop(arguments, 1));
           };
