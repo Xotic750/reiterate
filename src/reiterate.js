@@ -1696,8 +1696,8 @@
         if (M) {
           try {
             m = new M([
-              [0, 1],
-              [-0, 1]
+              [0, {}],
+              [-0, function () {}]
             ]);
 
             if (typeof m.has !== typeFunction ||
@@ -1717,13 +1717,13 @@
             }
 
             m = new M();
-            m.set(0, 1);
+            m.set(0, {});
             if (!m.has(0) ||!m.has(-0) || m.size !== 1) {
               throw new Error('Zeros test 2');
             }
 
             m = new M();
-            m.set(-0, 1);
+            m.set(-0, function () {});
             if (!m.has(0) || !m.has(-0) || m.size !== 1) {
               throw new Error('Zeros test 3');
             }
