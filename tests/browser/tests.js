@@ -1406,13 +1406,13 @@
 
             s = new S();
             s.add(0);
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
+            if (!s.has(-0) || s.size !== 1) {
               throw new Error('Zeros test 2');
             }
 
             s = new S();
             s.add(-0);
-            if (!s.has(0) || !s.has(-0) || s.size !== 1) {
+            if (!s.has(0) || s.size !== 1) {
               throw new Error('Zeros test 3');
             }
 
@@ -1423,6 +1423,8 @@
             }
           } catch (e) {
             S = null;
+            /*global console */
+            console.log('SET: ' + e);
           }
         }
 
@@ -1717,13 +1719,13 @@
 
             m = new M();
             m.set(0, 1);
-            if (!m.has(0) || !m.has(-0) || m.size !== 1) {
+            if (!m.has(-0) || m.size !== 1) {
               throw new Error('Zeros test 2');
             }
 
             m = new M();
             m.set(-0, 1);
-            if (!m.has(0) || !m.has(-0) || m.size !== 1) {
+            if (!m.has(0) || m.size !== 1) {
               throw new Error('Zeros test 3');
             }
 
@@ -1735,6 +1737,8 @@
             }
           } catch (e) {
             M = null;
+            /*global console */
+            console.log('MAP: ' + e);
           }
         }
 
