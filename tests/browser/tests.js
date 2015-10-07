@@ -763,8 +763,8 @@
        * @param {*} subject
        * @return {boolean}
        */
-      /* istanbul ignore next */
       isInteger = function (subject) {
+        /* istanbul ignore next */
         return numIsFinite(subject) && toInteger(subject) === subject;
       },
 
@@ -920,7 +920,7 @@
           finalEnd,
           k;
 
-          /* istanbul ignore if */
+        /* istanbul ignore if */
         if (relativeStart < 0) {
           k = Math.max(length + relativeStart, 0);
         } else {
@@ -1363,6 +1363,7 @@
 
         function IdGenerator() {
           if (!(this instanceof IdGenerator)) {
+            /* istanbul ignore next */
             return new IdGenerator();
           }
 
@@ -1431,10 +1432,10 @@
           fn,
           s;
 
+        /* istanbul ignore if */
         if (S) {
           try {
             s = new S([0, -0]);
-            /* istanbul ignore if */
             if (typeof s.has !== typeFunction ||
               typeof s.add !== typeFunction ||
               typeof s.keys !== typeFunction ||
@@ -1457,7 +1458,6 @@
             s.add('key');
             s.add(-0);
             s.add(0);
-            /* istanbul ignore if */
             if (s.size !== 7) {
               throw new Error('Incorrect size');
             }
@@ -1733,13 +1733,14 @@
           fn,
           m;
 
+        /* istanbul ignore if */
         if (M) {
           try {
             m = new M([
               [1, 1],
               [2, 2]
             ]);
-            /* istanbul ignore if */
+
             if (typeof m.has !== typeFunction ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
@@ -1763,11 +1764,9 @@
             m.set('key', undefined);
             m.set(-0, callback);
             m.set(0, generic);
-            /* istanbul ignore if */
             if (m.get(0) !== generic || m.get(-0) !== generic || m.size !== 7) {
               throw new Error('Incorrect result');
             }
-
           } catch (e) {
             M = null;
           }
