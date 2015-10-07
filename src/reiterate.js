@@ -126,7 +126,7 @@
     /*
      * Browser globals (root is window)
      */
-    /* istanbul ignore if */
+    /* istanbul ignore next */
     if (Object.prototype.hasOwnProperty.call(root, '@@MODULE')) {
       throw new Error('Unable to define "@@MODULE"');
     }
@@ -272,6 +272,7 @@
         return function (subject) {
           var object;
 
+          /* istanbul ignore else */
           if (isObject(requireObjectCoercible(subject))) {
             object = subject;
           } else {
