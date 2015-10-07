@@ -8,7 +8,7 @@
  * @module @@MODULE
  */
 
-/*jslint maxlen:80, es6:true, this:true, bitwise:true, for:true */
+/*jslint maxlen:80, es6:false, this:true, bitwise:true, white:true, for:true */
 
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -19,25 +19,25 @@
 */
 
 /*global
-    define, module
+    define, module, Map, Set, Symbol
 */
 
 /*property
     ArrayGenerator, CounterGenerator, DONE, ENTRIES, EnumerateGenerator, KEYS,
     MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS, RepeatGenerator, StringGenerator,
     ThenGenerator, UnzipGenerator, VALUES, abs, add, amd, apply, asArray,
-    asMap, asObject, asSet, asSetOwn, asString, assign, by, call, charCodeAt,
+    asMap, asObject, asSet, asString, assign, by, call, charCodeAt,
     chunkGenerator, clear, codePointAt, compactGenerator, configurable,
     defineProperty, differenceGenerator, done, drop, dropGenerator,
     dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
     first, flattenGenerator, floor, forEach, from, fromCharCode, fromCodePoint,
-    get, has, hasOwnProperty, index, indexOf, initialGenerator,
+    get, has, hasOwnProperty, id, index, indexOf, initialGenerator,
     intersectionGenerator, isArray, isFinite, isNaN, iterator, join, keys,
     last, length, mapGenerator, max, min, next, order, own, pow, prev,
     prototype, push, reduce, rest, restGenerator, reverse, reversed, set, sign,
     size, some, splice, takeGenerator, takeWhileGenerator, tapGenerator, then,
-    to, toString, unionGenerator, uniqueGenerator, value, values, writable,
-    zipGenerator
+    to, toString, unionGenerator, uniqueGenerator, value, valueOf, values,
+    writable, zipGenerator
 */
 
 /**
@@ -230,6 +230,19 @@
       }(typeof isObject)),
 
       /**
+       * Returns true if the operand subject is undefined
+       *
+       * @private
+       * @param {*} subject The object to be tested.
+       * @return {boolean} True if the object is undefined, otherwise false.
+       */
+      isUndefined = (function (typeUndefined) {
+        return function (subject) {
+          return typeof subject === typeUndefined;
+        };
+      }(typeof undefined)),
+
+      /**
        * Returns true if the operand subject is null or undefined.
        *
        * @private
@@ -237,8 +250,7 @@
        * @return {boolean} True if undefined or null, otherwise false.
        */
       isNil = function (subject) {
-        /*jshint eqnull:true */
-        return subject == null;
+        return subject === null || isUndefined(subject);
       },
 
       /**
@@ -582,19 +594,6 @@
       )),
 
       /**
-       * Returns true if the operand subject is undefined
-       *
-       * @private
-       * @param {*} subject The object to be tested.
-       * @return {boolean} True if the object is undefined, otherwise false.
-       */
-      isUndefined = (function (typeUndefined) {
-        return function (subject) {
-          return typeof subject === typeUndefined;
-        };
-      }(typeof undefined)),
-
-      /**
        * Returns true if the operand subject is a String.
        *
        * @private
@@ -754,6 +753,168 @@
       }(String.prototype.codePointAt)),
 
       /**
+       * Tests the subject to see if it is a function and throws an error if
+       * it is not.
+       *
+       * @private
+       * @param {*} subject The argument to test for validity.
+       * @throws {TypeError} If subject is not a function
+       * @return {*} Returns the subject if passes.
+       */
+      mustBeFunction = function (subject) {
+        if (!isFunction(subject)) {
+          throw new TypeError('argument must be a function');
+        }
+
+        return subject;
+      },
+
+      /**
+       * The abstract operation ToLength converts its argument to an integer
+       * suitable for use as the length of an array-like object.
+       *
+       * @private
+       * @param {*} subject The object to be converted to a length.
+       * @return {number} If len <= +0 then +0 else if len is +INFINITY then
+       *                  2^53-1 else min(len, 2^53-1).
+       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
+       */
+      toLength = function (subject) {
+        var length = toInteger(subject);
+
+        /* istanbul ignore else */
+        if (length <= 0) {
+          length = 0;
+        } else if (length > MAX_SAFE_INTEGER) {
+          length = MAX_SAFE_INTEGER;
+        }
+
+        return length;
+      },
+
+      chop = function (array, start, end) {
+        var object = toObject(array),
+          length = toLength(object.length),
+          relativeStart = toInteger(start),
+          val = [],
+          next = 0,
+          relativeEnd,
+          finalEnd,
+          k;
+
+        /* istanbul ignore if */
+        if (relativeStart < 0) {
+          k = Math.max(length + relativeStart, 0);
+        } else {
+          k = Math.min(relativeStart, length);
+        }
+
+        /* istanbul ignore else */
+        if (isUndefined(end)) {
+          relativeEnd = length;
+        } else {
+          relativeEnd = toInteger(end);
+        }
+
+        /* istanbul ignore if */
+        if (relativeEnd < 0) {
+          finalEnd = Math.max(length + relativeEnd, 0);
+        } else {
+          finalEnd = Math.min(relativeEnd, length);
+        }
+
+        finalEnd = toLength(finalEnd);
+        val.length = toLength(Math.max(finalEnd - k, 0));
+        while (k < finalEnd) {
+          if (k in object) {
+            val[next] = object[k];
+          }
+
+          next += 1;
+          k += 1;
+        }
+
+        return val;
+      },
+
+      /**
+       * Apply a function against an accumulator and each value of the array
+       * (from left-to-right) as to reduce it to a single value.
+       *
+       * @private
+       * @param {array} arrayLike
+       * @throws {TypeError} If array is null or undefined
+       * @param {Function} callback
+       * @throws {TypeError} If callback is not a function
+       * @param {*} [initialValue]
+       * @return {*}
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
+       * Global_Objects/Array/reduce
+       */
+      reduce = (function (apr) {
+        var msg,
+          fn;
+
+        /* istanbul ignore else */
+        if (apr && !useShims) {
+          fn = function (array) {
+            return apr.apply(array, chop(arguments, 1));
+          };
+        } else {
+          msg = 'reduce of empty array with no initial value';
+          fn = function (array, callback, initialValue) {
+            var object = toObject(array),
+              acc,
+              length,
+              kPresent,
+              index;
+
+            mustBeFunction(callback);
+            length = toLength(object.length);
+            if (!length && arguments.length === 1) {
+              throw new TypeError(msg);
+            }
+
+            index = 0;
+            if (arguments.length > 1) {
+              acc = initialValue;
+            } else {
+              kPresent = false;
+              while (!kPresent && index < length) {
+                kPresent = index in object;
+                if (kPresent) {
+                  acc = object[index];
+                  index += 1;
+                }
+              }
+
+              if (!kPresent) {
+                throw new TypeError(msg);
+              }
+            }
+
+            while (index < length) {
+              if (index in object) {
+                acc = callback.call(
+                  undefined,
+                  acc,
+                  object[index],
+                  index,
+                  object
+                );
+              }
+
+              index += 1;
+            }
+
+            return acc;
+          };
+        }
+
+        return fn;
+      }(Array.prototype.reduce)),
+
+      /**
        * The isInteger method determines whether the passed value is an integer.
        * If the target value is an integer, return true, otherwise return false.
        * If the value is NaN or infinite, return false.
@@ -813,24 +974,8 @@
         return fn;
       }(String.fromCodePoint, String.fromCharCode)),
 
-      /**
-       * Tests the subject to see if it is a function and throws an error if
-       * it is not.
-       *
-       * @private
-       * @param {*} subject The argument to test for validity.
-       * @throws {TypeError} If subject is not a function
-       * @return {*} Returns the subject if passes.
-       */
-      mustBeFunction = function (subject) {
-        if (!isFunction(subject)) {
-          throw new TypeError('argument must be a function');
-        }
-
-        return subject;
-      },
-
       mustBeObject = function (subject) {
+        /* istanbul ignore if */
         if (!isObject(subject)) {
           throw new TypeError('argument must be a object');
         }
@@ -858,29 +1003,6 @@
         }
 
         return number;
-      },
-
-      /**
-       * The abstract operation ToLength converts its argument to an integer
-       * suitable for use as the length of an array-like object.
-       *
-       * @private
-       * @param {*} subject The object to be converted to a length.
-       * @return {number} If len <= +0 then +0 else if len is +INFINITY then
-       *                  2^53-1 else min(len, 2^53-1).
-       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
-       */
-      toLength = function (subject) {
-        var length = toInteger(subject);
-
-        /* istanbul ignore else */
-        if (length <= 0) {
-          length = 0;
-        } else if (length > MAX_SAFE_INTEGER) {
-          length = MAX_SAFE_INTEGER;
-        }
-
-        return length;
       },
 
       /**
@@ -915,51 +1037,6 @@
         }
 
         return generator;
-      },
-
-      chop = function (array, start, end) {
-        var object = toObject(array),
-          length = toLength(object.length),
-          relativeStart = toInteger(start),
-          val = [],
-          next = 0,
-          relativeEnd,
-          finalEnd,
-          k;
-
-        /* istanbul ignore if */
-        if (relativeStart < 0) {
-          k = Math.max(length + relativeStart, 0);
-        } else {
-          k = Math.min(relativeStart, length);
-        }
-
-        /* istanbul ignore else */
-        if (isUndefined(end)) {
-          relativeEnd = length;
-        } else {
-          relativeEnd = toInteger(end);
-        }
-
-        /* istanbul ignore if */
-        if (relativeEnd < 0) {
-          finalEnd = Math.max(length + relativeEnd, 0);
-        } else {
-          finalEnd = Math.min(relativeEnd, length);
-        }
-
-        finalEnd = toLength(finalEnd);
-        val.length = toLength(Math.max(finalEnd - k, 0));
-        while (k < finalEnd) {
-          if (k in object) {
-            val[next] = object[k];
-          }
-
-          next += 1;
-          k += 1;
-        }
-
-        return val;
       },
 
       /*
@@ -1132,83 +1209,6 @@
         return fn;
       }(Array.prototype.some)),
 
-      /**
-       * Apply a function against an accumulator and each value of the array
-       * (from left-to-right) as to reduce it to a single value.
-       *
-       * @private
-       * @param {array} arrayLike
-       * @throws {TypeError} If array is null or undefined
-       * @param {Function} callback
-       * @throws {TypeError} If callback is not a function
-       * @param {*} [initialValue]
-       * @return {*}
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
-       * Global_Objects/Array/reduce
-       */
-      reduce = (function (apr) {
-        var msg,
-          fn;
-
-        /* istanbul ignore else */
-        if (apr && !useShims) {
-          fn = function (array) {
-            return apr.apply(array, chop(arguments, 1));
-          };
-        } else {
-          msg = 'reduce of empty array with no initial value';
-          fn = function (array, callback, initialValue) {
-            var object = toObject(array),
-              acc,
-              length,
-              kPresent,
-              index;
-
-            mustBeFunction(callback);
-            length = toLength(object.length);
-            if (!length && arguments.length === 1) {
-              throw new TypeError(msg);
-            }
-
-            index = 0;
-            if (arguments.length > 1) {
-              acc = initialValue;
-            } else {
-              kPresent = false;
-              while (!kPresent && index < length) {
-                kPresent = index in object;
-                if (kPresent) {
-                  acc = object[index];
-                  index += 1;
-                }
-              }
-
-              if (!kPresent) {
-                throw new TypeError(msg);
-              }
-            }
-
-            while (index < length) {
-              if (index in object) {
-                acc = callback.call(
-                  undefined,
-                  acc,
-                  object[index],
-                  index,
-                  object
-                );
-              }
-
-              index += 1;
-            }
-
-            return acc;
-          };
-        }
-
-        return fn;
-      }(Array.prototype.reduce)),
-
       every = (function (ape) {
         var fn;
 
@@ -1365,12 +1365,12 @@
       },
       */
 
-      IdGenerator = (function () {
+      IdGen = (function () {
         var y = [1];
 
         function IdGenerator() {
+          /* istanbul ignore if */
           if (!(this instanceof IdGenerator)) {
-            /* istanbul ignore next */
             return new IdGenerator();
           }
 
@@ -1461,13 +1461,14 @@
 
           setValue(context, '[[key]]', []);
           setValue(context, '[[order]]', []);
-          setValue(context, '[[id]]', new IdGenerator());
+          setValue(context, '[[id]]', new IdGen());
           setValue(context, '[[changed]]', false);
           if (iterator) {
             next = iterator.next();
             while (!next.done) {
               key = kind === 'map' ? next.value[0] : next.value;
-              if (!includes(context['[[key]]'], key)) {
+              indexof = getIndex(context['[[key]]'], key);
+              if (indexof < 0) {
                 if (kind === 'map') {
                   context['[[value]]'].push(next.value[1]);
                 }
@@ -1485,7 +1486,7 @@
 
           setValue(context, 'size', context['[[key]]'].length);
         };
-      })(),
+      }()),
 
       forEachMapSet = (function () {
         function changedMapSet(id, count) {
@@ -1541,7 +1542,7 @@
 
       clearMapSet = function (kind, context) {
         mustBeObject(context);
-        context['[[id]]'] = new IdGenerator();
+        context['[[id]]'] = new IdGen();
         context['[[change]]'] = true;
         context['[[key]]'].length =
           context['[[order]]'].length =
@@ -1601,7 +1602,7 @@
           s;
 
         /* istanbul ignore if */
-        if (false && S) {
+        if (S) {
           try {
             s = new S([0, -0]);
             if (typeof s.has !== typeFunction ||
@@ -1630,7 +1631,7 @@
               throw new Error('Incorrect size');
             }
           } catch (e) {
-            S = null;
+            S = !e;
           }
         }
 
@@ -1814,7 +1815,7 @@
               throw new Error('Incorrect result');
             }
           } catch (e) {
-            M = null;
+            M = !e;
           }
         }
 
