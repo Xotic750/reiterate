@@ -1699,7 +1699,7 @@
               typeof m.clear !== typeFunction ||
               typeof m[strDelete] !== typeFunction ||
               typeof m[symIt] !== typeFunction) {
-              throw new Error('missing methods');
+              throw new Error('Missing methods');
             }
 
             generic = {};
@@ -1713,8 +1713,8 @@
             m.set('key', undefined);
             m.set(-0, callback);
             m.set(0, generic);
-            if (m.size !== 7) {
-              throw new Error('Incorrect size');
+            if (m.get(0) !== generic || m.get(-0) !== generic || m.size !== 7) {
+              throw new Error('Incorrect result');
             }
 
           } catch (e) {
