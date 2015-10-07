@@ -1325,29 +1325,37 @@
         var y = [1];
 
         function IdGenerator() {
+          if (!(this instanceof IdGenerator)) {
+            return new IdGenerator();
+          }
+
           setValue(this, 'id', [0]);
         }
 
         setValue(IdGenerator.prototype, 'next', function () {
-          var z = [],
-            n = Math.max(this.id.length, 1),
+          var result = [],
+            length = this.id.length,
+            howMany = Math.max(length, 1),
             carry = 0,
-            i = 0,
+            index = 0,
             zi;
 
-          while (i < n || carry) {
-            zi = carry + (i < this.id.length ? this.id[i] : 0) + i < y[i];
-            z.push(zi % 10);
+          while (index < howMany || carry) {
+            zi = carry +
+              (index < length ? this.id[index] : 0) +
+              index < y[index];
+
+            result.push(zi % 10);
             carry = Math.floor(zi / 10);
-            i += 1;
+            index += 1;
           }
 
-          this.id = z;
+          this.id = result;
 
           return this;
         });
 
-        setValue(IdGenerator.prototype, 'toString', function () {
+        setValue(IdGenerator.prototype, 'get', function () {
           return this.id.join('');
         });
 
@@ -1420,8 +1428,6 @@
         }
 
         if (S) {
-          /*global console */
-          console.log('NATIVE SET');
           fn = S;
         } else {
           changed = function (id, count) {
@@ -1453,7 +1459,7 @@
               while (!next.done) {
                 if (!includes(this['[[key]]'], next.value)) {
                   this['[[key]]'].push(next.value);
-                  this['[[order]]'].push(this['[[id]]'].toString());
+                  this['[[order]]'].push(this['[[id]]'].get());
                   this['[[id]]'].next();
                 }
 
@@ -1480,7 +1486,7 @@
             if (!includes(this['[[key]]'], key)) {
               this['[[key]]'].push(key);
               this['[[change]]'] = true;
-              this['[[order]]'].push(this['[[id]]'].toString());
+              this['[[order]]'].push(this['[[id]]'].get());
               this['[[id]]'].next();
               this.size = this['[[key]]'].length;
             }
@@ -1689,7 +1695,10 @@
 
         if (M) {
           try {
-            m = new M([[1, 1], [2, 2]]);
+            m = new M([
+              [1, 1],
+              [2, 2]
+            ]);
             if (typeof m.has !== typeFunction ||
               typeof m.set !== typeFunction ||
               typeof m.keys !== typeFunction ||
@@ -1723,8 +1732,6 @@
         }
 
         if (M) {
-          /*global console */
-          console.log('NATIVE MAP');
           fn = M;
         } else {
           changed = function (id, count) {
@@ -1760,7 +1767,7 @@
                 if (indexof < 0) {
                   this['[[key]]'].push(next.value[0]);
                   this['[[value]]'].push(next.value[1]);
-                  this['[[order]]'].push(this['[[id]]'].toString());
+                  this['[[order]]'].push(this['[[id]]'].get());
                   this['[[id]]'].next();
                 } else {
                   this['[[value]]'][indexof] = next.value[1];
@@ -1794,7 +1801,7 @@
             } else {
               this['[[key]]'].push(key);
               this['[[value]]'].push(value);
-              this['[[order]]'].push(this['[[id]]'].toString());
+              this['[[order]]'].push(this['[[id]]'].get());
               this['[[id]]'].next();
               this['[[change]]'] = true;
               this.size = this['[[key]]'].length;
@@ -2703,7 +2710,7 @@
         intersectionGenerator: (function () {
           function has(argSet) {
             /*jshint validthis:true */
-            return argSet.has(this);
+            return argSet.has(this.value);
           }
 
           function push(argSets, arg) {
@@ -2734,7 +2741,7 @@
                   next = iterator.next();
                   while (!next.done) {
                     if (!seen.has(next.value)) {
-                      if (every(argSets, has, next.value)) {
+                      if (every(argSets, has, next)) {
                         seen.add(next.value);
                         //yield next.value;
                         break;
