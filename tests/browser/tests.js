@@ -369,6 +369,7 @@
 
           if (isObject(subject)) {
             tag = toStringTag(subject);
+            /* istanbul ignore else */
             if (tag === tagFunction) {
               result = true;
             } else if (tag === '[object GeneratorFunction]') {
@@ -394,12 +395,14 @@
         };
       }(typeof Object.prototype)),
 
+      /* istanbul ignore next */
       isDate = (function (tag) {
         return function (value) {
           return isObjectLike(value) && toStringTag(value) === tag;
         };
       }(toStringTag(new Date()))),
 
+      /* istanbul ignore next */
       toPrimitive = (function (typeStr, typeNum) {
         var stringOrder = ['toString', 'valueOf'],
           numberOrder = stringOrder.reverse();
@@ -457,25 +460,28 @@
           var type,
             val;
 
+          /* istanbul ignore if */
           if (subject === null) {
             val = +0;
           } else {
             type = typeof subject;
-            if (type === typeUndefined) {
-              val = NaN;
-            } else if (type === typeBoolean) {
-              val = subject ? 1 : +0;
-            } else if (type === typeNumber) {
+            if (type === typeNumber) {
               val = subject;
-            } else if (type === typeString) {
-              val = Number(subject);
+            } else if (type === typeUndefined) {
+              val = NaN;
             } else {
-              /* istanbul ignore if */
-              if (typeSymbol && type === typeSymbol) {
-                throw new TypeError('Can not convert symbol to a number');
-              }
+              /* istanbul ignore next */
+              if (type === typeBoolean) {
+                val = subject ? 1 : +0;
+              } else if (type === typeString) {
+                val = Number(subject);
+              } else {
+                if (typeSymbol && type === typeSymbol) {
+                  throw new TypeError('Can not convert symbol to a number');
+                }
 
-              val = fn(toPrimitive(subject, typeNumber));
+                val = fn(toPrimitive(subject, typeNumber));
+              }
             }
           }
 
