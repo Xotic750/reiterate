@@ -1664,7 +1664,7 @@
 
               if (iteratorKind === 'key+value') {
                 object.value = [
-                  index,
+                  context['[[key]]'][index],
                   context['[[key]]'][index]
                 ];
               } else {
