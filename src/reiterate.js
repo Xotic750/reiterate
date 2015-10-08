@@ -1596,8 +1596,9 @@
 
       SetObject = (function (typeFunction) {
         var S = typeof Set === typeFunction && !useShims && Set,
+          SetIterator,
           callback,
-          kind,
+          typeIdenifier,
           fn,
           s;
 
@@ -1639,129 +1640,84 @@
         if (S) {
           fn = S;
         } else {
-          kind = 'set';
+          typeIdenifier = 'set';
+
+          SetIterator = function (iteratorKind, context) {
+            setValue(this, '[[Set]]', context);
+            setValue(this, '[[SetNextIndex]]', 0);
+            setValue(this, '[[SetIterationKind]]', iteratorKind);
+            setValue(this, '[[IteratorHasMore]]', true);
+          };
+
+          setValue(SetIterator.prototype, 'next', function () {
+            var context = this['[[Set]]'],
+              index = this['[[SetNextIndex]]'],
+              iteratorKind = this['[[SetIterationKind]]'],
+              more = this['[[IteratorHasMore]]'],
+              object;
+
+            mustBeObject(context);
+            if (index < context['[[key]]'].length && more) {
+              object = {
+                done: false
+              };
+
+              if (iteratorKind === 'key') {
+                object.value = index;
+              } if (iteratorKind === 'value') {
+                object.value = context['[[key]]'][index];
+              } else {
+                object.value = [
+                  index,
+                  context['[[key]]'][index]
+                ];
+              }
+
+              this['[[SetNextIndex]]'] += 1;
+            } else {
+              this['[[IteratorHasMore]]'] = false;
+              object = assign({}, $.DONE);
+            }
+
+            return object;
+          });
+
+          setValue(SetIterator.prototype, symIt, function () {
+            return this;
+          });
+
           fn = function Set(iterable) {
-            initMapSet(kind, this, iterable);
+            initMapSet(typeIdenifier, this, iterable);
           };
 
           setValue(fn.prototype, 'has', hasMapSet);
 
           setValue(fn.prototype, 'add', function (key) {
-            return setMapSet(kind, this, key);
+            return setMapSet(typeIdenifier, this, key);
           });
 
           setValue(fn.prototype, 'clear', function () {
-            return clearMapSet(kind, this);
+            return clearMapSet(typeIdenifier, this);
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            return deleteMapSet(kind, this, key);
+            return deleteMapSet(typeIdenifier, this, key);
           });
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            return forEachMapSet(kind, this, callback, thisArg);
+            return forEachMapSet(typeIdenifier, this, callback, thisArg);
           });
 
           setValue(fn.prototype, 'values', function () {
-            var context = this,
-              keys = context['[[key]]'];
-
-            function SetIterator() {
-              var index = 0,
-                done;
-
-              setValue(this, symIt, function () {
-                return this;
-              });
-
-              setValue(this, 'next', function () {
-                var object;
-
-                mustBeObject(context);
-                if (index < keys.length && !done) {
-                  object = {
-                    done: false,
-                    value: keys[index]
-                  };
-
-                  index += 1;
-                } else {
-                  done = object = assign({}, $.DONE);
-                }
-
-                return object;
-              });
-            }
-
-            return new SetIterator();
+            return new SetIterator('value', this);
           });
 
           setValue(fn.prototype, 'keys', function () {
-            var context = this,
-              keys = context['[[key]]'];
-
-            function SetIterator() {
-              var index = 0,
-                done;
-
-              setValue(this, symIt, function () {
-                return this;
-              });
-
-              setValue(this, 'next', function () {
-                var object;
-
-                mustBeObject(context);
-                if (index < keys.length && !done) {
-                  object = {
-                    done: false,
-                    value: index
-                  };
-
-                  index += 1;
-                } else {
-                  done = object = assign({}, $.DONE);
-                }
-
-                return object;
-              });
-            }
-
-            return new SetIterator();
+            return new SetIterator('key', this);
           });
 
           setValue(fn.prototype, 'entries', function () {
-            var context = this,
-              keys = context['[[key]]'];
-
-            function SetIterator() {
-              var index = 0,
-                done;
-
-              setValue(this, symIt, function () {
-                return this;
-              });
-
-              setValue(this, 'next', function () {
-                var object;
-
-                mustBeObject(context);
-                if (index < keys.length && !done) {
-                  object = {
-                    done: false,
-                    value: [index, keys[index]]
-                  };
-
-                  index += 1;
-                } else {
-                  done = object = assign({}, $.DONE);
-                }
-
-                return object;
-              });
-            }
-
-            return new SetIterator();
+            return new SetIterator('key+value', this);
           });
 
           setValue(fn.prototype, symIt, function () {
@@ -1774,9 +1730,10 @@
 
       MapObject = (function (typeFunction) {
         var M = typeof Map === typeFunction && !useShims && Map,
+          MapIterator,
           generic,
           callback,
-          kind,
+          typeIdenifier,
           fn,
           m;
 
@@ -1823,19 +1780,62 @@
         if (M) {
           fn = M;
         } else {
-          kind = 'map';
+          typeIdenifier = 'map';
+
+          MapIterator = function (iteratorKind, context) {
+            setValue(this, '[[Map]]', context);
+            setValue(this, '[[MapNextIndex]]', 0);
+            setValue(this, '[[MapIterationKind]]', iteratorKind);
+            setValue(this, '[[IteratorHasMore]]', true);
+          };
+
+          setValue(MapIterator.prototype, 'next', function () {
+            var context = this['[[Map]]'],
+              index = this['[[MapNextIndex]]'],
+              iteratorKind = this['[[MapIterationKind]]'],
+              more = this['[[IteratorHasMore]]'],
+              object;
+
+            mustBeObject(context);
+            if (index < context['[[key]]'].length && more) {
+              object = {
+                done: false
+              };
+
+              if (iteratorKind === 'key+value') {
+                object.value = [
+                  context['[[key]]'][index],
+                  context['[[value]]'][index]
+                ];
+              } else {
+                object.value = context['[[' + iteratorKind + ']]'][index];
+              }
+
+              this['[[MapNextIndex]]'] += 1;
+            } else {
+              this['[[IteratorHasMore]]'] = false;
+              object = assign({}, $.DONE);
+            }
+
+            return object;
+          });
+
+          setValue(MapIterator.prototype, symIt, function () {
+            return this;
+          });
+
           fn = function Map(iterable) {
-            initMapSet(kind, this, iterable);
+            initMapSet(typeIdenifier, this, iterable);
           };
 
           setValue(fn.prototype, 'has', hasMapSet);
 
           setValue(fn.prototype, 'set', function (key, value) {
-            return setMapSet(kind, this, key, value);
+            return setMapSet(typeIdenifier, this, key, value);
           });
 
           setValue(fn.prototype, 'clear', function () {
-            return clearMapSet(kind, this);
+            return clearMapSet(typeIdenifier, this);
           });
 
           setValue(fn.prototype, 'get', function (key) {
@@ -1845,115 +1845,23 @@
           });
 
           setValue(fn.prototype, strDelete, function (key) {
-            return deleteMapSet(kind, this, key);
+            return deleteMapSet(typeIdenifier, this, key);
           });
 
           setValue(fn.prototype, 'forEach', function (callback, thisArg) {
-            return forEachMapSet(kind, this, callback, thisArg);
+            return forEachMapSet(typeIdenifier, this, callback, thisArg);
           });
 
           setValue(fn.prototype, 'values', function () {
-            var context = this,
-              keys = context['[[key]]'],
-              values = context['[[value]]'];
-
-            function MapIterator() {
-              var index = 0,
-                done;
-
-              setValue(this, symIt, function () {
-                return this;
-              });
-
-              setValue(this, 'next', function () {
-                var object;
-
-                mustBeObject(context);
-                if (index < keys.length && !done) {
-                  object = {
-                    done: false,
-                    value: values[index]
-                  };
-
-                  index += 1;
-                } else {
-                  done = object = assign({}, $.DONE);
-                }
-
-                return object;
-              });
-            }
-
-            return new MapIterator();
+            return new MapIterator('value', this);
           });
 
           setValue(fn.prototype, 'keys', function () {
-            var context = this,
-              keys = context['[[key]]'];
-
-            function MapIterator() {
-              var index = 0,
-                done;
-
-              setValue(this, symIt, function () {
-                return this;
-              });
-
-              setValue(this, 'next', function () {
-                var object;
-
-                mustBeObject(context);
-                if (index < keys.length && !done) {
-                  object = {
-                    done: false,
-                    value: keys[index]
-                  };
-
-                  index += 1;
-                } else {
-                  done = object = assign({}, $.DONE);
-                }
-
-                return object;
-              });
-            }
-
-            return new MapIterator();
+            return new MapIterator('key', this);
           });
 
           setValue(fn.prototype, 'entries', function () {
-            var context = this,
-              keys = context['[[key]]'],
-              values = context['[[value]]'];
-
-            function MapIterator() {
-              var index = 0,
-                done;
-
-              setValue(this, symIt, function () {
-                return this;
-              });
-
-              setValue(this, 'next', function () {
-                var object;
-
-                mustBeObject(context);
-                if (index < keys.length && !done) {
-                  object = {
-                    done: false,
-                    value: [keys[index], values[index]]
-                  };
-
-                  index += 1;
-                } else {
-                  done = object = assign({}, $.DONE);
-                }
-
-                return object;
-              });
-            }
-
-            return new MapIterator();
+            return new MapIterator('key+value', this);
           });
 
           setValue(fn.prototype, symIt, function () {
