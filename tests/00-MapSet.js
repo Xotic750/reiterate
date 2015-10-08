@@ -295,7 +295,7 @@
       // test that things get returned in insertion order as per the specs
       var o = new reiterate.Set([1, 2, 3]);
 
-      //expect(o.keys).to.be(o.values); // same function, as per the specs
+      expect(o.keys).to.be(o.values); // same function, as per the specs
       var values = o.values(),
         v = values.next();
 
