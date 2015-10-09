@@ -20,33 +20,6 @@
     module.exports.subject = require('../lib/@@MODULE');
   }
 
-  module.exports.codePointAt = function (subject, position) {
-    /*jshint eqnull:true */
-    if (subject == null) {
-      throw new TypeError('null or undefined');
-    }
-
-    var string = String(subject),
-      size = string.length,
-      /*jshint bitwise:false */
-      index = position >> 0,
-      first,
-      second,
-      val;
-
-    if (index >= 0 && index < size) {
-      first = string.charCodeAt(index);
-      if (first >= 0xD800 && first <= 0xDBFF && size > index + 1) {
-        second = string.charCodeAt(index + 1);
-        if (second >= 0xDC00 && second <= 0xDFFF) {
-          val = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
-        }
-      }
-    }
-
-    return val || first;
-  };
-
   module.exports.isGeneratorSupported = (function () {
     try {
       /*jslint evil:true */
@@ -57,7 +30,6 @@
     return false;
   }());
 
-  module.exports.iterator = module.exports.subject.iterator;
   module.exports.isNativeSymbolIterator = typeof module.exports.iterator ===
     'symbol';
 
@@ -106,7 +78,7 @@
 
     if (!fn) {
       fn = function (iterable, callback, thisArg) {
-        var generator = iterable[module.exports.iterator],
+        var generator = iterable[module.exports.subject.iterator],
           iterator = generator(),
           next = iterator.next();
 
@@ -118,129 +90,4 @@
 
     return fn;
   }());
-
-  module.exports.reduce = (function () {
-    var msg = 'reduce of empty array with no initial value';
-
-    return function (array, callback, initialValue) {
-      var object,
-        acc,
-        length,
-        kPresent,
-        index;
-
-      /*jslint eqnull:true */
-      if (array == null) {
-        throw new TypeError('null or undefined');
-      }
-
-      if (Object.prototype.toString.call(callback) !== '[object Function]') {
-        throw new TypeError('must be a function');
-      }
-
-      object = Object(array);
-      /*jshint bitwise:false */
-      length = object.length >>> 0;
-      if (!length && arguments.length === 1) {
-        throw new TypeError(msg);
-      }
-
-      index = 0;
-      if (arguments.length > 1) {
-        acc = initialValue;
-      } else {
-        kPresent = false;
-        while (!kPresent && index < length) {
-          kPresent = index in object;
-          if (kPresent) {
-            acc = object[index];
-            index += 1;
-          }
-        }
-
-        if (!kPresent) {
-          throw new TypeError(msg);
-        }
-      }
-
-      while (index < length) {
-        if (index in object) {
-          acc = callback.call(
-            undefined,
-            acc,
-            object[index],
-            index,
-            object
-          );
-        }
-
-        index += 1;
-      }
-
-      return acc;
-    };
-  }());
-
-  module.exports.forEach = function (array, callback, thisArg) {
-    var object,
-      length,
-      index;
-
-    /*jslint eqnull:true */
-    if (array == null) {
-      throw new TypeError('null or undefined');
-    }
-
-    if (Object.prototype.toString.call(callback) !== '[object Function]') {
-      throw new TypeError('must be a function');
-    }
-
-    object = Object(array);
-    /*jshint bitwise:false */
-    length = object.length >>> 0;
-    index = 0;
-    while (index < length) {
-      if (index in object) {
-        callback.call(thisArg, object[index], index, object);
-      }
-
-      index += 1;
-    }
-  };
-
-  module.exports.map = function (array, callback, thisArg) {
-    var object,
-      length,
-      arr,
-      index;
-
-    /*jslint eqnull:true */
-    if (array == null) {
-      throw new TypeError('null or undefined');
-    }
-
-    if (Object.prototype.toString.call(callback) !== '[object Function]') {
-      throw new TypeError('must be a function');
-    }
-
-    object = Object(array);
-    arr = [];
-    /*jshint bitwise:false */
-    arr.length = length = object.length >>> 0;
-    index = 0;
-    while (index < length) {
-      if (index in object) {
-        arr[index] = callback.call(
-          thisArg,
-          object[index],
-          index,
-          object
-        );
-      }
-
-      index += 1;
-    }
-
-    return arr;
-  };
 }());

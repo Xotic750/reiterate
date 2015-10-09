@@ -1,4 +1,5 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function (global){
 /**
  * @file {@link http://xotic750.github.io/reiterate/ reiterate}
  * A modern iteration library.
@@ -16,16 +17,17 @@
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
     es3:true, esnext:true, plusplus:true, maxparams:4, maxdepth:6,
-    maxstatements:false, maxcomplexity:24
+    maxstatements:false, maxcomplexity:false
 */
 
 /*global
-    define, module, Map, Set, Symbol
+    window, self, global, define, module, Map, Set, Symbol
 */
 
 /*property
     ArrayGenerator, CounterGenerator, DONE, ENTRIES, EnumerateGenerator, KEYS,
-    MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS, RepeatGenerator, StringGenerator,
+    _.MAX_SAFE_INTEGER, _.MIN_SAFE_INTEGER, OPTS, RepeatGenerator,
+    StringGenerator,
     ThenGenerator, UnzipGenerator, VALUES, abs, add, amd, apply, asArray,
     asMap, asObject, asSet, asString, assign, by, call, charCodeAt,
     chunkGenerator, clear, codePointAt, compactGenerator, configurable,
@@ -47,104 +49,1370 @@
  * @private
  * @see https://github.com/umdjs/umd/blob/master/returnExports.js
  */
-(function (root, factory) {
+(function (thisArg, factory) {
   'use strict';
 
-  var useShims = false,
-
+  var root,
+    reduceError = 'reduce of empty array with no initial value',
+    strFor = 'for',
+    typeUndefined = typeof undefined,
     typeFunction = typeof factory,
-
     typeObject = typeof Object.prototype,
-
-    /**
-     * Checks if value is the language type of Object.
-     * (e.g. arrays, functions, objects, regexes, new Number(0),
-     * and new String('')).
-     *
-     * @private
-     * @param {*} subject The value to check.
-     * @return {boolean} Returns true if value is an object, else false.
-     */
-    isObject = function (subject) {
-      var type;
-
-      if (!subject) {
-        type = false;
-      } else {
-        type = typeof subject;
-        type = type === typeObject || type === typeFunction;
-      }
-
-      return type;
+    typeNumber = typeof 0,
+    typeBoolean = typeof false,
+    typeString = typeof strFor,
+    typeSymbol,
+    valueOf = Object.prototype.valueOf,
+    hasOwnProperty = Object.prototype.hasOwnProperty,
+    defineProperty = Object.defineProperty,
+    toTag = Object.prototype.toString,
+    stringOrder = ['toString', 'valueOf'],
+    numberOrder = stringOrder.reverse(),
+    descriptor = {
+      enumerable: false,
+      writable: true,
+      configurable: true,
+      value: undefined
     },
+    _ = {
+      useShims: false,
+      MAX_SAFE_INTEGER: Number.MAX_SAFE_INTEGER || Math.pow(2, 53) - 1,
+      MIN_SAFE_INTEGER: Number.MIN_SAFE_INTEGER || -(Math.pow(2, 53) - 1)
+    },
+    tagFunction,
+    tagDate,
+    tagNumber,
+    tagString,
+    tagArray,
+    arrayIsArray,
+    hasV8Strictbug;
 
-    defineProperty = (function (odp) {
-      var fn,
-        obj;
+  /**
+   * Returns the this context of the function.
+   *
+   * @private
+   * @return {*}
+   */
+  function returnThis() {
+    /*jshint validthis:true */
+    return this;
+  }
 
-      if (odp) {
-        obj = {};
-        // IE 8 only supports `Object.defineProperty` on DOM elements
-        try {
-          fn = odp(obj, obj, obj) && odp;
-        } catch (ignore) {}
+  _.returnThis = returnThis;
+
+  /**
+   * Indicates if running in strict mode.
+   * True if we are, otherwise false.
+   *
+   * @private
+   * @type {boolean}
+   */
+  _.inStrictMode = !returnThis();
+
+  /**
+   * Checks if the supplied function suffers from the V8 strict mode bug.
+   *
+   * @private
+   * @param {Function} fn
+   * @return {boolean}
+   */
+  function testV8StrictBug(fn) {
+    var bug = false;
+
+    if (_.inStrictMode && typeof fn === typeFunction) {
+      fn.call([1], function () {
+        bug = typeof this === typeObject;
+      }, 'foo');
+    }
+
+    return bug;
+  }
+
+  hasV8Strictbug = testV8StrictBug(Array.prototype.forEach);
+
+  /**
+   * Checks if value is the language type of Object.
+   * (e.g. arrays, functions, objects, regexes, new Number(0),
+   * and new String('')).
+   *
+   * @private
+   * @param {*} subject The value to check.
+   * @return {boolean} Returns true if value is an object, else false.
+   */
+  _.isObject = function isObject(subject) {
+    var type;
+
+    if (!subject) {
+      type = false;
+    } else {
+      type = typeof subject;
+      type = type === typeObject || type === typeFunction;
+    }
+
+    return type;
+  };
+
+  if (defineProperty && !_.useShims) {
+    // IE 8 only supports 'Object.defineProperty' on DOM elements
+    try {
+      defineProperty = defineProperty({}, {}, {}) && defineProperty;
+    } catch (e) {
+      /* istanbul ignore next */
+      defineProperty = !e;
+    }
+  }
+
+  /* istanbul ignore next */
+  if (!defineProperty || _.useShims) {
+    defineProperty = function (object, property, descriptor) {
+      if (!_.isObject(object)) {
+        throw new TypeError('called on non-object');
       }
 
-      /* istanbul ignore if */
-      if (!fn || useShims) {
-        fn = function (object, property, descriptor) {
-          /* istanbul ignore if  */
-          if (!isObject(object)) {
-            throw new TypeError('called on non-object');
+      object[property] = descriptor.value;
+
+      return object;
+    };
+  }
+
+  _.defineProperty = defineProperty;
+
+  /**
+   * Returns true if the operand subject is undefined
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if the object is undefined, otherwise false.
+   */
+  _.isUndefined = function isUndefined(subject) {
+    return typeof subject === typeUndefined;
+  };
+
+  /**
+   * Returns true if the operand subject is null or undefined.
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if undefined or null, otherwise false.
+   */
+  _.isNil = function isNil(subject) {
+    return subject === null || _.isUndefined(subject);
+  };
+
+  /**
+   * The abstract operation throws an error if its argument is a value that
+   * cannot be converted to an Object, otherwise returns the argument.
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @throws {TypeError} If subject is null or undefined.
+   * @return {*} The subject if coercible.
+   */
+  _.requireObjectCoercible = function requireObjectCoercible(subject) {
+    /* istanbul ignore if */
+    if (_.isNil(subject)) {
+      throw new TypeError('Cannot convert argument to object');
+    }
+
+    return subject;
+  };
+
+  /**
+   * The abstract operation converts its argument to a value of type Object.
+   *
+   * @private
+   * @param {*} subject The argument to be converted to an object.
+   * @throws {TypeError} If subject is not coercible to an object.
+   * @return {Object} Value of subject as type Object.
+   * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
+   */
+  _.toObject = function toObject(subject) {
+    var object;
+
+    /* istanbul ignore else */
+    if (_.isObject(_.requireObjectCoercible(subject))) {
+      object = subject;
+    } else {
+      object = valueOf.call(subject);
+    }
+
+    return object;
+  };
+
+  /**
+   * Returns a boolean indicating whether the object has the specified
+   * property. This function can be used to determine whether an object
+   * has the specified property as a direct property of that object; this
+   * method does not check down the object's prototype chain.
+   *
+   * @private
+   * @param {Object} subject The object to test for the property.
+   * @param {string} property The property to be tested.
+   * @return {boolean} True if the object has the direct specified
+   *                   property, otherwise false.
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
+   * Reference/Global_Objects/Object/hasOwnProperty
+   */
+  _.hasOwn = function hasOwn(subject, property) {
+    return hasOwnProperty.call(_.toObject(subject), property);
+  };
+
+  /**
+   * Defines a new property directly on an object, or throws an error if
+   * there is an existing property on an object, and returns the object.
+   * Uses a fixed descriptor definition.
+   *
+   * @private
+   * @param {Object} object The object on which to defined the property.
+   * @param {string} property The property name.
+   * @param {function} value The value of the property.
+   * @throws {Error} If the property already exists.
+   * @return {Object}
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
+   * Reference/Global_Objects/Object/defineProperty
+   */
+  _.setValue = function setValue(object, property, value, noCheck) {
+    /* istanbul ignore if */
+    if (!noCheck && _.hasOwn(object, property)) {
+      throw new Error(
+        'property "' + property + '" already exists on object'
+      );
+    }
+
+    descriptor.value = value;
+    defineProperty(object, property, descriptor);
+    descriptor.value = undefined;
+
+    return object;
+  };
+
+  _.symIt = typeof Symbol === typeFunction && !_.useShims ?
+    Symbol.iterator :
+    '@@iterator';
+
+  /**
+   * Provides a string representation of the supplied object in the form
+   * "[object type]", where type is the object type.
+   *
+   * @private
+   * @param {*} subject The object for which a class string represntation
+   *                    is required.
+   * @return {string} A string value of the form "[object type]".
+   * @see http://www.ecma-international.org/ecma-262/6.0/
+   * #sec-object.prototype.tostring
+   */
+  _.toStringTag = function toStringTag(subject) {
+    return toTag.call(subject);
+  };
+
+  tagFunction = _.toStringTag(_.isNil);
+
+  /**
+   * Returns true if the operand subject is a Function
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if the object is a function, otherwise false.
+   */
+  _.isFunction = function isFunction(subject) {
+    var tag = _.toStringTag(subject),
+      result = false;
+
+    if (_.isObject(subject)) {
+      tag = _.toStringTag(subject);
+      /* istanbul ignore else */
+      if (tag === tagFunction) {
+        result = true;
+      } else if (tag === '[object GeneratorFunction]') {
+        result = typeof subject === typeFunction;
+      }
+    }
+
+    return result;
+  };
+
+  /**
+   * Checks if value is object-like. A value is object-like if it's not null
+   * and has a typeof result of "object".
+   *
+   * @privaye
+   * @param {*} subject The value to check.
+   * @return {boolean} Returns true if value is object-like, else false.
+   */
+  _.isObjectLike = function isObjectLike(subject) {
+    return !!subject && typeof subject === typeObject;
+  };
+
+  tagDate = _.toStringTag(new Date());
+
+  /* istanbul ignore next */
+  _.isDate = function isDate(value) {
+    return _.isObjectLike(value) && _.toStringTag(value) === tagDate;
+  };
+
+  /* istanbul ignore next */
+  _.toPrimitive = function toPrimitive(subject, hint) {
+    var methodNames,
+      method,
+      index,
+      result;
+
+    if (!_.isObject(subject)) {
+      result = subject;
+    } else {
+      /*jshint singleGroups:false */
+      if (hint === typeString || (hint !== typeNumber && _.isDate(subject))) {
+        methodNames = stringOrder;
+      } else {
+        methodNames = numberOrder;
+      }
+
+      index = 0;
+      while (index < 2) {
+        method = methodNames[index];
+        if (_.isFunction(subject[method])) {
+          result = subject[method]();
+          if (!_.isObject(result)) {
+            break;
+          }
+        }
+
+        index += 1;
+      }
+
+      /* istanbul ignore next */
+      throw new TypeError('ordinaryToPrimitive returned an object');
+    }
+
+    return result;
+  };
+
+  if (typeof Symbol === typeFunction && Symbol[strFor]) {
+    typeSymbol = typeof Symbol[strFor](strFor);
+  }
+
+  _.toNumber = function toNumber(subject) {
+    var type,
+      val;
+
+    /* istanbul ignore if */
+    if (subject === null) {
+      val = +0;
+    } else {
+      type = typeof subject;
+      if (type === typeNumber) {
+        val = subject;
+      } else if (type === typeUndefined) {
+        val = NaN;
+      } else {
+        /* istanbul ignore next */
+        if (type === typeBoolean) {
+          val = subject ? 1 : +0;
+        } else if (type === typeString) {
+          val = Number(subject);
+        } else {
+          if (typeSymbol && type === typeSymbol) {
+            throw new TypeError('Can not convert symbol to a number');
           }
 
-          object[property] = descriptor.value;
+          val = _.toNumber(_.toPrimitive(subject, typeNumber));
+        }
+      }
+    }
 
-          return object;
-        };
+    return val;
+  };
+
+  /* istanbul ignore else */
+  if (Math.sign && !_.useShims) {
+    _.sign = Math.sign;
+  } else {
+    _.sign = function sign(value) {
+      return _.toNumber(value) && (_.toNumber(value >= 0) || -1);
+    };
+  }
+
+  /* istanbul ignore else */
+  if (Number.isNaN && !_.useShims) {
+    _.numIsNaN = Number.isNaN;
+  } else {
+    _.numIsNaN = function numIsNaN(subject) {
+      return typeof subject === typeNumber && isNaN(subject);
+    };
+  }
+
+  /* istanbul ignore else */
+  if (Number.isFinite && !_.useShims) {
+    _.numIsFinite = Number.isFinite;
+  } else {
+    _.numIsFinite = function (subject) {
+      return typeof subject === typeNumber && isFinite(subject);
+    };
+  }
+
+  /**
+   * The function evaluates the passed value and converts it to an
+   * integer.
+   *
+   * @private
+   * @param {*} subject The object to be converted to an integer.
+   * @return {number} If the target value is NaN, null or undefined, 0 is
+   *                  returned. If the target value is false, 0 is
+   *                  returned and if true, 1 is returned.
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger
+   */
+  _.toInteger = function toInteger(subject) {
+    var number = _.toNumber(subject);
+
+    if (_.numIsNaN(number)) {
+      number = 0;
+    } else if (number && _.numIsFinite(number)) {
+      number = _.sign(number) * Math.floor(Math.abs(number));
+    }
+
+    return number;
+  };
+
+  tagNumber = _.toStringTag(0);
+
+  /**
+   * Returns true if the operand subject is a Number.
+   *
+   * @private
+   * @param {*} subject The object to be to tested.
+   * @return {boolean} True if is a number, otherwise false.
+   */
+  _.isNumber = function isNumber(subject) {
+    var type = typeof subject;
+
+    /*jshint singleGroups:false */
+    return type === typeNumber ||
+      (type === typeObject && _.toStringTag(subject) === tagNumber);
+  };
+
+  tagString = _.toStringTag(strFor);
+
+  /**
+   * Returns true if the operand subject is a String.
+   *
+   * @private
+   * @param {*} subject
+   * @return {boolean}
+   */
+  _.isString = function isString(subject) {
+    var type = typeof subject;
+
+    /*jshint singleGroups:false */
+    return type === typeString ||
+      (type === typeObject && _.toStringTag(subject) === tagString);
+  };
+
+  /**
+   * Checks if value is a valid array-like length.
+   *
+   * @private
+   * @param {*} subject The value to check.
+   * @return {boolean} Returns true if value is a valid length,
+   *                   else false.
+   */
+  _.isLength = function isLength(subject) {
+    return typeof subject === typeNumber &&
+      subject > -1 &&
+      subject % 1 === 0 &&
+      subject <= _.MAX_SAFE_INTEGER;
+  };
+
+  /**
+   * Checks if value is array-like. A value is considered array-like if
+   * it's  not a function and has a value.length that's an integer
+   * greater than or equal to 0 and less than or equal to
+   * Number.MAX_SAFE_INTEGER.
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} Returns true if subject is array-like,
+   *                   else false.
+   */
+  _.isArrayLike = function isArrayLike(subject) {
+    return !_.isNil(subject) &&
+      !_.isFunction(subject) &&
+      _.isLength(subject.length);
+  };
+
+  tagArray = _.toStringTag([]);
+
+  /* istanbul ignore else */
+  if (Array.isArray && !_.useShims) {
+    arrayIsArray = Array.isArray;
+  } else if (tagArray === '[object Array]') {
+    arrayIsArray = function arrayIsArray(subject) {
+      return _.isArrayLike(subject) && _.toStringTag(subject) === tagArray;
+    };
+  } else {
+    // fallback
+    arrayIsArray = function arrayIsArray(subject) {
+      return _.isArrayLike(subject) &&
+        !_.isString(subject) &&
+        _.hasOwn(subject, 'length') &&
+        !_.hasOwn(subject, 'callee');
+    };
+  }
+
+  /**
+   * If 'relaxed' is falsy The function tests the subject arguments and
+   * returns the Boolean value true if the argument is an object whose
+   * class internal property is "Array"; otherwise it returns false. if
+   * 'relaxed' is true then 'isArrayLike' is used for the test.
+   *
+   * @private
+   * @param {*} subject The argument to be tested.
+   * @param {boolean} [relaxed] Use isArrayLike rather than isArray
+   * @return {boolean} True if an array, or if relaxed and array-like,
+   *                   otherwise false.
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-isarray
+   */
+  _.isArray = function isArray(subject, relaxed) {
+    var isA;
+
+    if (relaxed) {
+      isA = _.isArrayLike(subject) && !_.isString(subject);
+    } else {
+      isA = arrayIsArray(subject);
+    }
+
+    return isA;
+  };
+
+  /**
+   * Tests if the two character arguments combined are a valid UTF-16
+   * surrogate pair.
+   *
+   * @private
+   * @param {*} char1 The first character of a suspected surrogate pair.
+   * @param {*} char2 The second character of a suspected surrogate pair.
+   * @return {boolean} Returns true if the two characters create a valid
+   *                   UTF-16 surrogate pair; otherwise false.
+   */
+  _.isSurrogatePair = function isSurrogatePair(char1, char2) {
+    var result = false,
+      code1,
+      code2;
+
+    if (_.isString(char1) && _.isString(char2)) {
+      code1 = char1.charCodeAt();
+      if (code1 >= 0xD800 && code1 <= 0xDBFF) {
+        code2 = char2.charCodeAt();
+        if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
+          result = true;
+        }
+      }
+    }
+
+    return result;
+  };
+
+  /* istanbul ignore else */
+  if (String.prototype.codePointAt && !_.useShims) {
+    _.codePointAt = function codePointAt(string, position) {
+      return String.prototype.codePointAt.call(string, position);
+    };
+  } else {
+    _.codePointAt = function codePointAt(subject, position) {
+      var string = String(_.requireObjectCoercible(subject)),
+        size = string.length,
+        index = _.toInteger(position),
+        first,
+        second,
+        val;
+
+      if (index >= 0 && index < size) {
+        first = string.charCodeAt(index);
+        if (first >= 0xD800 && first <= 0xDBFF && size > index + 1) {
+          second = string.charCodeAt(index + 1);
+          if (second >= 0xDC00 && second <= 0xDFFF) {
+            val = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+          }
+        }
       }
 
-      return fn;
-    }(Object.defineProperty));
+      return val || first;
+    };
+  }
 
+  /**
+   * Tests the subject to see if it is a function and throws an error if
+   * it is not.
+   *
+   * @private
+   * @param {*} subject The argument to test for validity.
+   * @throws {TypeError} If subject is not a function
+   * @return {*} Returns the subject if passes.
+   */
+  _.assertIsFunction = function assertIsFunction(subject) {
+    if (!_.isFunction(subject)) {
+      throw new TypeError('argument must be a function');
+    }
+
+    return subject;
+  };
+
+  /**
+   * The abstract operation ToLength converts its argument to an integer
+   * suitable for use as the length of an array-like object.
+   *
+   * @private
+   * @param {*} subject The object to be converted to a length.
+   * @return {number} If len <= +0 then +0 else if len is +INFINITY then
+   *                  2^53-1 else min(len, 2^53-1).
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
+   */
+  _.toLength = function toLength(subject) {
+    var length = _.toInteger(subject);
+
+    /* istanbul ignore else */
+    if (length <= 0) {
+      length = 0;
+    } else if (length > _.MAX_SAFE_INTEGER) {
+      length = _.MAX_SAFE_INTEGER;
+    }
+
+    return length;
+  };
+
+  _.chop = function chop(array, start, end) {
+    var object = _.toObject(array),
+      length = _.toLength(object.length),
+      relativeStart = _.toInteger(start),
+      val = [],
+      next = 0,
+      relativeEnd,
+      finalEnd,
+      k;
+
+    /* istanbul ignore if */
+    if (relativeStart < 0) {
+      k = Math.max(length + relativeStart, 0);
+    } else {
+      k = Math.min(relativeStart, length);
+    }
+
+    /* istanbul ignore else */
+    if (_.isUndefined(end)) {
+      relativeEnd = length;
+    } else {
+      relativeEnd = _.toInteger(end);
+    }
+
+    /* istanbul ignore if */
+    if (relativeEnd < 0) {
+      finalEnd = Math.max(length + relativeEnd, 0);
+    } else {
+      finalEnd = Math.min(relativeEnd, length);
+    }
+
+    finalEnd = _.toLength(finalEnd);
+    val.length = _.toLength(Math.max(finalEnd - k, 0));
+    while (k < finalEnd) {
+      if (k in object) {
+        val[next] = object[k];
+      }
+
+      next += 1;
+      k += 1;
+    }
+
+    return val;
+  };
+
+  function fixV8StrictBug(args) {
+    var fixed = _.chop(args, 1);
+
+    if (fixed.length > 1 && !_.isNil(fixed[1]) && !_.isObject(fixed[1])) {
+      fixed[1] = valueOf.call(fixed[1]);
+    }
+
+    return fixed;
+  }
+
+  /**
+   * Apply a function against an accumulator and each value of the array
+   * (from left-to-right) as to reduce it to a single value.
+   *
+   * @private
+   * @param {array} arrayLike
+   * @throws {TypeError} If array is null or undefined
+   * @param {Function} callback
+   * @throws {TypeError} If callback is not a function
+   * @param {*} [initialValue]
+   * @return {*}
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
+   * Global_Objects/Array/reduce
+   */
+  /* istanbul ignore else */
+  if (Array.prototype.reduce && !_.useShims) {
+    if (hasV8Strictbug) {
+      _.reduce = function reduce(array) {
+        return Array.prototype.reduce.apply(array, fixV8StrictBug(arguments));
+      };
+    } else {
+      _.reduce = function reduce(array) {
+        return Array.prototype.reduce.apply(array, _.chop(arguments, 1));
+      };
+    }
+  } else {
+    _.reduce = function reduce(array, callback, initialValue) {
+      var object = _.toObject(array),
+        acc,
+        length,
+        kPresent,
+        index;
+
+      _.assertIsFunction(callback);
+      length = _.toLength(object.length);
+      if (!length && arguments.length === 1) {
+        throw new TypeError(reduceError);
+      }
+
+      index = 0;
+      if (arguments.length > 1) {
+        acc = initialValue;
+      } else {
+        kPresent = false;
+        while (!kPresent && index < length) {
+          kPresent = index in object;
+          if (kPresent) {
+            acc = object[index];
+            index += 1;
+          }
+        }
+
+        if (!kPresent) {
+          throw new TypeError(reduceError);
+        }
+      }
+
+      while (index < length) {
+        if (index in object) {
+          acc = callback.call(
+            undefined,
+            acc,
+            object[index],
+            index,
+            object
+          );
+        }
+
+        index += 1;
+      }
+
+      return acc;
+    };
+  }
+
+  /**
+   * The isInteger method determines whether the passed value is an integer.
+   * If the target value is an integer, return true, otherwise return false.
+   * If the value is NaN or infinite, return false.
+   *
+   * @private
+   * @param {*} subject
+   * @return {boolean}
+   */
+  _.isInteger = function isInteger(subject) {
+    /* istanbul ignore next */
+    return _.numIsFinite(subject) && _.toInteger(subject) === subject;
+  };
+
+  /* istanbul ignore else */
+  if (String.fromCodePoint && !_.useShims) {
+    _.fromCodePoint = String.fromCodePoint;
+  } else {
+    _.fromCodePoint = function fromCodePoint() {
+      var MAX_SIZE = 0x4000,
+        codeUnits = [];
+
+      return _.reduce(arguments, function (result, arg) {
+        var codePnt = _.toNumber(arg),
+          highSurrogate,
+          lowSurrogate;
+
+        if (!_.isInteger(codePnt) || codePnt < 0 || codePnt > 0x10FFFF) {
+          throw new RangeError('Invalid codePnt point: ' + codePnt);
+        }
+
+        if (codePnt <= 0xFFFF) {
+          codeUnits.push(codePnt);
+        } else {
+          codePnt -= 0x10000;
+          /*jshint singleGroups:false */
+          /*jshint bitwise:false */
+          highSurrogate = (codePnt >> 10) + 0xD800;
+          /*jshint bitwise:true */
+          lowSurrogate = (codePnt % 0x400) + 0xDC00;
+          /*jshint singleGroups:true */
+          codeUnits.push(highSurrogate, lowSurrogate);
+        }
+
+        if (codeUnits.length > MAX_SIZE) {
+          result += String.fromCharCode.apply(null, codeUnits);
+          codeUnits.length = 0;
+        }
+
+        return result;
+      }, '') + String.fromCharCode.apply(null, codeUnits);
+    };
+  }
+
+  _.assertIsObject = function assertIsObject(subject) {
+    /* istanbul ignore if */
+    if (!_.isObject(subject)) {
+      throw new TypeError('argument must be a object');
+    }
+
+    return subject;
+  };
+
+  /**
+   * Converts the subject into a safe number within the max and min safe
+   * integer range.
+   *
+   * @private
+   * @param {*} subject The argument to be converted.
+   * @return {number} Returns a safe number in range.
+   */
+  _.clampToSafeIntegerRange = function clampToSafeIntegerRange(subject) {
+    var number = +subject;
+
+    if (_.numIsNaN(number)) {
+      number = 0;
+    } else if (number < _.MIN_SAFE_INTEGER) {
+      number = _.MIN_SAFE_INTEGER;
+    } else if (number > _.MAX_SAFE_INTEGER) {
+      number = _.MAX_SAFE_INTEGER;
+    }
+
+    return number;
+  };
+
+  if (Array.prototype.map && !_.useShims) {
+    if (hasV8Strictbug) {
+      _.map = function map(array) {
+        return Array.prototype.map.apply(array, fixV8StrictBug(arguments));
+      };
+    } else {
+      _.map = function map(array) {
+        return Array.prototype.map.apply(array, _.chop(arguments, 1));
+      };
+    }
+  } else {
+    _.map = function map(array, callback, thisArg) {
+      var object = _.toObject(array),
+        length,
+        arr,
+        index;
+
+      _.assertIsFunction(callback);
+      arr = [];
+      arr.length = length = _.toLength(object.length);
+      index = 0;
+      while (index < length) {
+        if (index in object) {
+          arr[index] = callback.call(
+            thisArg,
+            object[index],
+            index,
+            object
+          );
+        }
+
+        index += 1;
+      }
+
+      return arr;
+    };
+  }
+
+  if (Array.prototype.filter && !_.useShims) {
+    if (hasV8Strictbug) {
+      _.filter = function filter(array) {
+        return Array.prototype.filter.apply(array, fixV8StrictBug(arguments));
+      };
+    } else {
+      _.filter = function filter(array) {
+        return Array.prototype.filter.apply(array, _.chop(arguments, 1));
+      };
+    }
+  } else {
+    _.filter = function filter(array, callback, thisArg) {
+      var object = _.toObject(array),
+        length,
+        arr,
+        index,
+        it;
+
+      _.assertIsFunction(callback);
+      length = _.toLength(object.length);
+      arr = [];
+      index = 0;
+      while (index < length) {
+        if (index in object) {
+          it = object[index];
+          if (callback.call(thisArg, it, index, object)) {
+            arr.push(it);
+          }
+        }
+
+        index += 1;
+      }
+
+      return arr;
+    };
+  }
+
+  _.curry = function curry(fn) {
+    var args;
+
+    _.assertIsFunction(fn);
+    args = _.chop(arguments, 1);
+
+    return function () {
+      return fn.apply(this, args.concat(_.chop(arguments)));
+    };
+  };
+
+  /**
+   * Executes a provided function once per array element.
+   *
+   * @private
+   * @param {array} arrayLike
+   * @param {function} callback
+   * @throws {TypeError} If callback is not a function
+   * @param {*} [thisArg]
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
+   * Global_Objects/Array/forEach
+   */
+  /* istanbul ignore else */
+  if (Array.prototype.forEach && !_.useShims) {
+    if (hasV8Strictbug) {
+      _.forEach = function forEach(array) {
+        return Array.prototype.forEach.apply(array, fixV8StrictBug(arguments));
+      };
+    } else {
+      _.forEach = function forEach(array) {
+        return Array.prototype.forEach.apply(array, _.chop(arguments, 1));
+      };
+    }
+  } else {
+    _.forEach = function forEach(array, callback, thisArg) {
+      var object = _.toObject(array),
+        length,
+        index;
+
+      _.assertIsFunction(callback);
+      length = _.toLength(object.length);
+      index = 0;
+      while (index < length) {
+        if (index in object) {
+          callback.call(thisArg, object[index], index, object);
+        }
+
+        index += 1;
+      }
+    };
+  }
+
+  /* istanbul ignore else */
+  if (Array.prototype.some && !_.useShims) {
+    if (hasV8Strictbug) {
+      _.some = function some(array) {
+        return Array.prototype.some.apply(array, fixV8StrictBug(arguments));
+      };
+    } else {
+      _.some = function some(array) {
+        return Array.prototype.some.apply(array, _.chop(arguments, 1));
+      };
+    }
+  } else {
+    _.some = function some(array, callback, thisArg) {
+      var object = _.toObject(array),
+        val,
+        length,
+        index;
+
+      _.assertIsFunction(callback);
+      length = _.toLength(object.length);
+      val = false;
+      index = 0;
+      while (index < length) {
+        if (index in object) {
+          val = !!callback.call(thisArg, object[index], index, object);
+          if (val) {
+            break;
+          }
+        }
+
+        index += 1;
+      }
+
+      return val;
+    };
+  }
+
+  /* istanbul ignore else */
+  if (Array.prototype.every && !_.useShims) {
+    if (hasV8Strictbug) {
+      _.every = function every(array) {
+        return Array.prototype.every.apply(array, fixV8StrictBug(arguments));
+      };
+    } else {
+      _.every = function every(array) {
+        return Array.prototype.every.apply(array, _.chop(arguments, 1));
+      };
+    }
+  } else {
+    _.every = function every(array, callback, thisArg) {
+      var object = _.toObject(array),
+        length,
+        val,
+        index;
+
+      _.assertIsFunction(callback);
+      length = _.toLength(object.length);
+      val = true;
+      index = 0;
+      while (index < length) {
+        if (index in object) {
+          val = !!callback.call(thisArg, object[index], index, object);
+          if (!val) {
+            break;
+          }
+        }
+
+        index += 1;
+      }
+
+      return val;
+    };
+  }
+
+  /* istanbul ignore else */
+  if (Object.keys && !_.useShims) {
+    _.keys = Object.keys;
+  } else {
+    _.keys = function (subject) {
+      var object = _.toObject(subject),
+        ownKeys = [],
+        key;
+
+      for (key in object) {
+        if (_.hasOwn(object, key)) {
+          ownKeys.push(key);
+        }
+      }
+
+      return ownKeys;
+    };
+  }
+
+  /**
+   * The assign function is used to copy the values of all of the
+   * enumerable own properties from a source object to a target object.
+   *
+   * @private
+   * @param {Object} target
+   * @param {...Object} source
+   * @return {Object}
+   */
+  /* istanbul ignore else */
+  if (Object.assign && !_.useShims) {
+    _.assign = Object.assign;
+  } else {
+    _.assign = function assign(target) {
+      var object = _.toObject(target);
+
+      function copy(key) {
+        /*jshint validthis:true */
+        object[key] = this[key];
+      }
+
+      _.forEach(_.chop(arguments, 1), function (arg) {
+        if (!_.isNil(arg)) {
+          _.forEach(_.keys(arg), copy, arg);
+        }
+      });
+
+      return object;
+    };
+  }
+
+  _.from = function from(items, mapfn, thisArg) {
+    var usingIterator = items && items[_.symIt],
+      iterator,
+      object,
+      length,
+      array,
+      mapping,
+      index,
+      next;
+
+    if (!_.isUndefined(mapfn)) {
+      mapping = !!_.assertIsFunction(mapfn);
+    }
+
+    index = 0;
+    if (usingIterator) {
+      if (_.isFunction(this)) {
+        array = new this();
+      } else {
+        array = [];
+      }
+
+      iterator = usingIterator();
+      next = iterator.next();
+      while (!next.done) {
+        if (mapping) {
+          array[index] = mapfn.call(thisArg, next.value, index);
+        } else {
+          array[index] = next.value;
+        }
+
+        next = iterator.next();
+        index += 1;
+      }
+
+      array.length = index;
+    } else {
+      object = _.toObject(items);
+      length = _.toLength(object.length);
+      if (_.isFunction(this)) {
+        array = new this(length);
+      } else {
+        array = [];
+      }
+
+      array.length = length;
+      while (index < length) {
+        if (mapping) {
+          array[index] = mapfn.call(thisArg, object[index], index);
+        } else {
+          array[index] = object[index];
+        }
+
+        index += 1;
+      }
+    }
+
+    return array;
+  };
+
+  /* istanbul ignore else */
+  if (Array.prototype.indexOf && !_.useShims) {
+    _.indexOf = function indexOf(array) {
+      return Array.prototype.indexOf.apply(array, _.chop(arguments, 1));
+    };
+  } else {
+    _.indexOf = function indexOf(array, searchElement, fromIndex) {
+      var object = _.toObject(array),
+        length = _.toLength(object.length),
+        val = -1,
+        index;
+
+      if (length) {
+        if (arguments.length > 1) {
+          fromIndex = _.toInteger(fromIndex);
+        } else {
+          fromIndex = 0;
+        }
+
+        if (fromIndex < length) {
+          if (fromIndex < 0) {
+            fromIndex = length - Math.abs(fromIndex);
+            if (fromIndex < 0) {
+              fromIndex = 0;
+            }
+          }
+
+          index = fromIndex;
+          while (index < length) {
+            if (index in object && searchElement === object[index]) {
+              val = index;
+              break;
+            }
+
+            index += 1;
+          }
+        }
+      }
+
+      return val;
+    };
+  }
+
+  _.is = function is(x, y) {
+    /*jshint singleGroups:false */
+    return (x === y && (x !== 0 || 1 / x === 1 / y)) ||
+      (_.numIsNaN(x) && _.numIsNaN(y));
+  };
+
+  _.IdGenerator = function IdGenerator() {
+    /* istanbul ignore if */
+    if (!(this instanceof IdGenerator)) {
+      return new IdGenerator();
+    }
+
+    _.setValue(this, 'id', [0]);
+  };
+
+  _.setValue(_.IdGenerator.prototype, 'next', function () {
+    var result = [],
+      length = this.id.length,
+      howMany = Math.max(length, 1),
+      carry = 0,
+      index = 0,
+      zi;
+
+    while (index < howMany || carry) {
+      zi = carry + (index < length ? this.id[index] : 0) + !index;
+      result.push(zi % 10);
+      carry = Math.floor(zi / 10);
+      index += 1;
+    }
+
+    this.id = result;
+
+    return this;
+  });
+
+  _.setValue(_.IdGenerator.prototype, 'get', function () {
+    return this.id.join('');
+  });
+
+  _.setValue(_.IdGenerator.prototype, 'reset', function () {
+    this.id.length = 0;
+    this.id.push(0);
+
+    return this;
+  });
+
+  // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-samevaluezero
+  _.sameValueZero = function sameValueZero(x, y) {
+    /*jshint singleGroups:false */
+    return (x === y) || (_.numIsNaN(x) && _.numIsNaN(y));
+  };
+
+  if (Array.prototype.findIndex) {
+    _.findIndex = function findIndex(array) {
+      return Array.prototype.findIndex.apply(array, _.chop(arguments, 1));
+    };
+  } else {
+    _.findIndex = function findIndex(array, callback, thisArg) {
+      var object = _.toObject(array),
+        val,
+        length,
+        index;
+
+      _.assertIsFunction(callback);
+      length = _.toLength(object.length);
+      val = -1;
+      index = 0;
+      while (index < length) {
+        if (callback.call(thisArg, object[index], index, object)) {
+          val = index;
+          break;
+        }
+
+        index += 1;
+      }
+
+      return val;
+    };
+  }
+
+  function isSameValueZero(element) {
+    /*jshint validthis:true */
+    return _.sameValueZero(this, element);
+  }
+
+  _.getIndex = function getIndex(array, item) {
+    var searchIndex;
+
+    if (item === 0 || _.numIsNaN(item)) {
+      searchIndex = _.findIndex(array, isSameValueZero, item);
+    } else {
+      searchIndex = _.indexOf(array, item);
+    }
+
+    return searchIndex;
+  };
+
+  if (Array.prototype.includes) {
+    _.includes = function includes(array) {
+      return Array.prototype.includes.call(array, _.chop(arguments, 1));
+    };
+  } else {
+    _.includes = function includes(array, searchElement, fromIndex) {
+      var object = _.toObject(array),
+        length = _.toLength(object.length),
+        result = false,
+        index,
+        n;
+
+      if (length) {
+        n = _.toLength(fromIndex);
+        if (n >= 0) {
+          index = n;
+        } else {
+          index = length + n;
+          if (index < 0) {
+            index = 0;
+          }
+        }
+
+        while (index < length) {
+          if (_.sameValueZero(searchElement, object[index])) {
+            result = true;
+            break;
+          }
+
+          index += 1;
+        }
+      }
+
+      return result;
+    };
+  }
+
+  /* istanbul ignore if */
   if (typeof define === typeFunction && define.amd) {
     /*
      * AMD. Register as an anonymous module.
      */
-    /* istanbul ignore next */
     define([], function () {
-      return factory(isObject, defineProperty, useShims);
+      return factory(_);
     });
-
-  } else if (typeof module === typeObject && module.exports) {
-    /*
-     * Node. Does not work with strict CommonJS, but
-     * only CommonJS-like environments that support module.exports,
-     * like Node.
-     */
-    module.exports = factory(isObject, defineProperty, useShims);
   } else {
-    /*
-     * Browser globals (root is window)
-     */
-    /* istanbul ignore next */
-    if (Object.prototype.hasOwnProperty.call(root, 'reiterate')) {
-      throw new Error('Unable to define "reiterate"');
-    }
+    /* istanbul ignore else */
+    if (typeof module === typeObject && module.exports) {
+      /*
+       * Node. Does not work with strict CommonJS, but
+       * only CommonJS-like environments that support module.exports,
+       * like Node.
+       */
+      module.exports = factory(_);
+    } else {
+      /*jshint singleGroups:false */
+      root = (
+          (typeof window === 'function' || typeof window === 'object') && window
+        ) ||
+        (typeof self === 'object' && self) ||
+        (typeof global === 'object' && global) ||
+        (typeof thisArg === 'object' && thisArg) || {};
 
-    /* istanbul ignore next */
-    defineProperty(root, 'reiterate', {
-      enumerable: false,
-      writable: true,
-      configurable: true,
-      value: factory(isObject, defineProperty, useShims)
-    });
+      _.setValue(root, 'reiterate', factory(_));
+    }
   }
 }(
 
-  /*
-   * The global this object.
-   */
   this,
 
   /**
@@ -155,19 +1423,13 @@
    * @param {function} defineProperty
    * @return {function} The function be exported
    */
-  function (isObject, defineProperty, useShims) {
+  function (_) {
     'use strict';
 
     /* constants */
-    var reiterate,
+    var $reiterate,
 
       strDelete = 'delete',
-
-      strFor = 'for',
-
-      MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || Math.pow(2, 53) - 1,
-
-      MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER || -MAX_SAFE_INTEGER,
 
       /**
        * The private namespace for common values.
@@ -224,788 +1486,6 @@
 
       },
 
-      symIt = (function (typeFunction) {
-        return typeof Symbol === typeFunction && !useShims ?
-          Symbol.iterator :
-          '@@iterator';
-      }(typeof isObject)),
-
-      /**
-       * Returns true if the operand subject is undefined
-       *
-       * @private
-       * @param {*} subject The object to be tested.
-       * @return {boolean} True if the object is undefined, otherwise false.
-       */
-      isUndefined = (function (typeUndefined) {
-        return function (subject) {
-          return typeof subject === typeUndefined;
-        };
-      }(typeof undefined)),
-
-      /**
-       * Returns true if the operand subject is null or undefined.
-       *
-       * @private
-       * @param {*} subject The object to be tested.
-       * @return {boolean} True if undefined or null, otherwise false.
-       */
-      isNil = function (subject) {
-        return subject === null || isUndefined(subject);
-      },
-
-      /**
-       * The abstract operation throws an error if its argument is a value that
-       * cannot be converted to an Object, otherwise returns the argument.
-       *
-       * @private
-       * @param {*} subject The object to be tested.
-       * @throws {TypeError} If subject is null or undefined.
-       * @return {*} The subject if coercible.
-       */
-      requireObjectCoercible = function (subject) {
-        /* istanbul ignore if */
-        if (isNil(subject)) {
-          throw new TypeError('Cannot convert argument to object');
-        }
-
-        return subject;
-      },
-
-      /**
-       * The abstract operation converts its argument to a value of type Object.
-       *
-       * @private
-       * @param {*} subject The argument to be converted to an object.
-       * @throws {TypeError} If subject is not coercible to an object.
-       * @return {Object} Value of subject as type Object.
-       * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
-       */
-      toObject = (function (valueOf) {
-        return function (subject) {
-          var object;
-
-          /* istanbul ignore else */
-          if (isObject(requireObjectCoercible(subject))) {
-            object = subject;
-          } else {
-            object = valueOf.call(subject);
-          }
-
-          return object;
-        };
-      }(Object.prototype.valueOf)),
-
-      /**
-       * Returns a boolean indicating whether the object has the specified
-       * property. This function can be used to determine whether an object
-       * has the specified property as a direct property of that object; this
-       * method does not check down the object's prototype chain.
-       *
-       * @private
-       * @param {Object} subject The object to test for the property.
-       * @param {string} property The property to be tested.
-       * @return {boolean} True if the object has the direct specified
-       *                   property, otherwise false.
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
-       * Reference/Global_Objects/Object/hasOwnProperty
-       */
-      hasOwn = (function (hop) {
-        return function (subject, property) {
-          return hop.call(toObject(subject), property);
-        };
-      }(Object.prototype.hasOwnProperty)),
-
-      /**
-       * Provides a string representation of the supplied object in the form
-       * "[object type]", where type is the object type.
-       *
-       * @private
-       * @param {*} subject The object for which a class string represntation
-       *                    is required.
-       * @return {string} A string value of the form "[object type]".
-       * @see http://www.ecma-international.org/ecma-262/6.0/
-       * #sec-object.prototype.tostring
-       */
-      toStringTag = (function (ts) {
-        return function (subject) {
-          return ts.call(subject);
-        };
-      }(Object.prototype.toString)),
-
-      /**
-       * Defines a new property directly on an object, or throws an error if
-       * there is an existing property on an object, and returns the object.
-       * Uses a fixed descriptor definition.
-       *
-       * @private
-       * @param {Object} object The object on which to defined the property.
-       * @param {string} property The property name.
-       * @param {function} value The value of the property.
-       * @throws {Error} If the property already exists.
-       * @return {Object}
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/
-       * Reference/Global_Objects/Object/defineProperty
-       */
-      setValue = (function (descriptor) {
-        return function (object, property, value, noCheck) {
-          /* istanbul ignore if */
-          if (!noCheck && hasOwn(object, property)) {
-            throw new Error(
-              'property "' + property + '" already exists on object'
-            );
-          }
-
-          descriptor.value = value;
-
-          return defineProperty(object, property, descriptor);
-        };
-      }({
-        enumerable: false,
-        writable: true,
-        configurable: true,
-        value: undefined
-      })),
-
-      /**
-       * Returns true if the operand subject is a Function
-       *
-       * @private
-       * @param {*} subject The object to be tested.
-       * @return {boolean} True if the object is a function, otherwise false.
-       */
-      isFunction = (function (tagFunction, typeFunction) {
-        return function (subject) {
-          var tag = toStringTag(subject),
-            result = false;
-
-          if (isObject(subject)) {
-            tag = toStringTag(subject);
-            /* istanbul ignore else */
-            if (tag === tagFunction) {
-              result = true;
-            } else if (tag === '[object GeneratorFunction]') {
-              result = typeof subject === typeFunction;
-            }
-          }
-
-          return result;
-        };
-      }(toStringTag(isNil), typeof isNil)),
-
-      /**
-       * Checks if value is object-like. A value is object-like if it's not null
-       * and has a typeof result of "object".
-       *
-       * @privaye
-       * @param {*} subject The value to check.
-       * @return {boolean} Returns true if value is object-like, else false.
-       */
-      isObjectLike = (function (typeObject) {
-        return function (subject) {
-          return !!subject && typeof subject === typeObject;
-        };
-      }(typeof Object.prototype)),
-
-      /* istanbul ignore next */
-      isDate = (function (tag) {
-        /* istanbul ignore next */
-        return function (value) {
-          return isObjectLike(value) && toStringTag(value) === tag;
-        };
-      }(toStringTag(new Date()))),
-
-      /* istanbul ignore next */
-      toPrimitive = (function (typeStr, typeNum) {
-        var stringOrder = ['toString', 'valueOf'],
-          numberOrder = stringOrder.reverse();
-
-        /* istanbul ignore next */
-        return function (subject, hint) {
-          var methodNames,
-            method,
-            index,
-            result;
-
-          if (!isObject(subject)) {
-            result = subject;
-          } else {
-            /*jshint singleGroups:false */
-            if (hint === typeStr || (hint !== typeNum && isDate(subject))) {
-              methodNames = stringOrder;
-            } else {
-              methodNames = numberOrder;
-            }
-
-            index = 0;
-            while (index < 2) {
-              method = methodNames[index];
-              if (isFunction(subject[method])) {
-                result = subject[method]();
-                if (!isObject(result)) {
-                  break;
-                }
-              }
-
-              index += 1;
-            }
-
-            /* istanbul ignore next */
-            throw new TypeError('ordinaryToPrimitive returned an object');
-          }
-
-          return result;
-        };
-      }(typeof strDelete, typeof MAX_SAFE_INTEGER)),
-
-      toNumber = (function (typeFunction) {
-        var typeUndefined = typeof undefined,
-          typeBoolean = typeof false,
-          typeNumber = typeof MAX_SAFE_INTEGER,
-          typeString = typeof strDelete,
-          typeSymbol,
-          fn;
-
-        if (typeof Symbol === typeFunction && Symbol[strFor]) {
-          typeSymbol = typeof Symbol[strFor](strFor);
-        }
-
-        fn = function (subject) {
-          var type,
-            val;
-
-          /* istanbul ignore if */
-          if (subject === null) {
-            val = +0;
-          } else {
-            type = typeof subject;
-            if (type === typeNumber) {
-              val = subject;
-            } else if (type === typeUndefined) {
-              val = NaN;
-            } else {
-              /* istanbul ignore next */
-              if (type === typeBoolean) {
-                val = subject ? 1 : +0;
-              } else if (type === typeString) {
-                val = Number(subject);
-              } else {
-                if (typeSymbol && type === typeSymbol) {
-                  throw new TypeError('Can not convert symbol to a number');
-                }
-
-                val = fn(toPrimitive(subject, typeNumber));
-              }
-            }
-          }
-
-          return val;
-        };
-
-        return fn;
-      }(typeof isObject)),
-
-      sign = (function (ms) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (ms && !useShims) {
-          fn = ms;
-        } else {
-          fn = function (value) {
-            return toNumber(value) && (toNumber(value >= 0) || -1);
-          };
-        }
-
-        return fn;
-      }(Math.sign)),
-
-      numIsNaN = (function (nin, typeNumber) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (nin && !useShims) {
-          fn = nin;
-        } else {
-          fn = function (subject) {
-            return typeof subject === typeNumber && isNaN(subject);
-          };
-        }
-
-        return fn;
-      }(Number.isNaN, typeof MAX_SAFE_INTEGER)),
-
-      numIsFinite = (function (nif, typeNumber) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (nif && !useShims) {
-          fn = nif;
-        } else {
-          fn = function (subject) {
-            return typeof subject === typeNumber && isFinite(subject);
-          };
-        }
-
-        return fn;
-      }(Number.isFinite, typeof MAX_SAFE_INTEGER)),
-
-      /**
-       * The function evaluates the passed value and converts it to an
-       * integer.
-       *
-       * @private
-       * @param {*} subject The object to be converted to an integer.
-       * @return {number} If the target value is NaN, null or undefined, 0 is
-       *                  returned. If the target value is false, 0 is
-       *                  returned and if true, 1 is returned.
-       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger
-       */
-      toInteger = function (subject) {
-        var number = toNumber(subject);
-
-        if (numIsNaN(number)) {
-          number = 0;
-        } else if (number && numIsFinite(number)) {
-          number = sign(number) * Math.floor(Math.abs(number));
-        }
-
-        return number;
-      },
-
-      /**
-       * Returns true if the operand subject is a Number.
-       *
-       * @private
-       * @param {*} subject The object to be to tested.
-       * @return {boolean} True if is a number, otherwise false.
-       */
-      isNumber = (function (tag, typeNumber, typeObject) {
-        return function (subject) {
-          var type = typeof subject;
-
-          /*jshint singleGroups:false */
-          return type === typeNumber ||
-            (type === typeObject && toStringTag(subject) === tag);
-        };
-      }(
-        toStringTag(MAX_SAFE_INTEGER),
-        typeof MAX_SAFE_INTEGER,
-        typeof Object.prototype
-      )),
-
-      /**
-       * Returns true if the operand subject is a String.
-       *
-       * @private
-       * @param {*} subject
-       * @return {boolean}
-       */
-      isString = (function (tag, typeString, typeObject) {
-        return function (subject) {
-          var type = typeof subject;
-
-          /*jshint singleGroups:false */
-          return type === typeString ||
-            (type === typeObject && toStringTag(subject) === tag);
-        };
-      }(toStringTag(strDelete), typeof strDelete, typeof Object.prototype)),
-
-      /**
-       * Checks if value is a valid array-like length.
-       *
-       * @private
-       * @param {*} subject The value to check.
-       * @return {boolean} Returns true if value is a valid length,
-       *                   else false.
-       */
-      isLength = (function (typeNumber) {
-        return function (subject) {
-          return typeof subject === typeNumber &&
-            subject > -1 &&
-            subject % 1 === 0 &&
-            subject <= MAX_SAFE_INTEGER;
-        };
-      }(typeof MAX_SAFE_INTEGER)),
-
-      /**
-       * Checks if value is array-like. A value is considered array-like if
-       * it's  not a function and has a value.length that's an integer
-       * greater than or equal to 0 and less than or equal to
-       * Number.MAX_SAFE_INTEGER.
-       *
-       * @private
-       * @param {*} subject The object to be tested.
-       * @return {boolean} Returns true if subject is array-like,
-       *                   else false.
-       */
-      isArrayLike = function (subject) {
-        return !isNil(subject) &&
-          !isFunction(subject) &&
-          isLength(subject.length);
-      },
-
-      /**
-       * If 'relaxed' is falsy The function tests the subject arguments and
-       * returns the Boolean value true if the argument is an object whose
-       * class internal property is "Array"; otherwise it returns false. if
-       * 'relaxed' is true then 'isArrayLike' is used for the test.
-       *
-       * @private
-       * @param {*} subject The argument to be tested.
-       * @param {boolean} [relaxed] Use isArrayLike rather than isArray
-       * @return {boolean} True if an array, or if relaxed and array-like,
-       *                   otherwise false.
-       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-isarray
-       */
-      isArray = (function (ai, tag) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (ai && !useShims) {
-          fn = ai;
-        } else if (tag === '[object Array]') {
-          fn = function (subject) {
-            return isArrayLike(subject) && toStringTag(subject) === tag;
-          };
-        } else {
-          // fallback
-          fn = function (subject) {
-            return isArrayLike(subject) &&
-              !isString(subject) &&
-              hasOwn(subject, 'length') &&
-              !hasOwn(subject, 'callee');
-          };
-        }
-
-        return function (subject, relaxed) {
-          var isA;
-
-          if (relaxed) {
-            isA = isArrayLike(subject) && !isString(subject);
-          } else {
-            isA = fn(subject);
-          }
-
-          return isA;
-        };
-      }(Array.isArray, toStringTag([]))),
-
-      /**
-       * Tests if the two character arguments combined are a valid UTF-16
-       * surrogate pair.
-       *
-       * @private
-       * @param {*} char1 The first character of a suspected surrogate pair.
-       * @param {*} char2 The second character of a suspected surrogate pair.
-       * @return {boolean} Returns true if the two characters create a valid
-       *                   UTF-16 surrogate pair; otherwise false.
-       */
-      isSurrogatePair = function (char1, char2) {
-        var result = false,
-          code1,
-          code2;
-
-        if (isString(char1) && isString(char2)) {
-          code1 = char1.charCodeAt();
-          if (code1 >= 0xD800 && code1 <= 0xDBFF) {
-            code2 = char2.charCodeAt();
-            if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
-              result = true;
-            }
-          }
-        }
-
-        return result;
-      },
-
-      codePointAt = (function (spc) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (spc && !useShims) {
-          fn = function (string, position) {
-            return spc.call(string, position);
-          };
-        } else {
-          fn = function (subject, position) {
-            var string = String(requireObjectCoercible(subject)),
-              size = string.length,
-              index = toInteger(position),
-              first,
-              second,
-              val;
-
-            if (index >= 0 && index < size) {
-              first = string.charCodeAt(index);
-              if (first >= 0xD800 && first <= 0xDBFF && size > index + 1) {
-                second = string.charCodeAt(index + 1);
-                if (second >= 0xDC00 && second <= 0xDFFF) {
-                  val = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
-                }
-              }
-            }
-
-            return val || first;
-          };
-        }
-
-        return fn;
-      }(String.prototype.codePointAt)),
-
-      /**
-       * Tests the subject to see if it is a function and throws an error if
-       * it is not.
-       *
-       * @private
-       * @param {*} subject The argument to test for validity.
-       * @throws {TypeError} If subject is not a function
-       * @return {*} Returns the subject if passes.
-       */
-      mustBeFunction = function (subject) {
-        if (!isFunction(subject)) {
-          throw new TypeError('argument must be a function');
-        }
-
-        return subject;
-      },
-
-      /**
-       * The abstract operation ToLength converts its argument to an integer
-       * suitable for use as the length of an array-like object.
-       *
-       * @private
-       * @param {*} subject The object to be converted to a length.
-       * @return {number} If len <= +0 then +0 else if len is +INFINITY then
-       *                  2^53-1 else min(len, 2^53-1).
-       * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tolength
-       */
-      toLength = function (subject) {
-        var length = toInteger(subject);
-
-        /* istanbul ignore else */
-        if (length <= 0) {
-          length = 0;
-        } else if (length > MAX_SAFE_INTEGER) {
-          length = MAX_SAFE_INTEGER;
-        }
-
-        return length;
-      },
-
-      chop = function (array, start, end) {
-        var object = toObject(array),
-          length = toLength(object.length),
-          relativeStart = toInteger(start),
-          val = [],
-          next = 0,
-          relativeEnd,
-          finalEnd,
-          k;
-
-        /* istanbul ignore if */
-        if (relativeStart < 0) {
-          k = Math.max(length + relativeStart, 0);
-        } else {
-          k = Math.min(relativeStart, length);
-        }
-
-        /* istanbul ignore else */
-        if (isUndefined(end)) {
-          relativeEnd = length;
-        } else {
-          relativeEnd = toInteger(end);
-        }
-
-        /* istanbul ignore if */
-        if (relativeEnd < 0) {
-          finalEnd = Math.max(length + relativeEnd, 0);
-        } else {
-          finalEnd = Math.min(relativeEnd, length);
-        }
-
-        finalEnd = toLength(finalEnd);
-        val.length = toLength(Math.max(finalEnd - k, 0));
-        while (k < finalEnd) {
-          if (k in object) {
-            val[next] = object[k];
-          }
-
-          next += 1;
-          k += 1;
-        }
-
-        return val;
-      },
-
-      /**
-       * Apply a function against an accumulator and each value of the array
-       * (from left-to-right) as to reduce it to a single value.
-       *
-       * @private
-       * @param {array} arrayLike
-       * @throws {TypeError} If array is null or undefined
-       * @param {Function} callback
-       * @throws {TypeError} If callback is not a function
-       * @param {*} [initialValue]
-       * @return {*}
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
-       * Global_Objects/Array/reduce
-       */
-      reduce = (function (apr) {
-        var msg,
-          fn;
-
-        /* istanbul ignore else */
-        if (apr && !useShims) {
-          fn = function (array) {
-            return apr.apply(array, chop(arguments, 1));
-          };
-        } else {
-          msg = 'reduce of empty array with no initial value';
-          fn = function (array, callback, initialValue) {
-            var object = toObject(array),
-              acc,
-              length,
-              kPresent,
-              index;
-
-            mustBeFunction(callback);
-            length = toLength(object.length);
-            if (!length && arguments.length === 1) {
-              throw new TypeError(msg);
-            }
-
-            index = 0;
-            if (arguments.length > 1) {
-              acc = initialValue;
-            } else {
-              kPresent = false;
-              while (!kPresent && index < length) {
-                kPresent = index in object;
-                if (kPresent) {
-                  acc = object[index];
-                  index += 1;
-                }
-              }
-
-              if (!kPresent) {
-                throw new TypeError(msg);
-              }
-            }
-
-            while (index < length) {
-              if (index in object) {
-                acc = callback.call(
-                  undefined,
-                  acc,
-                  object[index],
-                  index,
-                  object
-                );
-              }
-
-              index += 1;
-            }
-
-            return acc;
-          };
-        }
-
-        return fn;
-      }(Array.prototype.reduce)),
-
-      /**
-       * The isInteger method determines whether the passed value is an integer.
-       * If the target value is an integer, return true, otherwise return false.
-       * If the value is NaN or infinite, return false.
-       *
-       * @private
-       * @param {*} subject
-       * @return {boolean}
-       */
-      isInteger = function (subject) {
-        /* istanbul ignore next */
-        return numIsFinite(subject) && toInteger(subject) === subject;
-      },
-
-      fromCodePoint = (function (sf, stringFromCharCode) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (sf && !useShims) {
-          fn = sf;
-        } else {
-          fn = function () {
-            var MAX_SIZE = 0x4000,
-              codeUnits = [];
-
-            return reduce(arguments, function (result, arg) {
-              var codePnt = toNumber(arg),
-                highSurrogate,
-                lowSurrogate;
-
-              if (!isInteger(codePnt) || codePnt < 0 || codePnt > 0x10FFFF) {
-                throw new RangeError('Invalid codePnt point: ' + codePnt);
-              }
-
-              if (codePnt <= 0xFFFF) {
-                codeUnits.push(codePnt);
-              } else {
-                codePnt -= 0x10000;
-                /*jshint singleGroups:false */
-                /*jshint bitwise:false */
-                highSurrogate = (codePnt >> 10) + 0xD800;
-                /*jshint bitwise:true */
-                lowSurrogate = (codePnt % 0x400) + 0xDC00;
-                /*jshint singleGroups:true */
-                codeUnits.push(highSurrogate, lowSurrogate);
-              }
-
-              if (codeUnits.length > MAX_SIZE) {
-                result += stringFromCharCode.apply(null, codeUnits);
-                codeUnits.length = 0;
-              }
-
-              return result;
-            }, '') + stringFromCharCode.apply(null, codeUnits);
-          };
-        }
-
-        return fn;
-      }(String.fromCodePoint, String.fromCharCode)),
-
-      mustBeObject = function (subject) {
-        /* istanbul ignore if */
-        if (!isObject(subject)) {
-          throw new TypeError('argument must be a object');
-        }
-
-        return subject;
-      },
-
-      /**
-       * Converts the subject into a safe number within the max and min safe
-       * integer range.
-       *
-       * @private
-       * @param {*} subject The argument to be converted.
-       * @return {number} Returns a safe number in range.
-       */
-      clampToSafeIntegerRange = function (subject) {
-        var number = +subject;
-
-        if (numIsNaN(number)) {
-          number = 0;
-        } else if (number < MIN_SAFE_INTEGER) {
-          number = MIN_SAFE_INTEGER;
-        } else if (number > MAX_SAFE_INTEGER) {
-          number = MAX_SAFE_INTEGER;
-        }
-
-        return number;
-      },
-
       /**
        * Checks if an object already exists in a stack (Set), if it does then
        * throw an error because it means there is a circular reference.
@@ -1040,411 +1520,18 @@
         return generator;
       },
 
-      /*
-      map = (function (apm) {
-        var fn;
-
-        if (apm && !useShims) {
-          fn = function (array) {
-            return aps.apply(array, chop(arguments, 1));
-          };
-        } else {
-          fn = function (array, callback, thisArg) {
-            var object = toObject(array),
-              length,
-              arr,
-              index;
-
-            mustBeFunction(fn);
-            arr = [];
-            arr.length = length = toLength(object.length);
-            index = 0;
-            while (index < length) {
-              if (index in object) {
-                arr[index] = callback.call(
-                  thisArg,
-                  object[index],
-                  index,
-                  object
-                );
-              }
-
-              index += 1;
-            }
-
-            return arr;
-          };
-        }
-
-        return fn;
-      }(Array.prototype.map)),
-
-      filter = (function (apf) {
-        var fn;
-
-        if (apf && !useShims) {
-          fn = function (array) {
-            return apf.apply(array, chop(arguments, 1));
-          };
-        } else {
-          fn = function (array, callback, thisArg) {
-            var object = toObject(array),
-              length,
-              arr,
-              index,
-              it;
-
-            mustBeFunction(callback);
-            length = toLength(object.length);
-            arr = [];
-            index = 0;
-            while (index < length) {
-              if (index in object) {
-                it = object[index];
-                if (callback.call(thisArg, it, index, object)) {
-                  arr.push(it);
-                }
-              }
-
-              index += 1;
-            }
-
-            return arr;
-          };
-        }
-
-        return fn;
-      }(Array.prototype.filter)),
-      */
-
-      /*
-      curry = (function () {
-        return function (fn) {
-          var args;
-
-          mustBeFunction(fn);
-          args = chop(arguments, 1);
-          return function () {
-            return fn.apply(this, args.concat(chop(arguments)));
-          };
-        };
-      }()),
-      */
-
-      /**
-       * Executes a provided function once per array element.
-       *
-       * @private
-       * @param {array} arrayLike
-       * @param {function} callback
-       * @throws {TypeError} If callback is not a function
-       * @param {*} [thisArg]
-       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/
-       * Global_Objects/Array/forEach
-       */
-      forEach = (function (apf) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (apf && !useShims) {
-          /* istanbul ignore next */
-          fn = function (array) {
-            return apf.apply(array, chop(arguments, 1));
-          };
-        } else {
-          fn = function (array, callback, thisArg) {
-            var object = toObject(array),
-              length,
-              index;
-
-            mustBeFunction(callback);
-            length = toLength(object.length);
-            index = 0;
-            while (index < length) {
-              if (index in object) {
-                callback.call(thisArg, object[index], index, object);
-              }
-
-              index += 1;
-            }
-          };
-        }
-
-        return fn;
-      }(Array.prototype.forEach)),
-
-      some = (function (aps) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (aps && !useShims) {
-          fn = function (array) {
-            return aps.apply(array, chop(arguments, 1));
-          };
-        } else {
-          fn = function (array, callback, thisArg) {
-            var object = toObject(array),
-              val,
-              length,
-              index;
-
-            mustBeFunction(callback);
-            length = toLength(object.length);
-            val = false;
-            index = 0;
-            while (index < length) {
-              if (index in object) {
-                val = !!callback.call(thisArg, object[index], index, object);
-                if (val) {
-                  break;
-                }
-              }
-
-              index += 1;
-            }
-
-            return val;
-          };
-        }
-
-        return fn;
-      }(Array.prototype.some)),
-
-      every = (function (ape) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (ape && !useShims) {
-          fn = function (array) {
-            return ape.apply(array, chop(arguments, 1));
-          };
-        } else {
-          fn = function (array, callback, thisArg) {
-            var object = toObject(array),
-              length,
-              val,
-              index;
-
-            mustBeFunction(callback);
-            length = toLength(object.length);
-            val = true;
-            index = 0;
-            while (index < length) {
-              if (index in object) {
-                val = !!callback.call(thisArg, object[index], index, object);
-                if (!val) {
-                  break;
-                }
-              }
-
-              index += 1;
-            }
-
-            return val;
-          };
-        }
-
-        return fn;
-      }(Array.prototype.every)),
-
-      objectKeys = (function (ok) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (ok && !useShims) {
-          fn = ok;
-        } else {
-          fn = function (subject) {
-            var object = toObject(subject),
-              ownKeys = [],
-              key;
-
-            for (key in object) {
-              if (hasOwn(object, key)) {
-                ownKeys.push(key);
-              }
-            }
-
-            return ownKeys;
-          };
-        }
-
-        return fn;
-      }(Object.keys)),
-
-      /**
-       * The assign function is used to copy the values of all of the
-       * enumerable own properties from a source object to a target object.
-       *
-       * @private
-       * @param {Object} target
-       * @param {...Object} source
-       * @return {Object}
-       */
-      assign = (function (oa) {
-        var fn;
-
-        /* istanbul ignore else */
-        if (oa && !useShims) {
-          fn = oa;
-        } else {
-          fn = function (target) {
-            var object = toObject(target);
-
-            function copy(key) {
-              /*jshint validthis:true */
-              object[key] = this[key];
-            }
-
-            forEach(chop(arguments, 1), function (arg) {
-              if (!isNil(arg)) {
-                forEach(objectKeys(arg), copy, arg);
-              }
-            });
-
-            return object;
-          };
-        }
-
-        return fn;
-      }(Object.assign)),
-
-      indexOf = (function (api) {
-        var fn = api;
-
-        /* istanbul ignore else */
-        if (api && !useShims) {
-          fn = function (array) {
-            return api.apply(array, chop(arguments, 1));
-          };
-        } else {
-          fn = function (array, searchElement, fromIndex) {
-            var object = toObject(array),
-              length = toLength(object.length),
-              val = -1,
-              index;
-
-            if (length) {
-              if (arguments.length > 1) {
-                fromIndex = toInteger(fromIndex);
-              } else {
-                fromIndex = 0;
-              }
-
-              if (fromIndex < length) {
-                if (fromIndex < 0) {
-                  fromIndex = length - Math.abs(fromIndex);
-                  if (fromIndex < 0) {
-                    fromIndex = 0;
-                  }
-                }
-
-                index = fromIndex;
-                while (index < length) {
-                  if (index in object && searchElement === object[index]) {
-                    val = index;
-                    break;
-                  }
-
-                  index += 1;
-                }
-              }
-            }
-
-            return val;
-          };
-        }
-
-        return fn;
-      }(Array.prototype.indexOf)),
-
-      /*
-      is = function (x, y) {
-        /-*jshint singleGroups:false *-/
-        return (x === y && (x !== 0 || 1 / x === 1 / y)) ||
-          (numIsNaN(x) && numIsNaN(y));
-      },
-      */
-
-      IdGen = (function () {
-        var y = [1];
-
-        function IdGenerator() {
-          /* istanbul ignore if */
-          if (!(this instanceof IdGenerator)) {
-            return new IdGenerator();
-          }
-
-          setValue(this, 'id', [0]);
-        }
-
-        setValue(IdGenerator.prototype, 'next', function () {
-          var result = [],
-            length = this.id.length,
-            howMany = Math.max(length, 1),
-            carry = 0,
-            index = 0,
-            zi;
-
-          while (index < howMany || carry) {
-            zi = carry +
-              (index < length ? this.id[index] : 0) +
-              index < y[index];
-
-            result.push(zi % 10);
-            carry = Math.floor(zi / 10);
-            index += 1;
-          }
-
-          this.id = result;
-
-          return this;
-        });
-
-        setValue(IdGenerator.prototype, 'get', function () {
-          return this.id.join('');
-        });
-
-        return IdGenerator;
-      }()),
-
-      // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-samevaluezero
-      sameValueZero = function (x, y) {
-        /*jshint singleGroups:false */
-        return (x === y) || (numIsNaN(x) && numIsNaN(y));
-      },
-
-      getIndex = function (array, item) {
-        var index;
-
-        if (item === 0 || numIsNaN(item)) {
-          index = array.length - 1;
-          while (index >= 0 && !sameValueZero(item, array[index])) {
-            index -= 1;
-          }
-        } else {
-          index = indexOf(array, item);
-        }
-
-        return index;
-      },
-
-      includes = function (array, item) {
-        return getIndex(array, item) > -1;
-      },
-
       initMapSet = (function () {
         function getMapSetIterator(iterable) {
           var iterator;
 
-          if (!isNil(iterable)) {
-            if (isArrayLike(iterable)) {
-              iterator = reiterate(iterable, true);
-            } else if (iterable[symIt]) {
+          if (!_.isNil(iterable)) {
+            if (_.isArrayLike(iterable)) {
+              iterator = $reiterate(iterable, true);
+            } else if (iterable[_.symIt]) {
               iterator = iterable;
             }
 
-            iterator = iterator[symIt]();
+            iterator = iterator[_.symIt]();
           }
 
           return iterator;
@@ -1457,18 +1544,18 @@
             key;
 
           if (kind === 'map') {
-            setValue(context, '[[value]]', []);
+            _.setValue(context, '[[value]]', []);
           }
 
-          setValue(context, '[[key]]', []);
-          setValue(context, '[[order]]', []);
-          setValue(context, '[[id]]', new IdGen());
-          setValue(context, '[[changed]]', false);
+          _.setValue(context, '[[key]]', []);
+          _.setValue(context, '[[order]]', []);
+          _.setValue(context, '[[id]]', new _.IdGenerator());
+          _.setValue(context, '[[changed]]', false);
           if (iterator) {
             next = iterator.next();
             while (!next.done) {
               key = kind === 'map' ? next.value[0] : next.value;
-              indexof = getIndex(context['[[key]]'], key);
+              indexof = _.getIndex(context['[[key]]'], key);
               if (indexof < 0) {
                 if (kind === 'map') {
                   context['[[value]]'].push(next.value[1]);
@@ -1485,7 +1572,7 @@
             }
           }
 
-          setValue(context, 'size', context['[[key]]'].length);
+          _.setValue(context, 'size', context['[[key]]'].length);
         };
       }()),
 
@@ -1503,8 +1590,8 @@
             value,
             key;
 
-          mustBeObject(context);
-          mustBeFunction(callback);
+          _.assertIsObject(context);
+          _.assertIsFunction(callback);
           pointers = {
             index: 0,
             order: context['[[order]]'][0]
@@ -1513,7 +1600,7 @@
           context['[[change]]'] = false;
           length = context['[[key]]'].length;
           while (pointers.index < length) {
-            if (hasOwn(context['[[key]]'], pointers.index)) {
+            if (_.hasOwn(context['[[key]]'], pointers.index)) {
               key = context['[[key]]'][pointers.index];
               value = kind === 'map' ?
                 context['[[value]]'][pointers.index] :
@@ -1524,7 +1611,7 @@
 
             if (context['[[change]]']) {
               length = context['[[key]]'].length;
-              some(context['[[order]]'], changedMapSet, pointers);
+              _.some(context['[[order]]'], changedMapSet, pointers);
               context['[[change]]'] = false;
             } else {
               pointers.index += 1;
@@ -1538,12 +1625,12 @@
       }()),
 
       hasMapSet = function (key) {
-        return includes(mustBeObject(this)['[[key]]'], key);
+        return _.includes(_.assertIsObject(this)['[[key]]'], key);
       },
 
       clearMapSet = function (kind, context) {
-        mustBeObject(context);
-        context['[[id]]'] = new IdGen();
+        _.assertIsObject(context);
+        context['[[id]]'].reset();
         context['[[change]]'] = true;
         context['[[key]]'].length =
           context['[[order]]'].length =
@@ -1557,7 +1644,7 @@
       },
 
       deleteMapSet = function (kind, context, key) {
-        var indexof = getIndex(mustBeObject(context)['[[key]]'], key),
+        var indexof = _.getIndex(_.assertIsObject(context)['[[key]]'], key),
           result = false;
 
         if (indexof > -1) {
@@ -1576,7 +1663,7 @@
       },
 
       setMapSet = function (kind, context, key, value) {
-        var index = getIndex(mustBeObject(context)['[[key]]'], key);
+        var index = _.getIndex(_.assertIsObject(context)['[[key]]'], key);
 
         if (kind === 'map' && index > -1) {
           context['[[value]]'][index] = value;
@@ -1596,7 +1683,7 @@
       },
 
       SetObject = (function (typeFunction) {
-        var S = typeof Set === typeFunction && !useShims && Set,
+        var S = typeof Set === typeFunction && !_.useShims && Set,
           createSetIterator,
           SetIterator,
           callback,
@@ -1616,7 +1703,7 @@
               typeof s.forEach !== typeFunction ||
               typeof s.clear !== typeFunction ||
               typeof s[strDelete] !== typeFunction ||
-              typeof s[symIt] !== typeFunction) {
+              typeof s[_.symIt] !== typeFunction) {
               throw new Error('Missing methods');
             }
 
@@ -1645,14 +1732,14 @@
           typeIdenifier = 'set';
 
           SetIterator = function (context, iteratorKind) {
-            setValue(this, '[[Set]]', mustBeObject(context));
-            setValue(this, '[[SetNextIndex]]', 0);
-            setValue(this, '[[SetIterationKind]]', iteratorKind || 'value');
-            setValue(this, '[[IteratorHasMore]]', true);
+            _.setValue(this, '[[Set]]', _.assertIsObject(context));
+            _.setValue(this, '[[SetNextIndex]]', 0);
+            _.setValue(this, '[[SetIterationKind]]', iteratorKind || 'value');
+            _.setValue(this, '[[IteratorHasMore]]', true);
           };
 
-          setValue(SetIterator.prototype, 'next', function () {
-            var context = mustBeObject(this['[[Set]]']),
+          _.setValue(SetIterator.prototype, 'next', function () {
+            var context = _.assertIsObject(this['[[Set]]']),
               index = this['[[SetNextIndex]]'],
               iteratorKind = this['[[SetIterationKind]]'],
               more = this['[[IteratorHasMore]]'],
@@ -1675,15 +1762,13 @@
               this['[[SetNextIndex]]'] += 1;
             } else {
               this['[[IteratorHasMore]]'] = false;
-              object = assign({}, $.DONE);
+              object = _.assign({}, $.DONE);
             }
 
             return object;
           });
 
-          setValue(SetIterator.prototype, symIt, function () {
-            return this;
-          });
+          _.setValue(SetIterator.prototype, _.symIt, _.returnThis);
 
           createSetIterator = function () {
             return new SetIterator(this);
@@ -1693,42 +1778,42 @@
             initMapSet(typeIdenifier, this, iterable);
           };
 
-          setValue(fn.prototype, 'has', hasMapSet);
+          _.setValue(fn.prototype, 'has', hasMapSet);
 
-          setValue(fn.prototype, 'add', function (key) {
+          _.setValue(fn.prototype, 'add', function (key) {
             return setMapSet(typeIdenifier, this, key);
           });
 
-          setValue(fn.prototype, 'clear', function () {
+          _.setValue(fn.prototype, 'clear', function () {
             return clearMapSet(typeIdenifier, this);
           });
 
-          setValue(fn.prototype, strDelete, function (key) {
+          _.setValue(fn.prototype, strDelete, function (key) {
             return deleteMapSet(typeIdenifier, this, key);
           });
 
-          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
+          _.setValue(fn.prototype, 'forEach', function (callback, thisArg) {
             return forEachMapSet(typeIdenifier, this, callback, thisArg);
           });
 
-          setValue(fn.prototype, 'values', createSetIterator);
+          _.setValue(fn.prototype, 'values', createSetIterator);
 
-          setValue(fn.prototype, 'keys', createSetIterator);
+          _.setValue(fn.prototype, 'keys', createSetIterator);
 
-          setValue(fn.prototype, 'entries', function () {
+          _.setValue(fn.prototype, 'entries', function () {
             return new SetIterator(this, 'key+value');
           });
 
-          setValue(fn.prototype, symIt, function () {
+          _.setValue(fn.prototype, _.symIt, function () {
             return this.values();
           });
         }
 
         return fn;
-      }(typeof isObject)),
+      }(typeof _.isObject)),
 
       MapObject = (function (typeFunction) {
-        var M = typeof Map === typeFunction && !useShims && Map,
+        var M = typeof Map === typeFunction && !_.useShims && Map,
           MapIterator,
           generic,
           callback,
@@ -1752,7 +1837,7 @@
               typeof m.forEach !== typeFunction ||
               typeof m.clear !== typeFunction ||
               typeof m[strDelete] !== typeFunction ||
-              typeof m[symIt] !== typeFunction) {
+              typeof m[_.symIt] !== typeFunction) {
               throw new Error('Missing methods');
             }
 
@@ -1782,20 +1867,20 @@
           typeIdenifier = 'map';
 
           MapIterator = function (context, iteratorKind) {
-            setValue(this, '[[Map]]', mustBeObject(context));
-            setValue(this, '[[MapNextIndex]]', 0);
-            setValue(this, '[[MapIterationKind]]', iteratorKind);
-            setValue(this, '[[IteratorHasMore]]', true);
+            _.setValue(this, '[[Map]]', _.assertIsObject(context));
+            _.setValue(this, '[[MapNextIndex]]', 0);
+            _.setValue(this, '[[MapIterationKind]]', iteratorKind);
+            _.setValue(this, '[[IteratorHasMore]]', true);
           };
 
-          setValue(MapIterator.prototype, 'next', function () {
-            var context = mustBeObject(this['[[Map]]']),
+          _.setValue(MapIterator.prototype, 'next', function () {
+            var context = _.assertIsObject(this['[[Map]]']),
               index = this['[[MapNextIndex]]'],
               iteratorKind = this['[[MapIterationKind]]'],
               more = this['[[IteratorHasMore]]'],
               object;
 
-            mustBeObject(context);
+            _.assertIsObject(context);
             if (index < context['[[key]]'].length && more) {
               object = {
                 done: false
@@ -1813,63 +1898,61 @@
               this['[[MapNextIndex]]'] += 1;
             } else {
               this['[[IteratorHasMore]]'] = false;
-              object = assign({}, $.DONE);
+              object = _.assign({}, $.DONE);
             }
 
             return object;
           });
 
-          setValue(MapIterator.prototype, symIt, function () {
-            return this;
-          });
+          _.setValue(MapIterator.prototype, _.symIt, _.returnThis);
 
           fn = function Map(iterable) {
             initMapSet(typeIdenifier, this, iterable);
           };
 
-          setValue(fn.prototype, 'has', hasMapSet);
+          _.setValue(fn.prototype, 'has', hasMapSet);
 
-          setValue(fn.prototype, 'set', function (key, value) {
+          _.setValue(fn.prototype, 'set', function (key, value) {
             return setMapSet(typeIdenifier, this, key, value);
           });
 
-          setValue(fn.prototype, 'clear', function () {
+          _.setValue(fn.prototype, 'clear', function () {
             return clearMapSet(typeIdenifier, this);
           });
 
-          setValue(fn.prototype, 'get', function (key) {
-            var index = getIndex(mustBeObject(this)['[[key]]'], key);
+          _.setValue(fn.prototype, 'get', function (key) {
+            var index = _.getIndex(_.assertIsObject(this)['[[key]]'], key);
 
             return index > -1 ? this['[[value]]'][index] : undefined;
           });
 
-          setValue(fn.prototype, strDelete, function (key) {
+          _.setValue(fn.prototype, strDelete, function (key) {
             return deleteMapSet(typeIdenifier, this, key);
           });
 
-          setValue(fn.prototype, 'forEach', function (callback, thisArg) {
+          _.setValue(fn.prototype, 'forEach', function (callback, thisArg) {
             return forEachMapSet(typeIdenifier, this, callback, thisArg);
           });
 
-          setValue(fn.prototype, 'values', function () {
+          _.setValue(fn.prototype, 'values', function () {
             return new MapIterator(this, 'value');
           });
 
-          setValue(fn.prototype, 'keys', function () {
+          _.setValue(fn.prototype, 'keys', function () {
             return new MapIterator(this, 'key');
           });
 
-          setValue(fn.prototype, 'entries', function () {
+          _.setValue(fn.prototype, 'entries', function () {
             return new MapIterator(this, 'key+value');
           });
 
-          setValue(fn.prototype, symIt, function () {
+          _.setValue(fn.prototype, _.symIt, function () {
             return this.entries();
           });
         }
 
         return fn;
-      }(typeof isObject)),
+      }(typeof _.isObject)),
 
       /**
        * A function to return the entries, values or keys depending on the
@@ -1895,37 +1978,37 @@
       },
 
       addMethods = function (object) {
-        setValue(object, 'first', p.first);
-        setValue(object, 'last', p.last);
-        setValue(object, 'enumerate', g.EnumerateGenerator);
-        setValue(object, 'unique', p.uniqueGenerator);
-        setValue(object, 'flatten', p.flattenGenerator);
-        setValue(object, 'compact', p.compactGenerator);
-        setValue(object, 'initial', p.initialGenerator);
-        setValue(object, 'rest', p.restGenerator);
-        setValue(object, 'drop', p.dropGenerator);
-        setValue(object, 'dropWhile', p.dropWhileGenerator);
-        setValue(object, 'take', p.takeGenerator);
-        setValue(object, 'takeWhile', p.takeWhileGenerator);
-        setValue(object, 'every', p.every);
-        setValue(object, 'some', p.some);
-        setValue(object, 'filter', p.filterGenerator);
-        setValue(object, 'asArray', p.asArray);
-        //setValue(object, 'asString', p.asString);
-        setValue(object, 'asString', p.asString);
-        setValue(object, 'asObject', p.asObject);
-        setValue(object, 'asMap', p.asMap);
-        setValue(object, 'map', p.mapGenerator);
-        setValue(object, 'reduce', p.reduce);
-        setValue(object, 'difference', p.differenceGenerator);
-        setValue(object, 'join', p.join);
-        setValue(object, 'union', p.unionGenerator);
-        setValue(object, 'intersection', p.intersectionGenerator);
-        setValue(object, 'asSet', p.asSet);
-        setValue(object, 'chunk', p.chunkGenerator);
-        setValue(object, 'tap', p.tapGenerator);
-        setValue(object, 'then', p.then);
-        setValue(object, 'zip', p.zipGenerator);
+        _.setValue(object, 'first', p.first);
+        _.setValue(object, 'last', p.last);
+        _.setValue(object, 'enumerate', g.EnumerateGenerator);
+        _.setValue(object, 'unique', p.uniqueGenerator);
+        _.setValue(object, 'flatten', p.flattenGenerator);
+        _.setValue(object, 'compact', p.compactGenerator);
+        _.setValue(object, 'initial', p.initialGenerator);
+        _.setValue(object, 'rest', p.restGenerator);
+        _.setValue(object, 'drop', p.dropGenerator);
+        _.setValue(object, 'dropWhile', p.dropWhileGenerator);
+        _.setValue(object, 'take', p.takeGenerator);
+        _.setValue(object, 'takeWhile', p.takeWhileGenerator);
+        _.setValue(object, 'every', p.every);
+        _.setValue(object, 'some', p.some);
+        _.setValue(object, 'filter', p.filterGenerator);
+        _.setValue(object, 'asArray', p.asArray);
+        //_.setValue(object, 'asString', p.asString);
+        _.setValue(object, 'asString', p.asString);
+        _.setValue(object, 'asObject', p.asObject);
+        _.setValue(object, 'asMap', p.asMap);
+        _.setValue(object, 'map', p.mapGenerator);
+        _.setValue(object, 'reduce', p.reduce);
+        _.setValue(object, 'difference', p.differenceGenerator);
+        _.setValue(object, 'join', p.join);
+        _.setValue(object, 'union', p.unionGenerator);
+        _.setValue(object, 'intersection', p.intersectionGenerator);
+        _.setValue(object, 'asSet', p.asSet);
+        _.setValue(object, 'chunk', p.chunkGenerator);
+        _.setValue(object, 'tap', p.tapGenerator);
+        _.setValue(object, 'then', p.then);
+        _.setValue(object, 'zip', p.zipGenerator);
       },
 
       populatePrototypes = function () {
@@ -1939,17 +2022,17 @@
       },
 
       setIndexesOpts = function (start, end, opts) {
-        opts.from = toInteger(start);
+        opts.from = _.toInteger(start);
         if (opts.from < 0) {
           opts.from = Math.max(opts.length + opts.from, 0);
         } else {
           opts.from = Math.min(opts.from, opts.length);
         }
 
-        if (isUndefined(end)) {
+        if (_.isUndefined(end)) {
           opts.to = opts.length;
         } else {
-          opts.to = toInteger(end);
+          opts.to = _.toInteger(end);
         }
 
         if (opts.to < 0) {
@@ -1958,7 +2041,7 @@
           opts.to = Math.min(opts.to, opts.length);
         }
 
-        opts.to = toLength(opts.to) - 1;
+        opts.to = _.toLength(opts.to) - 1;
       },
 
       /**
@@ -1975,12 +2058,12 @@
             index,
             next;
 
-          mustBeFunction(callback);
+          _.assertIsFunction(callback);
           if (arguments.length > 1) {
             supplied = true;
           }
 
-          iterator = this[symIt]();
+          iterator = this[_.symIt]();
           next = iterator.next();
           if (!next.done) {
             index = 0;
@@ -2003,9 +2086,9 @@
         tapGenerator: function (callback, thisArg) {
           var generator;
 
-          mustBeFunction(callback);
-          generator = this[symIt];
-          this[symIt] = function () {
+          _.assertIsFunction(callback);
+          generator = this[_.symIt];
+          this[_.symIt] = function () {
             var index = 0,
               itertor,
               next;
@@ -2025,7 +2108,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2042,8 +2125,8 @@
             index,
             next;
 
-          mustBeFunction(callback);
-          iterator = this[symIt]();
+          _.assertIsFunction(callback);
+          iterator = this[_.symIt]();
           next = iterator.next();
           result = true;
           index = 0;
@@ -2065,8 +2148,8 @@
             index,
             next;
 
-          mustBeFunction(callback);
-          iterator = this[symIt]();
+          _.assertIsFunction(callback);
+          iterator = this[_.symIt]();
           next = iterator.next();
           result = false;
           index = 0;
@@ -2083,7 +2166,7 @@
         },
 
         asArray: function () {
-          var iterator = this[symIt](),
+          var iterator = this[_.symIt](),
             next = iterator.next(),
             result = [];
 
@@ -2096,12 +2179,12 @@
         },
 
         join: function (seperator) {
-          var iterator = this[symIt](),
+          var iterator = this[_.symIt](),
             next = iterator.next(),
             result = '',
             after;
 
-          if (isUndefined(seperator)) {
+          if (_.isUndefined(seperator)) {
             seperator = ',';
           }
 
@@ -2129,7 +2212,7 @@
         },
 
         asObject: function () {
-          var iterator = this[symIt](),
+          var iterator = this[_.symIt](),
             next = iterator.next(),
             result = {},
             index = 0;
@@ -2143,40 +2226,58 @@
           return result;
         },
 
-        asMap: function () {
-          var iterator = this[symIt](),
-            next = iterator.next(),
-            result = new MapObject(),
-            index;
+        asMap: (function (typeFunction) {
+          return function (CustomMap) {
+            var iterator = this[_.symIt](),
+              next = iterator.next(),
+              result,
+              index;
 
-          if (!next.done) {
-            index = 0;
-            while (!next.done) {
-              result.set(index, next.value);
-              next = iterator.next();
-              index += 1;
+            if (arguments.length) {
+              _.assertIsFunction(CustomMap);
+              result = new CustomMap();
+            } else if (typeof Map === typeFunction) {
+              result = new Map();
             }
-          }
 
-          return result;
-        },
+            if (!next.done) {
+              index = 0;
+              while (!next.done) {
+                result.set(index, next.value);
+                next = iterator.next();
+                index += 1;
+              }
+            }
 
-        asSet: function () {
-          var iterator = this[symIt](),
-            next = iterator.next(),
-            result = new SetObject();
+            return result;
+          };
+        }(typeof _.isObject)),
 
-          while (!next.done) {
-            result.add(next.value);
-            next = iterator.next();
-          }
+        asSet: (function (typeFunction) {
+          return function (CustomSet) {
+            var iterator = this[_.symIt](),
+              next = iterator.next(),
+              result;
 
-          return result;
-        },
+            if (arguments.length) {
+              _.assertIsFunction(CustomSet);
+              result = new CustomSet();
+            } else if (typeof Set === typeFunction) {
+              result = new Set();
+            }
+
+            while (!next.done) {
+              result.add(next.value);
+              next = iterator.next();
+            }
+
+            return result;
+          };
+        }(typeof _.isObject)),
 
         /*
         asSetOwn: function () {
-          var iterator = this[symIt](),
+          var iterator = this[_.symIt](),
             next;
 
           do {
@@ -2188,10 +2289,10 @@
         */
 
         dropGenerator: function (number) {
-          var generator = this[symIt],
-            howMany = toLength(number);
+          var generator = this[_.symIt],
+            howMany = _.toLength(number);
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var index = 0,
               iterator,
               next;
@@ -2215,7 +2316,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2233,9 +2334,9 @@
         dropWhileGenerator: function (callback, thisArg) {
           var generator;
 
-          mustBeFunction(callback);
-          generator = this[symIt];
-          this[symIt] = function () {
+          _.assertIsFunction(callback);
+          generator = this[_.symIt];
+          this[_.symIt] = function () {
             var index = 0,
               iterator,
               dropped,
@@ -2265,7 +2366,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2277,10 +2378,10 @@
         },
 
         takeGenerator: function (number) {
-          var generator = this[symIt],
-            howMany = toLength(number);
+          var generator = this[_.symIt],
+            howMany = _.toLength(number);
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var index = 0,
               iterator,
               next;
@@ -2299,7 +2400,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2313,9 +2414,9 @@
         takeWhileGenerator: function (callback, thisArg) {
           var generator;
 
-          mustBeFunction(callback);
-          generator = this[symIt];
-          this[symIt] = function () {
+          _.assertIsFunction(callback);
+          generator = this[_.symIt];
+          this[_.symIt] = function () {
             var index = 0,
               iterator,
               next;
@@ -2334,7 +2435,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2346,10 +2447,10 @@
         },
 
         chunkGenerator: function (size) {
-          var generator = this[symIt],
-            howMany = toLength(size) || 1;
+          var generator = this[_.symIt],
+            howMany = _.toLength(size) || 1;
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var iterator,
               next;
 
@@ -2376,7 +2477,7 @@
                     value: chunk
                   };
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2388,9 +2489,9 @@
         },
 
         compactGenerator: function () {
-          var generator = this[symIt];
+          var generator = this[_.symIt];
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var iterator,
               next;
 
@@ -2410,7 +2511,7 @@
                     value: next.value
                   };
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2422,10 +2523,10 @@
         },
 
         differenceGenerator: function (values) {
-          var generator = this[symIt],
+          var generator = this[_.symIt],
             set;
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var iterator,
               next;
 
@@ -2435,7 +2536,7 @@
 
                 iterator = iterator || generator();
                 next = next && next.done ? next : iterator.next();
-                set = set || new SetObject(reiterate(values).values());
+                set = set || new SetObject($reiterate(values).values());
                 while (!next.done && set.has(next.value)) {
                   next = iterator.next();
                 }
@@ -2446,7 +2547,7 @@
                     value: next.value
                   };
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2458,9 +2559,9 @@
         },
 
         initialGenerator: function () {
-          var generator = this[symIt];
+          var generator = this[_.symIt];
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var iterator,
               after,
               next;
@@ -2480,7 +2581,7 @@
 
                   next = after;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2492,13 +2593,13 @@
         },
 
         first: function () {
-          var next = this[symIt]().next();
+          var next = this[_.symIt]().next();
 
           return next.done ? undefined : next.value;
         },
 
         last: function () {
-          var iterator = this[symIt](),
+          var iterator = this[_.symIt](),
             next = iterator.next(),
             after,
             last;
@@ -2517,9 +2618,9 @@
         },
 
         uniqueGenerator: function () {
-          var generator = this[symIt];
+          var generator = this[_.symIt];
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var seen,
               iterator,
               next;
@@ -2544,7 +2645,7 @@
                   seen.add(next.value);
                   next = iterator.next();
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                   object.value = seen;
                 }
 
@@ -2563,18 +2664,18 @@
           }
 
           function push(argSets, arg) {
-            if (isArrayLike(arg) || isFunction(arg[symIt])) {
-              argSets.push(new SetObject(reiterate(arg)));
+            if (_.isArrayLike(arg) || _.isFunction(arg[_.symIt])) {
+              argSets.push(new SetObject($reiterate(arg)));
             }
 
             return argSets;
           }
 
           return function () {
-            var generator = this[symIt],
+            var generator = this[_.symIt],
               args = arguments;
 
-            this[symIt] = function () {
+            this[_.symIt] = function () {
               var iterator,
                 argSets,
                 seen,
@@ -2584,13 +2685,13 @@
                 next: function () {
                   var object;
 
-                  argSets = argSets || reduce(args, push, []);
+                  argSets = argSets || _.reduce(args, push, []);
                   seen = seen || new SetObject();
                   iterator = iterator || generator();
                   next = next && next.done ? next : iterator.next();
                   while (!next.done) {
                     if (!seen.has(next.value)) {
-                      if (every(argSets, has, next)) {
+                      if (_.every(argSets, has, next)) {
                         seen.add(next.value);
                         //yield next.value;
                         break;
@@ -2608,7 +2709,7 @@
                       value: next.value
                     };
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
 
                   return object;
@@ -2621,11 +2722,11 @@
         }()),
 
         unionGenerator: function () {
-          var generator = this[symIt],
+          var generator = this[_.symIt],
             args = arguments;
 
 
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var seen,
               iterator,
               next,
@@ -2652,20 +2753,21 @@
                 }
 
                 if (next.done && args.length) {
-                  outerIt = outerIt || new g.ArrayGenerator(args)[symIt]();
+                  outerIt = outerIt || new g.ArrayGenerator(args)[_.symIt]();
                   if (!innerNext || innerNext.done) {
                     outerNext = outerIt.next();
                   }
 
                   while (!outerNext.done || !innerNext) {
-                    if (isArrayLike(outerNext.value) ||
-                      isFunction(outerNext.value[symIt])) {
+                    if (_.isArrayLike(outerNext.value) ||
+                      _.isFunction(outerNext.value[_.symIt])) {
                       /*jshint singleGroups:false */
                       if (!innerIt || (innerNext && innerNext.done)) {
-                        if (isArrayLike(outerNext.value)) {
-                          innerIt = reiterate(outerNext.value, true)[symIt]();
+                        if (_.isArrayLike(outerNext.value)) {
+                          innerIt =
+                            $reiterate(outerNext.value, true)[_.symIt]();
                         } else {
-                          innerIt = outerNext.value[symIt]();
+                          innerIt = outerNext.value[_.symIt]();
                         }
                       }
 
@@ -2698,7 +2800,7 @@
                     value: innerNext ? innerNext.value : next.value
                   };
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                   object.value = seen;
                 }
 
@@ -2725,18 +2827,18 @@
           }
 
           function push(iterators, arg) {
-            if (isArrayLike(arg) || isFunction(arg[symIt])) {
-              iterators.push(reiterate(arg, true)[symIt]());
+            if (_.isArrayLike(arg) || _.isFunction(arg[_.symIt])) {
+              iterators.push($reiterate(arg, true)[_.symIt]());
             }
 
             return iterators;
           }
 
           return function () {
-            var generator = this[symIt],
+            var generator = this[_.symIt],
               args = arguments;
 
-            this[symIt] = function () {
+            this[_.symIt] = function () {
               var iterators,
                 next;
 
@@ -2744,9 +2846,9 @@
                 next: function () {
                   var object;
 
-                  iterators = iterators || reduce(args, push, [generator()]);
+                  iterators = iterators || _.reduce(args, push, [generator()]);
                   while (!next || !next.done) {
-                    next = reduce(iterators, ofNext, {
+                    next = _.reduce(iterators, ofNext, {
                       value: [],
                       done: true
                     });
@@ -2763,7 +2865,7 @@
                       value: next.value
                     };
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
 
                   return object;
@@ -2784,9 +2886,9 @@
           }
 
           return function (relaxed) {
-            var generator = this[symIt];
+            var generator = this[_.symIt];
 
-            this[symIt] = function () {
+            this[_.symIt] = function () {
               var stack,
                 iterator,
                 next,
@@ -2806,7 +2908,7 @@
                   done1 = false;
                   while (!next.done && !done2) {
                     if (!stack.size) {
-                      if (isArray(next.value, relaxed)) {
+                      if (_.isArray(next.value, relaxed)) {
                         item = next.value;
                         setStack(stack, item, null);
                       } else {
@@ -2824,7 +2926,7 @@
                         item = tail.prev;
                       } else {
                         value = item[tail.index];
-                        if (isArray(value, relaxed)) {
+                        if (_.isArray(value, relaxed)) {
                           throwIfCircular(stack, value);
                           setStack(stack, value, item);
                           item = value;
@@ -2850,7 +2952,7 @@
                       value: value
                     };
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
 
                   return object;
@@ -2875,7 +2977,7 @@
           }
 
           return function* () {
-            var iterator = this[symIt](),
+            var iterator = this[_.symIt](),
               next = iterator.next(),
               stack,
               object,
@@ -2888,7 +2990,7 @@
 
             stack = new es6.Map();
             while (!next.done) {
-              if (isObject(object)) {
+              if (_.isObject(object)) {
                 setStack(stack, object, null);
               } else {
                 yield object;
@@ -2902,7 +3004,7 @@
                 } else {
                   key = tail.keys[tail.index];
                   value = object[next.value];
-                  if (isObject(value)) {
+                  if (_.isObject(value)) {
                     throwIfCircular(stack, value);
                     setStack(stack, value, object);
                     object = value;
@@ -2923,9 +3025,9 @@
         mapGenerator: function (callback, thisArg) {
           var generator;
 
-          mustBeFunction(callback);
-          generator = this[symIt];
-          this[symIt] = function () {
+          _.assertIsFunction(callback);
+          generator = this[_.symIt];
+          this[_.symIt] = function () {
             var index = 0,
               iterator,
               next;
@@ -2944,7 +3046,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2958,9 +3060,9 @@
         filterGenerator: function (callback, thisArg) {
           var generator;
 
-          mustBeFunction(callback);
-          generator = this[symIt];
-          this[symIt] = function () {
+          _.assertIsFunction(callback);
+          generator = this[_.symIt];
+          this[_.symIt] = function () {
             var index = 0,
               iterator,
               next;
@@ -2985,7 +3087,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -2997,19 +3099,19 @@
         },
 
         then: function (gen) {
-          var generator = this[symIt],
+          var generator = this[_.symIt],
             context;
 
-          if (!isUndefined(gen)) {
-            if (!isFunction(gen)) {
+          if (!_.isUndefined(gen)) {
+            if (!_.isFunction(gen)) {
               throw new TypeError(
                 'If not undefined, generator must be a function'
               );
             }
 
-            context = new g.ThenGenerator(gen, this, chop(arguments, 1));
+            context = new g.ThenGenerator(gen, this, _.chop(arguments, 1));
           } else {
-            this[symIt] = function () {
+            this[_.symIt] = function () {
               var index = 0,
                 iterator,
                 next;
@@ -3028,7 +3130,7 @@
 
                     index += 1;
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
 
                   return object;
@@ -3051,7 +3153,7 @@
       g = {
 
         ThenGenerator: function (generator, context, argsArray) {
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var index = 0,
               iterator,
               next;
@@ -3061,10 +3163,10 @@
                 var object;
 
                 if (!iterator) {
-                  if (isFunction(generator)) {
+                  if (_.isFunction(generator)) {
                     iterator = generator.apply(context, argsArray);
                   } else {
-                    iterator = generator[symIt]();
+                    iterator = generator[_.symIt]();
                   }
                 }
 
@@ -3077,7 +3179,7 @@
 
                   index += 1;
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -3086,10 +3188,10 @@
           };
 
           /*
-          this[symIt] = function () {
+          this[_.symIt] = function () {
             var inter = Function.prototype.apply.bind(generator, argsArray);
 
-            inter[symIt] = generator[symIt];
+            inter[_.symIt] = generator[_.symIt];
             return inter;
           };
           */
@@ -3112,7 +3214,7 @@
 
                     count += opts.by;
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
                 } else {
                   if (count >= opts.from) {
@@ -3123,7 +3225,7 @@
 
                     count -= opts.by;
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
                 }
 
@@ -3148,7 +3250,7 @@
 
                     count += opts.by;
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
                 } else {
                   if (count >= opts.to) {
@@ -3159,7 +3261,7 @@
 
                     count -= opts.by;
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
                 }
 
@@ -3197,30 +3299,32 @@
             var opts = {
               reversed: false,
               from: 0,
-              to: MAX_SAFE_INTEGER,
+              to: _.MAX_SAFE_INTEGER,
               by: 1
             };
 
-            setValue(this, 'state', function () {
-              return assign({}, opts);
+            _.setValue(this, 'state', function () {
+              return _.assign({}, opts);
             });
 
-            setValue(this, symIt, function () {
-              return countGenerator(assign({}, opts));
+            _.setValue(this, _.symIt, function () {
+              return countGenerator(_.assign({}, opts));
             });
 
-            setValue(this, 'from', function (number) {
-              opts.from = clampToSafeIntegerRange(number);
+            _.setValue(this, 'from', function (number) {
+              opts.from = _.clampToSafeIntegerRange(number);
+
               return this;
             });
 
-            setValue(this, 'to', function (number) {
-              opts.to = clampToSafeIntegerRange(number);
+            _.setValue(this, 'to', function (number) {
+              opts.to = _.clampToSafeIntegerRange(number);
+
               return this;
             });
 
-            setValue(this, 'by', function (number) {
-              opts.by = Math.abs(clampToSafeIntegerRange(number));
+            _.setValue(this, 'by', function (number) {
+              opts.by = Math.abs(_.clampToSafeIntegerRange(number));
               if (!opts.by) {
                 throw new TypeError('can not count by zero');
               }
@@ -3228,7 +3332,7 @@
               return this;
             });
 
-            setValue(this, 'reverse', function () {
+            _.setValue(this, 'reverse', function () {
               opts.reversed = !opts.reversed;
               return this;
             });
@@ -3252,7 +3356,7 @@
                 next: function () {
                   var object;
 
-                  counter = counter || generator[symIt]();
+                  counter = counter || generator[_.symIt]();
                   next = next && next.done ? next : counter.next();
                   if (!next.done) {
                     object = {
@@ -3260,7 +3364,7 @@
                       value: getYieldValue(opts, subject, next.value)
                     };
                   } else {
-                    object = assign({}, $.DONE);
+                    object = _.assign({}, $.DONE);
                   }
 
                   return object;
@@ -3269,7 +3373,7 @@
             } else {
               iterator = {
                 next: function () {
-                  return assign({}, $.DONE);
+                  return _.assign({}, $.DONE);
                 }
               };
             }
@@ -3282,8 +3386,8 @@
               return new ArrayGenerator(subject);
             }
 
-            var length = isArrayLike(subject) ? subject.length : 0,
-              opts = assign({
+            var length = _.isArrayLike(subject) ? subject.length : 0,
+              opts = _.assign({
                 length: length,
                 reversed: false,
                 from: 0,
@@ -3291,35 +3395,38 @@
                 by: 1
               }, $.OPTS.VALUES);
 
-            setValue(this, 'state', function () {
-              return assign({}, opts);
+            _.setValue(this, 'state', function () {
+              return _.assign({}, opts);
             });
 
-            setValue(this, symIt, function () {
-              return arrayGenerator(subject, assign({}, opts));
+            _.setValue(this, _.symIt, function () {
+              return arrayGenerator(subject, _.assign({}, opts));
             });
 
-            setValue(this, 'entries', function () {
-              assign(opts, $.OPTS.ENTRIES);
+            _.setValue(this, 'entries', function () {
+              _.assign(opts, $.OPTS.ENTRIES);
+
               return this;
             });
 
-            setValue(this, 'values', function () {
-              assign(opts, $.OPTS.VALUES);
+            _.setValue(this, 'values', function () {
+              _.assign(opts, $.OPTS.VALUES);
+
               return this;
             });
 
-            setValue(this, 'keys', function () {
-              assign(opts, $.OPTS.KEYS);
+            _.setValue(this, 'keys', function () {
+              _.assign(opts, $.OPTS.KEYS);
+
               return this;
             });
 
-            setValue(this, 'reverse', function () {
+            _.setValue(this, 'reverse', function () {
               opts.reversed = !opts.reversed;
               return this;
             });
 
-            setValue(this, 'slice', function (start, end) {
+            _.setValue(this, 'slice', function (start, end) {
               setIndexesOpts(start, end, opts);
               return this;
             });
@@ -3335,9 +3442,9 @@
             if (opts.keys) {
               result = key;
             } else if (opts.values) {
-              result = fromCodePoint(codePointAt(character));
+              result = _.fromCodePoint(_.codePointAt(character));
             } else {
-              result = [key, fromCodePoint(codePointAt(character))];
+              result = [key, _.fromCodePoint(_.codePointAt(character))];
             }
 
             return result;
@@ -3353,7 +3460,7 @@
             if (!opts.length) {
               return {
                 next: function () {
-                  return assign({}, $.DONE);
+                  return _.assign({}, $.DONE);
                 }
               };
             }
@@ -3367,7 +3474,7 @@
                   char1,
                   char2;
 
-                counter = counter || generator[symIt]();
+                counter = counter || generator[_.symIt]();
                 next = next || counter.next();
                 if (!next.done) {
                   while (!next.done && !object) {
@@ -3375,7 +3482,7 @@
                       if (opts.reversed) {
                         char1 = subject[next.value - 1];
                         char2 = subject[next.value];
-                        isPair = isSurrogatePair(char1, char2);
+                        isPair = _.isSurrogatePair(char1, char2);
                         if (!isPair) {
                           object = {
                             done: false,
@@ -3389,7 +3496,7 @@
                       } else {
                         char1 = subject[next.value];
                         char2 = subject[next.value + 1];
-                        isPair = isSurrogatePair(char1, char2);
+                        isPair = _.isSurrogatePair(char1, char2);
                         object = {
                           done: false,
                           value: getStringYieldValue(
@@ -3417,7 +3524,7 @@
                   }
                 }
 
-                return object || assign({}, $.DONE);
+                return object || _.assign({}, $.DONE);
               }
             };
 
@@ -3429,8 +3536,8 @@
               return new StringGenerator(subject);
             }
 
-            var length = isArrayLike(subject) ? subject.length : 0,
-              opts = assign({
+            var length = _.isArrayLike(subject) ? subject.length : 0,
+              opts = _.assign({
                 length: length,
                 reversed: false,
                 from: 0,
@@ -3438,35 +3545,38 @@
                 by: 1
               }, $.OPTS.VALUES);
 
-            setValue(this, 'state', function () {
-              return assign({}, opts);
+            _.setValue(this, 'state', function () {
+              return _.assign({}, opts);
             });
 
-            setValue(this, symIt, function () {
-              return stringGenerator(subject, assign({}, opts));
+            _.setValue(this, _.symIt, function () {
+              return stringGenerator(subject, _.assign({}, opts));
             });
 
-            setValue(this, 'entries', function () {
-              assign(opts, $.OPTS.ENTRIES);
+            _.setValue(this, 'entries', function () {
+              _.assign(opts, $.OPTS.ENTRIES);
+
               return this;
             });
 
-            setValue(this, 'values', function () {
-              assign(opts, $.OPTS.VALUES);
+            _.setValue(this, 'values', function () {
+              _.assign(opts, $.OPTS.VALUES);
+
               return this;
             });
 
-            setValue(this, 'keys', function () {
-              assign(opts, $.OPTS.KEYS);
+            _.setValue(this, 'keys', function () {
+              _.assign(opts, $.OPTS.KEYS);
+
               return this;
             });
 
-            setValue(this, 'reverse', function () {
+            _.setValue(this, 'reverse', function () {
               opts.reversed = !opts.reversed;
               return this;
             });
 
-            setValue(this, 'slice', function (start, end) {
+            _.setValue(this, 'slice', function (start, end) {
               var char1,
                 char2;
 
@@ -3474,7 +3584,7 @@
               if (opts.from) {
                 char1 = subject[opts.from - 1];
                 char2 = subject[opts.from];
-                if (isSurrogatePair(char1, char2)) {
+                if (_.isSurrogatePair(char1, char2)) {
                   opts.from += 1;
                 }
               }
@@ -3482,7 +3592,7 @@
               if (opts.to) {
                 char1 = subject[opts.to - 1];
                 char2 = subject[opts.to];
-                if (isSurrogatePair(char1, char2)) {
+                if (_.isSurrogatePair(char1, char2)) {
                   opts.to -= 1;
                 }
               }
@@ -3502,7 +3612,7 @@
               key;
 
             if (opts.own) {
-              keys = objectKeys(subject);
+              keys = _.keys(subject);
             } else {
               keys = [];
               for (key in subject) {
@@ -3515,7 +3625,7 @@
               next: function () {
                 var object;
 
-                iterator = iterator || new g.ArrayGenerator(keys)[symIt]();
+                iterator = iterator || new g.ArrayGenerator(keys)[_.symIt]();
                 next = next && next.done ? next : iterator.next();
                 if (!next.done) {
                   object = {
@@ -3523,7 +3633,7 @@
                     value: getYieldValue(opts, subject, next.value)
                   };
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -3536,34 +3646,37 @@
               return new EnumerateGenerator(subject);
             }
 
-            var opts = assign({
+            var opts = _.assign({
               own: false
             }, $.OPTS.VALUES);
 
-            setValue(this, 'state', function () {
-              return assign({}, opts);
+            _.setValue(this, 'state', function () {
+              return _.assign({}, opts);
             });
 
-            setValue(this, symIt, function () {
-              return enumerateGenerator(subject, assign({}, opts));
+            _.setValue(this, _.symIt, function () {
+              return enumerateGenerator(subject, _.assign({}, opts));
             });
 
-            setValue(this, 'entries', function () {
-              assign(opts, $.OPTS.ENTRIES);
+            _.setValue(this, 'entries', function () {
+              _.assign(opts, $.OPTS.ENTRIES);
+
               return this;
             });
 
-            setValue(this, 'values', function () {
-              assign(opts, $.OPTS.VALUES);
+            _.setValue(this, 'values', function () {
+              _.assign(opts, $.OPTS.VALUES);
+
               return this;
             });
 
-            setValue(this, 'keys', function () {
-              assign(opts, $.OPTS.KEYS);
+            _.setValue(this, 'keys', function () {
+              _.assign(opts, $.OPTS.KEYS);
+
               return this;
             });
 
-            setValue(this, 'own', function () {
+            _.setValue(this, 'own', function () {
               opts.own = !opts.own;
               return this;
             });
@@ -3589,7 +3702,7 @@
               return new RepeatGenerator(subject);
             }
 
-            setValue(this, symIt, function () {
+            _.setValue(this, _.symIt, function () {
               return repeatGenerator(subject);
             });
           }
@@ -3604,13 +3717,13 @@
               next,
               rest;
 
-            if (isArrayLike(array) || isFunction(array[symIt])) {
-              first = reiterate(array).first();
-              if (!isObjectLike(first)) {
+            if (_.isArrayLike(array) || _.isFunction(array[_.symIt])) {
+              first = $reiterate(array).first();
+              if (!_.isObjectLike(first)) {
                 first = [];
               }
 
-              rest = reiterate(array).rest().asArray();
+              rest = $reiterate(array).rest().asArray();
             } else {
               first = rest = [];
             }
@@ -3620,9 +3733,9 @@
                 var object;
 
                 iterator = iterator || p.zipGenerator.apply(
-                  reiterate(first, true),
+                  $reiterate(first, true),
                   rest
-                )[symIt]();
+                )[_.symIt]();
 
                 next = next && next.done ? next : iterator.next();
                 if (!next.done) {
@@ -3631,7 +3744,7 @@
                     value: next.value
                   };
                 } else {
-                  object = assign({}, $.DONE);
+                  object = _.assign({}, $.DONE);
                 }
 
                 return object;
@@ -3644,7 +3757,7 @@
               return new UnzipGenerator(subject);
             }
 
-            setValue(this, symIt, function () {
+            _.setValue(this, _.symIt, function () {
               return unzipGenerator(subject);
             });
           }
@@ -3660,14 +3773,14 @@
       function makeCounterGenerator(subject, to, by) {
         var generator = new g.CounterGenerator();
 
-        if (isNumber(subject)) {
-          if (isNil(to)) {
+        if (_.isNumber(subject)) {
+          if (_.isNil(to)) {
             generator.to(subject);
           } else {
             generator.from(subject).to(to);
           }
 
-          if (!isNil(by)) {
+          if (!_.isNil(by)) {
             generator.by(by);
           }
         }
@@ -3675,17 +3788,17 @@
         return generator;
       }
 
-      reiterate = function (subject, to, by) {
+      $reiterate = function reiterate(subject, to, by) {
         var generator;
 
-        if (isNil(subject) || isNumber(subject)) {
+        if (_.isNil(subject) || _.isNumber(subject)) {
           generator = makeCounterGenerator(subject, to, by);
-        } else if (isArray(subject, to)) {
+        } else if (_.isArray(subject, to)) {
           generator = new g.ArrayGenerator(subject);
-        } else if (isString(subject)) {
+        } else if (_.isString(subject)) {
           generator = new g.StringGenerator(subject);
-        } else if (isFunction(subject[symIt])) {
-          generator = new g.ThenGenerator(subject, {}, chop(arguments, 1));
+        } else if (_.isFunction(subject[_.symIt])) {
+          generator = new g.ThenGenerator(subject, {}, _.chop(arguments, 1));
         } else {
           generator = new g.EnumerateGenerator(subject);
         }
@@ -3696,22 +3809,26 @@
       /*
        * Static methods
        */
-      setValue(reiterate, 'array', g.ArrayGenerator);
-      setValue(reiterate, 'string', g.StringGenerator);
-      setValue(reiterate, 'enumerate', g.EnumerateGenerator);
-      setValue(reiterate, 'repeat', g.RepeatGenerator);
-      setValue(reiterate, 'unzip', g.UnzipGenerator);
-      setValue(reiterate, 'iterator', symIt);
-      setValue(reiterate, 'Map', MapObject);
-      setValue(reiterate, 'Set', SetObject);
-      setValue(reiterate, 'useShims', useShims);
+      _.forEach(_.keys(_), function (key) {
+        _.setValue($reiterate, key, _[key]);
+      });
 
-      return reiterate;
+      _.setValue($reiterate, 'array', g.ArrayGenerator);
+      _.setValue($reiterate, 'string', g.StringGenerator);
+      _.setValue($reiterate, 'enumerate', g.EnumerateGenerator);
+      _.setValue($reiterate, 'repeat', g.RepeatGenerator);
+      _.setValue($reiterate, 'unzip', g.UnzipGenerator);
+      _.setValue($reiterate, 'iterator', _.symIt);
+      _.setValue($reiterate, 'Map', MapObject);
+      _.setValue($reiterate, 'Set', SetObject);
+
+      return $reiterate;
     }());
   }
 
 ));
 
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],2:[function(require,module,exports){
 
 },{}],3:[function(require,module,exports){
@@ -6914,33 +7031,6 @@ process.umask = function() { return 0; };
     module.exports.subject = require('../lib/reiterate');
   }
 
-  module.exports.codePointAt = function (subject, position) {
-    /*jshint eqnull:true */
-    if (subject == null) {
-      throw new TypeError('null or undefined');
-    }
-
-    var string = String(subject),
-      size = string.length,
-      /*jshint bitwise:false */
-      index = position >> 0,
-      first,
-      second,
-      val;
-
-    if (index >= 0 && index < size) {
-      first = string.charCodeAt(index);
-      if (first >= 0xD800 && first <= 0xDBFF && size > index + 1) {
-        second = string.charCodeAt(index + 1);
-        if (second >= 0xDC00 && second <= 0xDFFF) {
-          val = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
-        }
-      }
-    }
-
-    return val || first;
-  };
-
   module.exports.isGeneratorSupported = (function () {
     try {
       /*jslint evil:true */
@@ -6951,7 +7041,6 @@ process.umask = function() { return 0; };
     return false;
   }());
 
-  module.exports.iterator = module.exports.subject.iterator;
   module.exports.isNativeSymbolIterator = typeof module.exports.iterator ===
     'symbol';
 
@@ -7000,7 +7089,7 @@ process.umask = function() { return 0; };
 
     if (!fn) {
       fn = function (iterable, callback, thisArg) {
-        var generator = iterable[module.exports.iterator],
+        var generator = iterable[module.exports.subject.iterator],
           iterator = generator(),
           next = iterator.next();
 
@@ -7012,131 +7101,6 @@ process.umask = function() { return 0; };
 
     return fn;
   }());
-
-  module.exports.reduce = (function () {
-    var msg = 'reduce of empty array with no initial value';
-
-    return function (array, callback, initialValue) {
-      var object,
-        acc,
-        length,
-        kPresent,
-        index;
-
-      /*jslint eqnull:true */
-      if (array == null) {
-        throw new TypeError('null or undefined');
-      }
-
-      if (Object.prototype.toString.call(callback) !== '[object Function]') {
-        throw new TypeError('must be a function');
-      }
-
-      object = Object(array);
-      /*jshint bitwise:false */
-      length = object.length >>> 0;
-      if (!length && arguments.length === 1) {
-        throw new TypeError(msg);
-      }
-
-      index = 0;
-      if (arguments.length > 1) {
-        acc = initialValue;
-      } else {
-        kPresent = false;
-        while (!kPresent && index < length) {
-          kPresent = index in object;
-          if (kPresent) {
-            acc = object[index];
-            index += 1;
-          }
-        }
-
-        if (!kPresent) {
-          throw new TypeError(msg);
-        }
-      }
-
-      while (index < length) {
-        if (index in object) {
-          acc = callback.call(
-            undefined,
-            acc,
-            object[index],
-            index,
-            object
-          );
-        }
-
-        index += 1;
-      }
-
-      return acc;
-    };
-  }());
-
-  module.exports.forEach = function (array, callback, thisArg) {
-    var object,
-      length,
-      index;
-
-    /*jslint eqnull:true */
-    if (array == null) {
-      throw new TypeError('null or undefined');
-    }
-
-    if (Object.prototype.toString.call(callback) !== '[object Function]') {
-      throw new TypeError('must be a function');
-    }
-
-    object = Object(array);
-    /*jshint bitwise:false */
-    length = object.length >>> 0;
-    index = 0;
-    while (index < length) {
-      if (index in object) {
-        callback.call(thisArg, object[index], index, object);
-      }
-
-      index += 1;
-    }
-  };
-
-  module.exports.map = function (array, callback, thisArg) {
-    var object,
-      length,
-      arr,
-      index;
-
-    /*jslint eqnull:true */
-    if (array == null) {
-      throw new TypeError('null or undefined');
-    }
-
-    if (Object.prototype.toString.call(callback) !== '[object Function]') {
-      throw new TypeError('must be a function');
-    }
-
-    object = Object(array);
-    arr = [];
-    /*jshint bitwise:false */
-    arr.length = length = object.length >>> 0;
-    index = 0;
-    while (index < length) {
-      if (index in object) {
-        arr[index] = callback.call(
-          thisArg,
-          object[index],
-          index,
-          object
-        );
-      }
-
-      index += 1;
-    }
-
-    return arr;
-  };
 }());
 
 }).call(this,require('_process'))
@@ -7633,9 +7597,9 @@ process.umask = function() { return 0; };
   var required = require('../scripts/'),
     expect = required.expect,
     reiterate = required.subject,
-    symIt = required.iterator,
+    symIt = reiterate.iterator,
     forOf = required.forOf,
-    reduce = required.reduce,
+    reduce = reiterate.reduce,
     isGeneratorSupported = required.isGeneratorSupported,
     MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER,
     MIN_SAFE_INTEGER = required.MIN_SAFE_INTEGER,
@@ -8596,7 +8560,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map;
+    map = reiterate.map;
 
   describe('Basic tests', function () {
     it('Array of primatives', function () {
@@ -8673,7 +8637,7 @@ process.umask = function() { return 0; };
       array = reiterate(a).values().unique().asArray();
       expect(array).to.eql(b);
 
-      array = reiterate(a).values().unique().asSet();
+      array = reiterate(a).values().unique().asSet(reiterate.Set);
       expect(array.size).to.be(b.length);
       array.forEach(function (item) {
         expect(b.indexOf(item)).to.not.be(-1);
@@ -8954,8 +8918,8 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    codePointAt = required.codePointAt,
-    map = required.map;
+    codePointAt = reiterate.codePointAt,
+    map = reiterate.map;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -9093,7 +9057,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map,
+    map = reiterate.map,
     MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER;
 
   describe('Basic tests', function () {
@@ -9419,7 +9383,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map;
+    map = reiterate.map;
 
   describe('Basic static tests', function () {
     it('Array of primatives', function () {
@@ -9561,8 +9525,8 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    codePointAt = required.codePointAt,
-    map = required.map;
+    codePointAt = reiterate.codePointAt,
+    map = reiterate.map;
 
   describe('Basic static tests', function () {
     it('UTF-16 string', function () {
@@ -9656,7 +9620,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map;
+    map = reiterate.map;
 
   describe('Basic static tests', function () {
     it('ArrayLike of primatives', function () {
@@ -10179,7 +10143,7 @@ process.umask = function() { return 0; };
         2: 5
       });
 
-      array = reiterate(a).values().difference([4, 2]).asMap();
+      array = reiterate(a).values().difference([4, 2]).asMap(reiterate.Map);
       expect(array.size).to.be(3);
       expect(array.get(0)).to.be(1);
       expect(array.get(1)).to.be(3);
@@ -10219,7 +10183,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     isGeneratorSupported = required.isGeneratorSupported,
-    symIt = required.iterator;
+    symIt = reiterate.iterator;
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
@@ -10389,7 +10353,7 @@ process.umask = function() { return 0; };
         3: 4
       });
 
-      array = reiterate(a).values().initial().asMap();
+      array = reiterate(a).values().initial().asMap(reiterate.Map);
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(1);
       expect(array.get(1)).to.be(2);
@@ -10516,7 +10480,7 @@ process.umask = function() { return 0; };
         3: 5
       });
 
-      array = reiterate(a).values().rest().asMap();
+      array = reiterate(a).values().rest().asMap(reiterate.Map);
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(2);
       expect(array.get(1)).to.be(3);
@@ -10577,7 +10541,7 @@ process.umask = function() { return 0; };
       b = reiterate().from(3).to(6);
       c = reiterate().from(6).to(9);
       d = reiterate().to(10);
-      value = reiterate(a).union(b, c, d).asSet();
+      value = reiterate(a).union(b, c, d).asSet(reiterate.Set);
       expect(value.size).to.be(11);
       expect(value.has(0)).to.be(true);
       expect(value.has(1)).to.be(true);
@@ -10596,13 +10560,13 @@ process.umask = function() { return 0; };
       expect(value).to.eql([1]);
       value = reiterate([]).union([1]).asArray();
       expect(value).to.eql([1]);
-      value = reiterate([]).union().asSet();
+      value = reiterate([]).union().asSet(reiterate.Set);
       expect(value.size).to.be(0);
-      value = reiterate([]).union([]).asSet();
+      value = reiterate([]).union([]).asSet(reiterate.Set);
       expect(value.size).to.be(0);
-      value = reiterate([]).union([1]).asSet();
+      value = reiterate([]).union([1]).asSet(reiterate.Set);
       expect(value.size).to.be(1);
-      value = reiterate([1]).union().asSet();
+      value = reiterate([1]).union().asSet(reiterate.Set);
       expect(value.size).to.be(1);
     });
   });

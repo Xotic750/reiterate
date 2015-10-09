@@ -15,7 +15,7 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map,
+    map = reiterate.map,
     MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER;
 
   describe('Basic tests', function () {

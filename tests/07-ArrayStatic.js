@@ -15,7 +15,7 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = required.map;
+    map = reiterate.map;
 
   describe('Basic static tests', function () {
     it('Array of primatives', function () {

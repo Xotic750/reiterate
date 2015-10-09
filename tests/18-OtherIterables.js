@@ -15,7 +15,7 @@
     expect = required.expect,
     reiterate = required.subject,
     isGeneratorSupported = required.isGeneratorSupported,
-    symIt = required.iterator;
+    symIt = reiterate.iterator;
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
