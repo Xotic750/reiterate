@@ -44,7 +44,11 @@
 
       a = reiterate([5, 2, 2, 1, 4]).values();
       b = reiterate([2, 1, 1]).values();
-      array = reiterate([1, 1, 3, 2, 2]).values().intersection(a, b).asSet();
+      array = reiterate([1, 1, 3, 2, 2])
+        .values()
+        .intersection(a, b)
+        .asSet(reiterate.Set);
+
       expect(array.size).to.be(2);
       expect(array.has(1)).to.be(true);
       expect(array.has(2)).to.be(true);
