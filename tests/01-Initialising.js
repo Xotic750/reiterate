@@ -54,11 +54,11 @@
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new reiterate.Map());
+        reiterate(new reiterate.$.Map());
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new reiterate.Set());
+        reiterate(new reiterate.$.Set());
       }).to.not.throwException();
 
       expect(function () {

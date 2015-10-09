@@ -23,22 +23,30 @@
 */
 
 /*property
-    ArrayGenerator, CounterGenerator, DONE, ENTRIES, EnumerateGenerator, KEYS,
-    _.MAX_SAFE_INTEGER, _.MIN_SAFE_INTEGER, OPTS, RepeatGenerator,
-    StringGenerator,
-    ThenGenerator, UnzipGenerator, VALUES, abs, add, amd, apply, asArray,
-    asMap, asObject, asSet, asString, assign, by, call, charCodeAt,
-    chunkGenerator, clear, codePointAt, compactGenerator, configurable,
-    defineProperty, differenceGenerator, done, drop, dropGenerator,
-    dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
+    $, ArrayGenerator, CounterGenerator, DONE, ENTRIES, EnumerateGenerator,
+    IdGenerator, KEYS, MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS,
+    RepeatGenerator, StringGenerator, ThenGenerator, UnzipGenerator, VALUES,
+    abs, add, amd, apply, asArray, asMap, asObject, asSet, asString,
+    assertIsFunction, assertIsObject, assign, by, call, charCodeAt, chop,
+    chunkGenerator, clampToSafeIntegerRange, clear, codePointAt,
+    compactGenerator, concat, configurable, curry, defineProperty,
+    differenceGenerator, done, drop, dropGenerator, dropWhileGenerator,
+    entries, enumerable, every, exports, filter, filterGenerator, findIndex,
     first, flattenGenerator, floor, forEach, from, fromCharCode, fromCodePoint,
-    get, has, hasOwnProperty, id, index, indexOf, initialGenerator,
-    intersectionGenerator, isArray, isFinite, isNaN, iterator, join, keys,
-    last, length, mapGenerator, max, min, next, order, own, pow, prev,
-    prototype, push, reduce, rest, restGenerator, reverse, reversed, set, sign,
-    size, some, splice, takeGenerator, takeWhileGenerator, tapGenerator, then,
-    to, toString, unionGenerator, uniqueGenerator, value, valueOf, values,
-    writable, zipGenerator
+    get, getIndex, getPrototypeOf, has, hasApplyBug, hasBoxedStringBug,
+    hasCallBug, hasEnumArgsBug, hasOwn, hasOwnProperty, hasProperty,
+    hasV8Strictbug, id, inStrictMode, includes, index, indexOf,
+    initialGenerator, intersectionGenerator, is, isArray, isArrayLike, isDate,
+    isFinite, isFunction, isIndex, isInteger, isLength, isNaN, isNil, isNumber,
+    isObject, isObjectLike, isString, isSurrogatePair, isSymbol, isUndefined,
+    iterator, join, keys, last, length, map, mapGenerator, max, min, next,
+    noop, numIsFinite, numIsNaN, order, own, pow, prev, prototype, push,
+    reduce, reflectArg, requireObjectCoercible, reset, rest, restGenerator,
+    returnArgs, returnThis, reverse, reversed, sameValueZero, set, setValue,
+    sign, size, some, splice, symIt, takeGenerator, takeWhileGenerator,
+    tapGenerator, then, to, toInteger, toLength, toNumber, toObject,
+    toPrimitive, toString, toStringTag, unionGenerator, uniqueGenerator,
+    useShims, value, values, writable, zipGenerator
 */
 
 /**
@@ -47,30 +55,39 @@
  * @private
  * @see https://github.com/umdjs/umd/blob/master/returnExports.js
  */
-(function (thisArg, factory) {
+(function umd(thisArg, factory) {
   'use strict';
 
   var root,
+    $hasOwnProperty = Object.prototype.hasOwnProperty,
+    $defineProperty = Object.defineProperty,
+    $push = Array.prototype.push,
+    $forEach = Array.prototype.forEach,
+    $reduce = Array.prototype.reduce,
+    $filter = Array.prototype.filter,
+    $map = Array.prototype.map,
+    $some = Array.prototype.some,
+    $every = Array.prototype.every,
+    $indexOf = Array.prototype.indexOf,
+    $findIndex = Array.prototype.findIndex,
+    $includes = Array.prototype.includes,
+    $codePointAt = String.prototype.codePointAt,
     reduceError = 'reduce of empty array with no initial value',
     strFor = 'for',
-    typeUndefined = typeof undefined,
+    typeUndefined,
     typeFunction = typeof factory,
     typeObject = typeof Object.prototype,
     typeNumber = typeof 0,
     typeBoolean = typeof false,
     typeString = typeof strFor,
     typeSymbol,
-    valueOf = Object.prototype.valueOf,
-    hasOwnProperty = Object.prototype.hasOwnProperty,
-    defineProperty = Object.defineProperty,
     toTag = Object.prototype.toString,
     stringOrder = ['toString', 'valueOf'],
-    numberOrder = stringOrder.reverse(),
+    numberOrder = stringOrder.slice().reverse(),
     descriptor = {
       enumerable: false,
       writable: true,
-      configurable: true,
-      value: undefined
+      configurable: true
     },
     _ = {
       useShims: false,
@@ -83,7 +100,18 @@
     tagString,
     tagArray,
     arrayIsArray,
-    hasV8Strictbug;
+    fixCall,
+    testProp;
+
+  /**
+   * @private
+   * @return {undefined}
+   */
+  _.noop = function noop() {
+    return;
+  };
+
+  typeUndefined = typeof _.noop();
 
   /**
    * Returns the this context of the function.
@@ -108,25 +136,107 @@
   _.inStrictMode = !returnThis();
 
   /**
-   * Checks if the supplied function suffers from the V8 strict mode bug.
+   * Indicates if the this argument used with call does not convert to an
+   * object when not strict mode. True if it does, otherwise false.
    *
    * @private
-   * @param {Function} fn
-   * @return {boolean}
+   * @type {boolean}
    */
-  function testV8StrictBug(fn) {
-    var bug = false;
+  _.hasCallBug = !_.inStrictMode &&
+    typeof returnThis.call(strFor) === typeString;
 
-    if (_.inStrictMode && typeof fn === typeFunction) {
-      fn.call([1], function () {
-        bug = typeof this === typeObject;
-      }, 'foo');
-    }
+  /**
+   * Indicates if the this argument used with apply does not convert to an
+   * object when not strict mode. True if it does not, otherwise false.
+   *
+   * @private
+   * @type {boolean}
+   */
+  _.hasApplyBug = !_.inStrictMode &&
+    typeof returnThis.apply(strFor) === typeString;
 
-    return bug;
+  /**
+   * Checks if the environment suffers the V8 strict mode bug.
+   *
+   * @private
+   * @type {boolean}
+   */
+  if (!_.inStrictMode && $forEach) {
+    $forEach.call([1], function () {
+      _.hasV8Strictbug = typeof this !== typeObject;
+    }, strFor);
+  } else {
+    _.hasV8Strictbug = false;
   }
 
-  hasV8Strictbug = testV8StrictBug(Array.prototype.forEach);
+  /**
+   * Indicates if a string suffers the "indexed accessability bug".
+   * True if it does, otherwise false.
+   *
+   * @private
+   * @type {boolean}
+   */
+  _.hasBoxedStringBug = Object(strFor)[0] !== 'f' ||
+    !(0 in Object(strFor));
+
+  /**
+   * Returns an arguments object of the arguments supplied.
+   *
+   * @private
+   * @param {...*} [varArgs]
+   * @return {Arguments}
+   */
+  _.returnArgs = function returnArgs() {
+    return arguments;
+  };
+
+  /**
+   * Indicates if the arguments object suffers the "index enumeration bug".
+   * True if it does, otherwise false.
+   *
+   * @private
+   * @type {boolean}
+   */
+  _.hasEnumArgsBug = true;
+  for (testProp in _.returnArgs(strFor)) {
+    if (testProp === '0') {
+      _.hasEnumArgsBug = false;
+      break;
+    }
+  }
+
+  /**
+   * Returns true if the operand subject is undefined
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if the object is undefined, otherwise false.
+   */
+  _.isUndefined = function isUndefined(subject) {
+    return typeof subject === typeUndefined;
+  };
+
+  /**
+   * Returns true if the operand inputArg is null.
+   *
+   * @private
+   * @param {*} inputArg
+   * @return {boolean}
+   */
+  _.isNull = function isNull(inputArg) {
+    return inputArg === null;
+  };
+
+  /**
+   * Returns true if the operand subject is null or undefined.
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if undefined or null, otherwise false.
+   */
+  _.isNil = function isNil(subject) {
+    return _.isNull(subject) || _.isUndefined(subject);
+  };
 
   /**
    * Checks if value is the language type of Object.
@@ -150,19 +260,19 @@
     return type;
   };
 
-  if (defineProperty && !_.useShims) {
+  if ($defineProperty && !_.useShims) {
     // IE 8 only supports 'Object.defineProperty' on DOM elements
     try {
-      defineProperty = defineProperty({}, {}, {}) && defineProperty;
+      $defineProperty({}, {}, {});
     } catch (e) {
       /* istanbul ignore next */
-      defineProperty = !e;
+      $defineProperty = !e;
     }
   }
 
   /* istanbul ignore next */
-  if (!defineProperty || _.useShims) {
-    defineProperty = function (object, property, descriptor) {
+  if (!$defineProperty || _.useShims) {
+    $defineProperty = function defineProperty(object, property, descriptor) {
       if (!_.isObject(object)) {
         throw new TypeError('called on non-object');
       }
@@ -173,29 +283,7 @@
     };
   }
 
-  _.defineProperty = defineProperty;
-
-  /**
-   * Returns true if the operand subject is undefined
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} True if the object is undefined, otherwise false.
-   */
-  _.isUndefined = function isUndefined(subject) {
-    return typeof subject === typeUndefined;
-  };
-
-  /**
-   * Returns true if the operand subject is null or undefined.
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} True if undefined or null, otherwise false.
-   */
-  _.isNil = function isNil(subject) {
-    return subject === null || _.isUndefined(subject);
-  };
+  _.defineProperty = $defineProperty;
 
   /**
    * The abstract operation throws an error if its argument is a value that
@@ -225,17 +313,32 @@
    * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
    */
   _.toObject = function toObject(subject) {
-    var object;
+    return _.isObject(_.requireObjectCoercible(subject)) ?
+      subject :
+      Object(subject);
+  };
 
-    /* istanbul ignore else */
-    if (_.isObject(_.requireObjectCoercible(subject))) {
-      object = subject;
-    } else {
-      object = valueOf.call(subject);
+  _.reflectArg = function reflectArg(subject) {
+    return subject;
+  };
+
+  if (_.inStrictMode && _.hasCallBug) {
+    fixCall = function fixCallApply(subject) {
+      return !_.isNil(subject) ? _.toObject(subject) : subject;
+    };
+  } else {
+    fixCall = _.reflectArg;
+  }
+
+  function fixV8StrictBug(args) {
+    var fixed = _.chop(args, 1);
+
+    if (_.hasV8Strictbug && fixed.length > 1 && !_.isNil(fixed[1])) {
+      fixed[1] = _.toObject(fixed[1]);
     }
 
-    return object;
-  };
+    return fixed;
+  }
 
   /**
    * Returns a boolean indicating whether the object has the specified
@@ -252,7 +355,25 @@
    * Reference/Global_Objects/Object/hasOwnProperty
    */
   _.hasOwn = function hasOwn(subject, property) {
-    return hasOwnProperty.call(_.toObject(subject), property);
+    /*jshint singleGroups:false */
+    return (_.hasBoxedStringBug &&
+        _.isString(subject) &&
+        _.isIndex(property, subject.length)) ||
+
+      $hasOwnProperty.call(
+        _.toObject(subject),
+        _.isSymbol(property) ? property : _.toString(property)
+      ) ||
+
+      /*
+       * Avoid a bug in IE 10-11 where objects with a [[Prototype]] of 'null',
+       * that are composed entirely of index properties, return 'false' for
+       * 'hasOwnProperty' checks of them.
+       */
+      (Object.getPrototypeOf &&
+        typeof subject === typeObject &&
+        _.hasProperty(subject, property) &&
+        _.isNull(Object.getPrototypeOf(subject)));
   };
 
   /**
@@ -278,15 +399,13 @@
     }
 
     descriptor.value = value;
-    defineProperty(object, property, descriptor);
-    descriptor.value = undefined;
+    $defineProperty(object, property, descriptor);
+    delete descriptor.value;
 
     return object;
   };
 
-  _.symIt = typeof Symbol === typeFunction && !_.useShims ?
-    Symbol.iterator :
-    '@@iterator';
+  _.symIt = typeof Symbol === typeFunction ? Symbol.iterator : '@@iterator';
 
   /**
    * Provides a string representation of the supplied object in the form
@@ -300,7 +419,17 @@
    * #sec-object.prototype.tostring
    */
   _.toStringTag = function toStringTag(subject) {
-    return toTag.call(subject);
+    var val;
+
+    if (_.isNull(subject)) {
+      val = '[object Null]';
+    } else if (_.isUndefined(subject)) {
+      val = '[object Undefined]';
+    } else {
+      val = toTag.call(subject);
+    }
+
+    return val;
   };
 
   tagFunction = _.toStringTag(_.isNil);
@@ -371,7 +500,7 @@
         if (_.isFunction(subject[method])) {
           result = subject[method]();
           if (!_.isObject(result)) {
-            break;
+            return result;
           }
         }
 
@@ -394,7 +523,7 @@
       val;
 
     /* istanbul ignore if */
-    if (subject === null) {
+    if (_.isNull(subject)) {
       val = +0;
     } else {
       type = typeof subject;
@@ -610,9 +739,9 @@
   };
 
   /* istanbul ignore else */
-  if (String.prototype.codePointAt && !_.useShims) {
+  if ($codePointAt && !_.useShims) {
     _.codePointAt = function codePointAt(string, position) {
-      return String.prototype.codePointAt.call(string, position);
+      return $codePointAt.call(string, position);
     };
   } else {
     _.codePointAt = function codePointAt(subject, position) {
@@ -677,6 +806,112 @@
     return length;
   };
 
+  /**
+   * Checks if 'value' is a valid array-like index.
+   *
+   * @private
+   * @param {*} inputArg The value to check.
+   * @param {number} [length] The upper bounds of a valid index otherwise
+   *                          MAX_SAFE_INTEGER - 1.
+   * @return {boolean} Returns true if inputArg is a valid index, otherwise
+   *                   false.
+   */
+  _.isIndex = function isIndex(inputArg, length) {
+    var size,
+      arg;
+
+    if (arguments.length > 1) {
+      size = _.toLength(length);
+    } else {
+      size = _.MAX_SAFE_INTEGER - 1;
+    }
+
+    arg = _.toNumber(inputArg);
+
+    return _.isLength(arg) && arg < size;
+  };
+
+  /**
+   * This method adds one or more elements to the end of the array and
+   * returns the new length of the array.
+   *
+   * @param {array} array
+   * @param {...*} [varArgs]
+   * @return {number}
+   */
+  testProp = [];
+  if (!_.useShims || $push.call(testProp, _.noop()) !== 1 ||
+    testProp.length !== 1 || testProp[0] !== _.noop()) {
+    _.push = function push(array) {
+      return $push.apply(array, _.chop(arguments, 1));
+    };
+  } else {
+    _.push = function push(array) {
+      var object = _.toObject(array),
+        length = _.toLength(object.length),
+        numItems = arguments.length - 1,
+        index = 0;
+
+      object.length = length + numItems;
+      while (index < numItems) {
+        object[length + index] = arguments[index + 1];
+        index += 1;
+      }
+
+      return object.length;
+    };
+  }
+  /**
+   * The abstract operation converts its argument to a value of type string
+   *
+   * @private
+   * @param {*} inputArg
+   * @return {string}
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tostring
+   */
+  _.toString = function toStrIng(inputArg) {
+    var type,
+      val;
+
+    if (_.isNull(inputArg)) {
+      val = 'null';
+    } else {
+      type = typeof inputArg;
+      if (type === typeString) {
+        val = inputArg;
+      } else if (type === typeUndefined) {
+        val = type;
+      } else {
+        if (typeSymbol && type === typeSymbol) {
+          throw new TypeError('Cannot convert symbol to string');
+        }
+
+        val = String(inputArg);
+      }
+    }
+
+    return val;
+  };
+
+  _.isSymbol = function isSymbol(subject) {
+    return typeSymbol && typeof subject === typeSymbol;
+  };
+
+  /**
+   * @private
+   * @param {*} inputArg The object to be tested.
+   * @param {string} property The property name.
+   * @return {boolean} True if the property is on the object or in the object's
+   *                   prototype, otherwise false.
+   */
+  _.hasProperty = function hasProperty(inputArg, property) {
+    var prop = _.isSymbol(property) ? property : _.toString(property);
+
+    /*jshint singleGroups:false */
+    return (_.isString(inputArg) && _.isIndex(prop, inputArg.length)) ||
+      prop in _.toObject(inputArg);
+  };
+
   _.chop = function chop(array, start, end) {
     var object = _.toObject(array),
       length = _.toLength(object.length),
@@ -711,7 +946,7 @@
     finalEnd = _.toLength(finalEnd);
     val.length = _.toLength(Math.max(finalEnd - k, 0));
     while (k < finalEnd) {
-      if (k in object) {
+      if (_.hasProperty(object, k)) {
         val[next] = object[k];
       }
 
@@ -721,16 +956,6 @@
 
     return val;
   };
-
-  function fixV8StrictBug(args) {
-    var fixed = _.chop(args, 1);
-
-    if (fixed.length > 1 && !_.isNil(fixed[1]) && !_.isObject(fixed[1])) {
-      fixed[1] = valueOf.call(fixed[1]);
-    }
-
-    return fixed;
-  }
 
   /**
    * Apply a function against an accumulator and each value of the array
@@ -747,16 +972,10 @@
    * Global_Objects/Array/reduce
    */
   /* istanbul ignore else */
-  if (Array.prototype.reduce && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.reduce = function reduce(array) {
-        return Array.prototype.reduce.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.reduce = function reduce(array) {
-        return Array.prototype.reduce.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($reduce && !_.useShims) {
+    _.reduce = function reduce(array) {
+      return $reduce.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.reduce = function reduce(array, callback, initialValue) {
       var object = _.toObject(array),
@@ -777,7 +996,7 @@
       } else {
         kPresent = false;
         while (!kPresent && index < length) {
-          kPresent = index in object;
+          kPresent = _.hasProperty(object, index);
           if (kPresent) {
             acc = object[index];
             index += 1;
@@ -790,9 +1009,9 @@
       }
 
       while (index < length) {
-        if (index in object) {
+        if (_.hasProperty(object, index)) {
           acc = callback.call(
-            undefined,
+            fixCall(_.noop()),
             acc,
             object[index],
             index,
@@ -839,7 +1058,7 @@
         }
 
         if (codePnt <= 0xFFFF) {
-          codeUnits.push(codePnt);
+          _.push(codeUnits, codePnt);
         } else {
           codePnt -= 0x10000;
           /*jshint singleGroups:false */
@@ -848,7 +1067,7 @@
           /*jshint bitwise:true */
           lowSurrogate = (codePnt % 0x400) + 0xDC00;
           /*jshint singleGroups:true */
-          codeUnits.push(highSurrogate, lowSurrogate);
+          _.push(codeUnits, highSurrogate, lowSurrogate);
         }
 
         if (codeUnits.length > MAX_SIZE) {
@@ -892,16 +1111,10 @@
     return number;
   };
 
-  if (Array.prototype.map && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.map = function map(array) {
-        return Array.prototype.map.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.map = function map(array) {
-        return Array.prototype.map.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($map && !_.useShims) {
+    _.map = function map(array) {
+      return $map.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.map = function map(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -914,9 +1127,9 @@
       arr.length = length = _.toLength(object.length);
       index = 0;
       while (index < length) {
-        if (index in object) {
+        if (_.hasProperty(object, index)) {
           arr[index] = callback.call(
-            thisArg,
+            fixCall(thisArg),
             object[index],
             index,
             object
@@ -930,16 +1143,10 @@
     };
   }
 
-  if (Array.prototype.filter && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.filter = function filter(array) {
-        return Array.prototype.filter.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.filter = function filter(array) {
-        return Array.prototype.filter.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($filter && !_.useShims) {
+    _.filter = function filter(array) {
+      return $filter.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.filter = function filter(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -953,10 +1160,10 @@
       arr = [];
       index = 0;
       while (index < length) {
-        if (index in object) {
+        if (_.hasProperty(object, index)) {
           it = object[index];
-          if (callback.call(thisArg, it, index, object)) {
-            arr.push(it);
+          if (callback.call(fixCall(thisArg), it, index, object)) {
+            _.push(arr, it);
           }
         }
 
@@ -990,16 +1197,10 @@
    * Global_Objects/Array/forEach
    */
   /* istanbul ignore else */
-  if (Array.prototype.forEach && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.forEach = function forEach(array) {
-        return Array.prototype.forEach.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.forEach = function forEach(array) {
-        return Array.prototype.forEach.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($forEach && !_.useShims) {
+    _.forEach = function forEach(array) {
+      return $forEach.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.forEach = function forEach(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -1010,8 +1211,8 @@
       length = _.toLength(object.length);
       index = 0;
       while (index < length) {
-        if (index in object) {
-          callback.call(thisArg, object[index], index, object);
+        if (_.hasProperty(object, index)) {
+          callback.call(fixCall(thisArg), object[index], index, object);
         }
 
         index += 1;
@@ -1020,16 +1221,10 @@
   }
 
   /* istanbul ignore else */
-  if (Array.prototype.some && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.some = function some(array) {
-        return Array.prototype.some.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.some = function some(array) {
-        return Array.prototype.some.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($some && !_.useShims) {
+    _.some = function some(array) {
+      return $some.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.some = function some(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -1042,8 +1237,13 @@
       val = false;
       index = 0;
       while (index < length) {
-        if (index in object) {
-          val = !!callback.call(thisArg, object[index], index, object);
+        if (_.hasProperty(object, index)) {
+          val = !!callback.call(
+            fixCall(thisArg),
+            object[index],
+            index, object
+          );
+
           if (val) {
             break;
           }
@@ -1057,16 +1257,10 @@
   }
 
   /* istanbul ignore else */
-  if (Array.prototype.every && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.every = function every(array) {
-        return Array.prototype.every.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.every = function every(array) {
-        return Array.prototype.every.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($every && !_.useShims) {
+    _.every = function every(array) {
+      return $every.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.every = function every(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -1079,8 +1273,14 @@
       val = true;
       index = 0;
       while (index < length) {
-        if (index in object) {
-          val = !!callback.call(thisArg, object[index], index, object);
+        if (_.hasProperty(object, index)) {
+          val = !!callback.call(
+            fixCall(thisArg),
+            object[index],
+            index,
+            object
+          );
+
           if (!val) {
             break;
           }
@@ -1104,7 +1304,7 @@
 
       for (key in object) {
         if (_.hasOwn(object, key)) {
-          ownKeys.push(key);
+          _.push(ownKeys, key);
         }
       }
 
@@ -1143,70 +1343,74 @@
     };
   }
 
-  _.from = function from(items, mapfn, thisArg) {
-    var usingIterator = items && items[_.symIt],
-      iterator,
-      object,
-      length,
-      array,
-      mapping,
-      index,
-      next;
+  if (Array.from && !_.useShims) {
+    _.from = Array.from;
+  } else {
+    _.from = function from(items, mapfn, thisArg) {
+      var usingIterator = items && items[_.symIt],
+        iterator,
+        object,
+        length,
+        array,
+        mapping,
+        index,
+        next;
 
-    if (!_.isUndefined(mapfn)) {
-      mapping = !!_.assertIsFunction(mapfn);
-    }
-
-    index = 0;
-    if (usingIterator) {
-      if (_.isFunction(this)) {
-        array = new this();
-      } else {
-        array = [];
+      if (!_.isUndefined(mapfn)) {
+        mapping = !!_.assertIsFunction(mapfn);
       }
 
-      iterator = usingIterator();
-      next = iterator.next();
-      while (!next.done) {
-        if (mapping) {
-          array[index] = mapfn.call(thisArg, next.value, index);
+      index = 0;
+      if (usingIterator) {
+        if (_.isFunction(this)) {
+          array = new this();
         } else {
-          array[index] = next.value;
+          array = [];
         }
 
+        iterator = usingIterator();
         next = iterator.next();
-        index += 1;
-      }
+        while (!next.done) {
+          if (mapping) {
+            array[index] = mapfn.call(fixCall(thisArg), next.value, index);
+          } else {
+            array[index] = next.value;
+          }
 
-      array.length = index;
-    } else {
-      object = _.toObject(items);
-      length = _.toLength(object.length);
-      if (_.isFunction(this)) {
-        array = new this(length);
-      } else {
-        array = [];
-      }
-
-      array.length = length;
-      while (index < length) {
-        if (mapping) {
-          array[index] = mapfn.call(thisArg, object[index], index);
-        } else {
-          array[index] = object[index];
+          next = iterator.next();
+          index += 1;
         }
 
-        index += 1;
-      }
-    }
+        array.length = index;
+      } else {
+        object = _.toObject(items);
+        length = _.toLength(object.length);
+        if (_.isFunction(this)) {
+          array = new this(length);
+        } else {
+          array = [];
+        }
 
-    return array;
-  };
+        array.length = length;
+        while (index < length) {
+          if (mapping) {
+            array[index] = mapfn.call(fixCall(thisArg), object[index], index);
+          } else {
+            array[index] = object[index];
+          }
+
+          index += 1;
+        }
+      }
+
+      return array;
+    };
+  }
 
   /* istanbul ignore else */
-  if (Array.prototype.indexOf && !_.useShims) {
+  if ($indexOf && !_.useShims) {
     _.indexOf = function indexOf(array) {
-      return Array.prototype.indexOf.apply(array, _.chop(arguments, 1));
+      return $indexOf.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.indexOf = function indexOf(array, searchElement, fromIndex) {
@@ -1232,7 +1436,8 @@
 
           index = fromIndex;
           while (index < length) {
-            if (index in object && searchElement === object[index]) {
+            if (_.hasProperty(object, index) &&
+              searchElement === object[index]) {
               val = index;
               break;
             }
@@ -1271,7 +1476,7 @@
 
     while (index < howMany || carry) {
       zi = carry + (index < length ? this.id[index] : 0) + !index;
-      result.push(zi % 10);
+      _.push(result, zi % 10);
       carry = Math.floor(zi / 10);
       index += 1;
     }
@@ -1287,7 +1492,7 @@
 
   _.setValue(_.IdGenerator.prototype, 'reset', function () {
     this.id.length = 0;
-    this.id.push(0);
+    _.push(this.id, 0);
 
     return this;
   });
@@ -1298,9 +1503,9 @@
     return (x === y) || (_.numIsNaN(x) && _.numIsNaN(y));
   };
 
-  if (Array.prototype.findIndex) {
+  if ($findIndex && !_.useShims) {
     _.findIndex = function findIndex(array) {
-      return Array.prototype.findIndex.apply(array, _.chop(arguments, 1));
+      return $findIndex.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.findIndex = function findIndex(array, callback, thisArg) {
@@ -1314,7 +1519,7 @@
       val = -1;
       index = 0;
       while (index < length) {
-        if (callback.call(thisArg, object[index], index, object)) {
+        if (callback.call(fixCall(thisArg), object[index], index, object)) {
           val = index;
           break;
         }
@@ -1343,9 +1548,9 @@
     return searchIndex;
   };
 
-  if (Array.prototype.includes) {
+  if ($includes && !_.useShims) {
     _.includes = function includes(array) {
-      return Array.prototype.includes.call(array, _.chop(arguments, 1));
+      return $includes.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.includes = function includes(array, searchElement, fromIndex) {
@@ -1386,7 +1591,7 @@
      * AMD. Register as an anonymous module.
      */
     define([], function () {
-      return factory(_);
+      return factory(_, fixCall);
     });
   } else {
     /* istanbul ignore else */
@@ -1396,7 +1601,7 @@
        * only CommonJS-like environments that support module.exports,
        * like Node.
        */
-      module.exports = factory(_);
+      module.exports = factory(_, fixCall);
     } else {
       /*jshint singleGroups:false */
       root = (
@@ -1406,7 +1611,7 @@
         (typeof global === 'object' && global) ||
         (typeof thisArg === 'object' && thisArg) || {};
 
-      _.setValue(root, '@@MODULE', factory(_));
+      _.setValue(root, '@@MODULE', factory(_, fixCall));
     }
   }
 }(
@@ -1417,11 +1622,11 @@
    * Factory function
    *
    * @private
-   * @param {function} isObject
-   * @param {function} defineProperty
+   * @param {object} _
+   * @param {function} fixCall
    * @return {function} The function be exported
    */
-  function (_) {
+  function factory(_, fixCall) {
     'use strict';
 
     /* constants */
@@ -1438,7 +1643,7 @@
 
         DONE: {
           done: true,
-          value: undefined
+          value: _.noop()
         },
 
         /**
@@ -1556,11 +1761,11 @@
               indexof = _.getIndex(context['[[key]]'], key);
               if (indexof < 0) {
                 if (kind === 'map') {
-                  context['[[value]]'].push(next.value[1]);
+                  _.push(context['[[value]]'], next.value[1]);
                 }
 
-                context['[[key]]'].push(key);
-                context['[[order]]'].push(context['[[id]]'].get());
+                _.push(context['[[key]]'], key);
+                _.push(context['[[order]]'], context['[[id]]'].get());
                 context['[[id]]'].next();
               } else if (kind === 'map') {
                 context['[[value]]'][indexof] = next.value[1];
@@ -1604,7 +1809,7 @@
                 context['[[value]]'][pointers.index] :
                 key;
 
-              callback.call(thisArg, value, key, context);
+              callback.call(fixCall(thisArg), value, key, context);
             }
 
             if (context['[[change]]']) {
@@ -1667,11 +1872,11 @@
           context['[[value]]'][index] = value;
         } else {
           if (kind === 'map') {
-            context['[[value]]'].push(value);
+            _.push(context['[[value]]'], value);
           }
 
-          context['[[key]]'].push(key);
-          context['[[order]]'].push(context['[[id]]'].get());
+          _.push(context['[[key]]'], key);
+          _.push(context['[[order]]'], context['[[id]]'].get());
           context['[[id]]'].next();
           context['[[change]]'] = true;
           context.size = context['[[key]]'].length;
@@ -1684,7 +1889,6 @@
         var S = typeof Set === typeFunction && !_.useShims && Set,
           createSetIterator,
           SetIterator,
-          callback,
           typeIdenifier,
           fn,
           s;
@@ -1705,14 +1909,13 @@
               throw new Error('Missing methods');
             }
 
-            callback = function () {};
-            s.add(callback);
-            s.add(callback);
-            s.add(callback);
+            s.add(_.noop);
+            s.add(_.noop);
+            s.add(_.noop);
             s.add(s);
             s.add(NaN);
             s.add(NaN);
-            s.add('key');
+            s.add(strDelete);
             s.add(-0);
             s.add(0);
             if (s.size !== 7) {
@@ -1813,8 +2016,6 @@
       MapObject = (function (typeFunction) {
         var M = typeof Map === typeFunction && !_.useShims && Map,
           MapIterator,
-          generic,
-          callback,
           typeIdenifier,
           fn,
           m;
@@ -1839,18 +2040,16 @@
               throw new Error('Missing methods');
             }
 
-            generic = {};
-            callback = function () {};
-            m.set(callback, generic);
-            m.set(callback, callback);
-            m.set(callback, m);
-            m.set(m, callback);
-            m.set(NaN, generic);
-            m.set(NaN, callback);
-            m.set('key', undefined);
-            m.set(-0, callback);
-            m.set(0, generic);
-            if (m.get(0) !== generic || m.get(-0) !== generic || m.size !== 7) {
+            m.set(_.noop, _);
+            m.set(_.noop, _.noop);
+            m.set(_.noop, m);
+            m.set(m, _.noop);
+            m.set(NaN, _);
+            m.set(NaN, _.noop);
+            m.set(strDelete, _.noop());
+            m.set(-0, _.noop);
+            m.set(0, _);
+            if (m.get(0) !== _ || m.get(-0) !== _ || m.size !== 7) {
               throw new Error('Incorrect result');
             }
           } catch (e) {
@@ -1921,7 +2120,7 @@
           _.setValue(fn.prototype, 'get', function (key) {
             var index = _.getIndex(_.assertIsObject(this)['[[key]]'], key);
 
-            return index > -1 ? this['[[value]]'][index] : undefined;
+            return index > -1 ? this['[[value]]'][index] : _.noop();
           });
 
           _.setValue(fn.prototype, strDelete, function (key) {
@@ -2098,7 +2297,7 @@
                 itertor = itertor || generator();
                 next = next && next.done ? next : itertor.next();
                 if (!next.done) {
-                  callback.call(thisArg, next.value, index);
+                  callback.call(fixCall(thisArg), next.value, index);
                   object = {
                     done: false,
                     value: next.value
@@ -2129,7 +2328,7 @@
           result = true;
           index = 0;
           while (result && !next.done) {
-            if (!callback.call(thisArg, next.value, index)) {
+            if (!callback.call(fixCall(thisArg), next.value, index)) {
               result = false;
             } else {
               next = iterator.next();
@@ -2152,7 +2351,7 @@
           result = false;
           index = 0;
           while (!result && !next.done) {
-            if (callback.call(thisArg, next.value, index)) {
+            if (callback.call(fixCall(thisArg), next.value, index)) {
               result = true;
             } else {
               next = iterator.next();
@@ -2169,7 +2368,7 @@
             result = [];
 
           while (!next.done) {
-            result.push(next.value);
+            _.push(result, next.value);
             next = iterator.next();
           }
 
@@ -2347,7 +2546,7 @@
                 iterator = iterator || generator();
                 next = next && !dropped ? next : iterator.next();
                 while (!dropped && !next.done && callback.call(
-                    thisArg,
+                    fixCall(thisArg),
                     next.value,
                     index
                   )) {
@@ -2425,7 +2624,11 @@
 
                 iterator = iterator || generator();
                 next = next && next.done ? next : iterator.next();
-                if (!next.done && callback.call(thisArg, next.value, index)) {
+                if (!next.done && callback.call(
+                    fixCall(thisArg),
+                    next.value,
+                    index
+                  )) {
                   object = {
                     done: false,
                     value: next.value
@@ -2464,7 +2667,7 @@
                 }
 
                 while (!next.done && chunk && chunk.length < howMany) {
-                  chunk.push(next.value);
+                  _.push(chunk, next.value);
                   next = iterator.next();
                 }
 
@@ -2593,7 +2796,7 @@
         first: function () {
           var next = this[_.symIt]().next();
 
-          return next.done ? undefined : next.value;
+          return next.done ? _.noop() : next.value;
         },
 
         last: function () {
@@ -2663,7 +2866,7 @@
 
           function push(argSets, arg) {
             if (_.isArrayLike(arg) || _.isFunction(arg[_.symIt])) {
-              argSets.push(new SetObject($reiterate(arg)));
+              _.push(argSets, new SetObject($reiterate(arg)));
             }
 
             return argSets;
@@ -2815,9 +3018,9 @@
             var next = iterator.next();
 
             if (next.done) {
-              zip.value.push(undefined);
+              _.push(zip.value, _.noop());
             } else {
-              zip.value.push(next.value);
+              _.push(zip.value, next.value);
               zip.done = false;
             }
 
@@ -2826,7 +3029,7 @@
 
           function push(iterators, arg) {
             if (_.isArrayLike(arg) || _.isFunction(arg[_.symIt])) {
-              iterators.push($reiterate(arg, true)[_.symIt]());
+              _.push(iterators, $reiterate(arg, true)[_.symIt]());
             }
 
             return iterators;
@@ -3039,7 +3242,7 @@
                 if (!next.done) {
                   object = {
                     done: false,
-                    value: callback.call(thisArg, next.value, index)
+                    value: callback.call(fixCall(thisArg), next.value, index)
                   };
 
                   index += 1;
@@ -3072,7 +3275,7 @@
                 iterator = iterator || generator();
                 next = next && next.done ? next : iterator.next();
                 while (!next.done &&
-                  !callback.call(thisArg, next.value, index)) {
+                  !callback.call(fixCall(thisArg), next.value, index)) {
                   next = iterator.next();
                   index += 1;
                 }
@@ -3184,15 +3387,6 @@
               }
             };
           };
-
-          /*
-          this[_.symIt] = function () {
-            var inter = Function.prototype.apply.bind(generator, argsArray);
-
-            inter[_.symIt] = generator[_.symIt];
-            return inter;
-          };
-          */
         },
 
         CounterGenerator: (function () {
@@ -3615,7 +3809,7 @@
               keys = [];
               for (key in subject) {
                 /*jshint forin:false */
-                keys.push(key);
+                _.push(keys, key);
               }
             }
 
@@ -3807,8 +4001,11 @@
       /*
        * Static methods
        */
+      _.setValue($reiterate, '$', {});
+      _.setValue($reiterate.$, 'Map', MapObject);
+      _.setValue($reiterate.$, 'Set', SetObject);
       _.forEach(_.keys(_), function (key) {
-        _.setValue($reiterate, key, _[key]);
+        _.setValue($reiterate.$, key, _[key]);
       });
 
       _.setValue($reiterate, 'array', g.ArrayGenerator);
@@ -3817,8 +4014,6 @@
       _.setValue($reiterate, 'repeat', g.RepeatGenerator);
       _.setValue($reiterate, 'unzip', g.UnzipGenerator);
       _.setValue($reiterate, 'iterator', _.symIt);
-      _.setValue($reiterate, 'Map', MapObject);
-      _.setValue($reiterate, 'Set', SetObject);
 
       return $reiterate;
     }());

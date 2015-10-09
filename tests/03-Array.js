@@ -15,7 +15,7 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = reiterate.map;
+    map = reiterate.$.map;
 
   describe('Basic tests', function () {
     it('Array of primatives', function () {
@@ -92,7 +92,7 @@
       array = reiterate(a).values().unique().asArray();
       expect(array).to.eql(b);
 
-      array = reiterate(a).values().unique().asSet(reiterate.Set);
+      array = reiterate(a).values().unique().asSet(reiterate.$.Set);
       expect(array.size).to.be(b.length);
       array.forEach(function (item) {
         expect(b.indexOf(item)).to.not.be(-1);

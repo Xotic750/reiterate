@@ -16,13 +16,13 @@
     reiterate = required.subject,
     symIt = reiterate.iterator,
     forOf = required.forOf,
-    reduce = reiterate.reduce,
+    reduce = reiterate.$.reduce,
     isGeneratorSupported = required.isGeneratorSupported,
-    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER,
-    MIN_SAFE_INTEGER = required.MIN_SAFE_INTEGER,
+    MAX_SAFE_INTEGER = reiterate.$.MAX_SAFE_INTEGER,
+    MIN_SAFE_INTEGER = reiterate.$.MIN_SAFE_INTEGER,
     aGenerator;
 
-  if (isGeneratorSupported && !reiterate.useShims) {
+  if (isGeneratorSupported) {
     /*jshint evil:true */
     aGenerator = new Function('reduce', 'return function*(){var x=reduce(' +
       'arguments,function(acc,arg){return acc+arg},0),item;' +

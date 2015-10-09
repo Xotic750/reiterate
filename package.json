@@ -96,9 +96,9 @@
     "istanbul": false
   },
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha --check-leaks -u bdd -t 10000 -b -R tap tests/*.js",
-    "browserify": "./node_modules/browserify/bin/cmd.js ./tests/*.js -o ./tests/browser/tests.js",
-    "testmin": "export MIN=1; ./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js",
-    "coveralls": "./node_modules/istanbul/lib/cli.js cover --report lcovonly ./node_modules/mocha/bin/_mocha -- --check-leaks -u bdd -t 10000 -b -R tap tests/*.js && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
+    "test": "./node_modules/mocha/bin/mocha --check-leaks -u bdd -t 10000 -b -R tap tests/*.js tests/internals/*.js",
+    "browserify": "./node_modules/browserify/bin/cmd.js ./tests/*.js -o ./tests/browser/tests.js tests/internals/*.js",
+    "testmin": "export MIN=1; ./node_modules/mocha/bin/mocha --harmony --check-leaks -u bdd -t 10000 -b -R tap tests/*.js tests/internals/*.js",
+    "coveralls": "./node_modules/istanbul/lib/cli.js cover --report lcovonly ./node_modules/mocha/bin/_mocha -- --check-leaks -u bdd -t 10000 -b -R tap tests/*.js tests/internals/*.js && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   }
 }

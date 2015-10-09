@@ -25,22 +25,30 @@
 */
 
 /*property
-    ArrayGenerator, CounterGenerator, DONE, ENTRIES, EnumerateGenerator, KEYS,
-    _.MAX_SAFE_INTEGER, _.MIN_SAFE_INTEGER, OPTS, RepeatGenerator,
-    StringGenerator,
-    ThenGenerator, UnzipGenerator, VALUES, abs, add, amd, apply, asArray,
-    asMap, asObject, asSet, asString, assign, by, call, charCodeAt,
-    chunkGenerator, clear, codePointAt, compactGenerator, configurable,
-    defineProperty, differenceGenerator, done, drop, dropGenerator,
-    dropWhileGenerator, entries, enumerable, every, exports, filterGenerator,
+    $, ArrayGenerator, CounterGenerator, DONE, ENTRIES, EnumerateGenerator,
+    IdGenerator, KEYS, MAX_SAFE_INTEGER, MIN_SAFE_INTEGER, OPTS,
+    RepeatGenerator, StringGenerator, ThenGenerator, UnzipGenerator, VALUES,
+    abs, add, amd, apply, asArray, asMap, asObject, asSet, asString,
+    assertIsFunction, assertIsObject, assign, by, call, charCodeAt, chop,
+    chunkGenerator, clampToSafeIntegerRange, clear, codePointAt,
+    compactGenerator, concat, configurable, curry, defineProperty,
+    differenceGenerator, done, drop, dropGenerator, dropWhileGenerator,
+    entries, enumerable, every, exports, filter, filterGenerator, findIndex,
     first, flattenGenerator, floor, forEach, from, fromCharCode, fromCodePoint,
-    get, has, hasOwnProperty, id, index, indexOf, initialGenerator,
-    intersectionGenerator, isArray, isFinite, isNaN, iterator, join, keys,
-    last, length, mapGenerator, max, min, next, order, own, pow, prev,
-    prototype, push, reduce, rest, restGenerator, reverse, reversed, set, sign,
-    size, some, splice, takeGenerator, takeWhileGenerator, tapGenerator, then,
-    to, toString, unionGenerator, uniqueGenerator, value, valueOf, values,
-    writable, zipGenerator
+    get, getIndex, getPrototypeOf, has, hasApplyBug, hasBoxedStringBug,
+    hasCallBug, hasEnumArgsBug, hasOwn, hasOwnProperty, hasProperty,
+    hasV8Strictbug, id, inStrictMode, includes, index, indexOf,
+    initialGenerator, intersectionGenerator, is, isArray, isArrayLike, isDate,
+    isFinite, isFunction, isIndex, isInteger, isLength, isNaN, isNil, isNumber,
+    isObject, isObjectLike, isString, isSurrogatePair, isSymbol, isUndefined,
+    iterator, join, keys, last, length, map, mapGenerator, max, min, next,
+    noop, numIsFinite, numIsNaN, order, own, pow, prev, prototype, push,
+    reduce, reflectArg, requireObjectCoercible, reset, rest, restGenerator,
+    returnArgs, returnThis, reverse, reversed, sameValueZero, set, setValue,
+    sign, size, some, splice, symIt, takeGenerator, takeWhileGenerator,
+    tapGenerator, then, to, toInteger, toLength, toNumber, toObject,
+    toPrimitive, toString, toStringTag, unionGenerator, uniqueGenerator,
+    useShims, value, values, writable, zipGenerator
 */
 
 /**
@@ -49,30 +57,39 @@
  * @private
  * @see https://github.com/umdjs/umd/blob/master/returnExports.js
  */
-(function (thisArg, factory) {
+(function umd(thisArg, factory) {
   'use strict';
 
   var root,
+    $hasOwnProperty = Object.prototype.hasOwnProperty,
+    $defineProperty = Object.defineProperty,
+    $push = Array.prototype.push,
+    $forEach = Array.prototype.forEach,
+    $reduce = Array.prototype.reduce,
+    $filter = Array.prototype.filter,
+    $map = Array.prototype.map,
+    $some = Array.prototype.some,
+    $every = Array.prototype.every,
+    $indexOf = Array.prototype.indexOf,
+    $findIndex = Array.prototype.findIndex,
+    $includes = Array.prototype.includes,
+    $codePointAt = String.prototype.codePointAt,
     reduceError = 'reduce of empty array with no initial value',
     strFor = 'for',
-    typeUndefined = typeof undefined,
+    typeUndefined,
     typeFunction = typeof factory,
     typeObject = typeof Object.prototype,
     typeNumber = typeof 0,
     typeBoolean = typeof false,
     typeString = typeof strFor,
     typeSymbol,
-    valueOf = Object.prototype.valueOf,
-    hasOwnProperty = Object.prototype.hasOwnProperty,
-    defineProperty = Object.defineProperty,
     toTag = Object.prototype.toString,
     stringOrder = ['toString', 'valueOf'],
-    numberOrder = stringOrder.reverse(),
+    numberOrder = stringOrder.slice().reverse(),
     descriptor = {
       enumerable: false,
       writable: true,
-      configurable: true,
-      value: undefined
+      configurable: true
     },
     _ = {
       useShims: false,
@@ -85,7 +102,18 @@
     tagString,
     tagArray,
     arrayIsArray,
-    hasV8Strictbug;
+    fixCall,
+    testProp;
+
+  /**
+   * @private
+   * @return {undefined}
+   */
+  _.noop = function noop() {
+    return;
+  };
+
+  typeUndefined = typeof _.noop();
 
   /**
    * Returns the this context of the function.
@@ -110,25 +138,107 @@
   _.inStrictMode = !returnThis();
 
   /**
-   * Checks if the supplied function suffers from the V8 strict mode bug.
+   * Indicates if the this argument used with call does not convert to an
+   * object when not strict mode. True if it does, otherwise false.
    *
    * @private
-   * @param {Function} fn
-   * @return {boolean}
+   * @type {boolean}
    */
-  function testV8StrictBug(fn) {
-    var bug = false;
+  _.hasCallBug = !_.inStrictMode &&
+    typeof returnThis.call(strFor) === typeString;
 
-    if (_.inStrictMode && typeof fn === typeFunction) {
-      fn.call([1], function () {
-        bug = typeof this === typeObject;
-      }, 'foo');
-    }
+  /**
+   * Indicates if the this argument used with apply does not convert to an
+   * object when not strict mode. True if it does not, otherwise false.
+   *
+   * @private
+   * @type {boolean}
+   */
+  _.hasApplyBug = !_.inStrictMode &&
+    typeof returnThis.apply(strFor) === typeString;
 
-    return bug;
+  /**
+   * Checks if the environment suffers the V8 strict mode bug.
+   *
+   * @private
+   * @type {boolean}
+   */
+  if (!_.inStrictMode && $forEach) {
+    $forEach.call([1], function () {
+      _.hasV8Strictbug = typeof this !== typeObject;
+    }, strFor);
+  } else {
+    _.hasV8Strictbug = false;
   }
 
-  hasV8Strictbug = testV8StrictBug(Array.prototype.forEach);
+  /**
+   * Indicates if a string suffers the "indexed accessability bug".
+   * True if it does, otherwise false.
+   *
+   * @private
+   * @type {boolean}
+   */
+  _.hasBoxedStringBug = Object(strFor)[0] !== 'f' ||
+    !(0 in Object(strFor));
+
+  /**
+   * Returns an arguments object of the arguments supplied.
+   *
+   * @private
+   * @param {...*} [varArgs]
+   * @return {Arguments}
+   */
+  _.returnArgs = function returnArgs() {
+    return arguments;
+  };
+
+  /**
+   * Indicates if the arguments object suffers the "index enumeration bug".
+   * True if it does, otherwise false.
+   *
+   * @private
+   * @type {boolean}
+   */
+  _.hasEnumArgsBug = true;
+  for (testProp in _.returnArgs(strFor)) {
+    if (testProp === '0') {
+      _.hasEnumArgsBug = false;
+      break;
+    }
+  }
+
+  /**
+   * Returns true if the operand subject is undefined
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if the object is undefined, otherwise false.
+   */
+  _.isUndefined = function isUndefined(subject) {
+    return typeof subject === typeUndefined;
+  };
+
+  /**
+   * Returns true if the operand inputArg is null.
+   *
+   * @private
+   * @param {*} inputArg
+   * @return {boolean}
+   */
+  _.isNull = function isNull(inputArg) {
+    return inputArg === null;
+  };
+
+  /**
+   * Returns true if the operand subject is null or undefined.
+   *
+   * @private
+   * @param {*} subject The object to be tested.
+   * @return {boolean} True if undefined or null, otherwise false.
+   */
+  _.isNil = function isNil(subject) {
+    return _.isNull(subject) || _.isUndefined(subject);
+  };
 
   /**
    * Checks if value is the language type of Object.
@@ -152,19 +262,19 @@
     return type;
   };
 
-  if (defineProperty && !_.useShims) {
+  if ($defineProperty && !_.useShims) {
     // IE 8 only supports 'Object.defineProperty' on DOM elements
     try {
-      defineProperty = defineProperty({}, {}, {}) && defineProperty;
+      $defineProperty({}, {}, {});
     } catch (e) {
       /* istanbul ignore next */
-      defineProperty = !e;
+      $defineProperty = !e;
     }
   }
 
   /* istanbul ignore next */
-  if (!defineProperty || _.useShims) {
-    defineProperty = function (object, property, descriptor) {
+  if (!$defineProperty || _.useShims) {
+    $defineProperty = function defineProperty(object, property, descriptor) {
       if (!_.isObject(object)) {
         throw new TypeError('called on non-object');
       }
@@ -175,29 +285,7 @@
     };
   }
 
-  _.defineProperty = defineProperty;
-
-  /**
-   * Returns true if the operand subject is undefined
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} True if the object is undefined, otherwise false.
-   */
-  _.isUndefined = function isUndefined(subject) {
-    return typeof subject === typeUndefined;
-  };
-
-  /**
-   * Returns true if the operand subject is null or undefined.
-   *
-   * @private
-   * @param {*} subject The object to be tested.
-   * @return {boolean} True if undefined or null, otherwise false.
-   */
-  _.isNil = function isNil(subject) {
-    return subject === null || _.isUndefined(subject);
-  };
+  _.defineProperty = $defineProperty;
 
   /**
    * The abstract operation throws an error if its argument is a value that
@@ -227,17 +315,32 @@
    * @see http://www.ecma-international.org/ecma-262/5.1/#sec-9.9
    */
   _.toObject = function toObject(subject) {
-    var object;
+    return _.isObject(_.requireObjectCoercible(subject)) ?
+      subject :
+      Object(subject);
+  };
 
-    /* istanbul ignore else */
-    if (_.isObject(_.requireObjectCoercible(subject))) {
-      object = subject;
-    } else {
-      object = valueOf.call(subject);
+  _.reflectArg = function reflectArg(subject) {
+    return subject;
+  };
+
+  if (_.inStrictMode && _.hasCallBug) {
+    fixCall = function fixCallApply(subject) {
+      return !_.isNil(subject) ? _.toObject(subject) : subject;
+    };
+  } else {
+    fixCall = _.reflectArg;
+  }
+
+  function fixV8StrictBug(args) {
+    var fixed = _.chop(args, 1);
+
+    if (_.hasV8Strictbug && fixed.length > 1 && !_.isNil(fixed[1])) {
+      fixed[1] = _.toObject(fixed[1]);
     }
 
-    return object;
-  };
+    return fixed;
+  }
 
   /**
    * Returns a boolean indicating whether the object has the specified
@@ -254,7 +357,25 @@
    * Reference/Global_Objects/Object/hasOwnProperty
    */
   _.hasOwn = function hasOwn(subject, property) {
-    return hasOwnProperty.call(_.toObject(subject), property);
+    /*jshint singleGroups:false */
+    return (_.hasBoxedStringBug &&
+        _.isString(subject) &&
+        _.isIndex(property, subject.length)) ||
+
+      $hasOwnProperty.call(
+        _.toObject(subject),
+        _.isSymbol(property) ? property : _.toString(property)
+      ) ||
+
+      /*
+       * Avoid a bug in IE 10-11 where objects with a [[Prototype]] of 'null',
+       * that are composed entirely of index properties, return 'false' for
+       * 'hasOwnProperty' checks of them.
+       */
+      (Object.getPrototypeOf &&
+        typeof subject === typeObject &&
+        _.hasProperty(subject, property) &&
+        _.isNull(Object.getPrototypeOf(subject)));
   };
 
   /**
@@ -280,15 +401,13 @@
     }
 
     descriptor.value = value;
-    defineProperty(object, property, descriptor);
-    descriptor.value = undefined;
+    $defineProperty(object, property, descriptor);
+    delete descriptor.value;
 
     return object;
   };
 
-  _.symIt = typeof Symbol === typeFunction && !_.useShims ?
-    Symbol.iterator :
-    '@@iterator';
+  _.symIt = typeof Symbol === typeFunction ? Symbol.iterator : '@@iterator';
 
   /**
    * Provides a string representation of the supplied object in the form
@@ -302,7 +421,17 @@
    * #sec-object.prototype.tostring
    */
   _.toStringTag = function toStringTag(subject) {
-    return toTag.call(subject);
+    var val;
+
+    if (_.isNull(subject)) {
+      val = '[object Null]';
+    } else if (_.isUndefined(subject)) {
+      val = '[object Undefined]';
+    } else {
+      val = toTag.call(subject);
+    }
+
+    return val;
   };
 
   tagFunction = _.toStringTag(_.isNil);
@@ -373,7 +502,7 @@
         if (_.isFunction(subject[method])) {
           result = subject[method]();
           if (!_.isObject(result)) {
-            break;
+            return result;
           }
         }
 
@@ -396,7 +525,7 @@
       val;
 
     /* istanbul ignore if */
-    if (subject === null) {
+    if (_.isNull(subject)) {
       val = +0;
     } else {
       type = typeof subject;
@@ -612,9 +741,9 @@
   };
 
   /* istanbul ignore else */
-  if (String.prototype.codePointAt && !_.useShims) {
+  if ($codePointAt && !_.useShims) {
     _.codePointAt = function codePointAt(string, position) {
-      return String.prototype.codePointAt.call(string, position);
+      return $codePointAt.call(string, position);
     };
   } else {
     _.codePointAt = function codePointAt(subject, position) {
@@ -679,6 +808,112 @@
     return length;
   };
 
+  /**
+   * Checks if 'value' is a valid array-like index.
+   *
+   * @private
+   * @param {*} inputArg The value to check.
+   * @param {number} [length] The upper bounds of a valid index otherwise
+   *                          MAX_SAFE_INTEGER - 1.
+   * @return {boolean} Returns true if inputArg is a valid index, otherwise
+   *                   false.
+   */
+  _.isIndex = function isIndex(inputArg, length) {
+    var size,
+      arg;
+
+    if (arguments.length > 1) {
+      size = _.toLength(length);
+    } else {
+      size = _.MAX_SAFE_INTEGER - 1;
+    }
+
+    arg = _.toNumber(inputArg);
+
+    return _.isLength(arg) && arg < size;
+  };
+
+  /**
+   * This method adds one or more elements to the end of the array and
+   * returns the new length of the array.
+   *
+   * @param {array} array
+   * @param {...*} [varArgs]
+   * @return {number}
+   */
+  testProp = [];
+  if (!_.useShims || $push.call(testProp, _.noop()) !== 1 ||
+    testProp.length !== 1 || testProp[0] !== _.noop()) {
+    _.push = function push(array) {
+      return $push.apply(array, _.chop(arguments, 1));
+    };
+  } else {
+    _.push = function push(array) {
+      var object = _.toObject(array),
+        length = _.toLength(object.length),
+        numItems = arguments.length - 1,
+        index = 0;
+
+      object.length = length + numItems;
+      while (index < numItems) {
+        object[length + index] = arguments[index + 1];
+        index += 1;
+      }
+
+      return object.length;
+    };
+  }
+  /**
+   * The abstract operation converts its argument to a value of type string
+   *
+   * @private
+   * @param {*} inputArg
+   * @return {string}
+   * @see http://www.ecma-international.org/ecma-262/6.0/#sec-tostring
+   */
+  _.toString = function toStrIng(inputArg) {
+    var type,
+      val;
+
+    if (_.isNull(inputArg)) {
+      val = 'null';
+    } else {
+      type = typeof inputArg;
+      if (type === typeString) {
+        val = inputArg;
+      } else if (type === typeUndefined) {
+        val = type;
+      } else {
+        if (typeSymbol && type === typeSymbol) {
+          throw new TypeError('Cannot convert symbol to string');
+        }
+
+        val = String(inputArg);
+      }
+    }
+
+    return val;
+  };
+
+  _.isSymbol = function isSymbol(subject) {
+    return typeSymbol && typeof subject === typeSymbol;
+  };
+
+  /**
+   * @private
+   * @param {*} inputArg The object to be tested.
+   * @param {string} property The property name.
+   * @return {boolean} True if the property is on the object or in the object's
+   *                   prototype, otherwise false.
+   */
+  _.hasProperty = function hasProperty(inputArg, property) {
+    var prop = _.isSymbol(property) ? property : _.toString(property);
+
+    /*jshint singleGroups:false */
+    return (_.isString(inputArg) && _.isIndex(prop, inputArg.length)) ||
+      prop in _.toObject(inputArg);
+  };
+
   _.chop = function chop(array, start, end) {
     var object = _.toObject(array),
       length = _.toLength(object.length),
@@ -713,7 +948,7 @@
     finalEnd = _.toLength(finalEnd);
     val.length = _.toLength(Math.max(finalEnd - k, 0));
     while (k < finalEnd) {
-      if (k in object) {
+      if (_.hasProperty(object, k)) {
         val[next] = object[k];
       }
 
@@ -723,16 +958,6 @@
 
     return val;
   };
-
-  function fixV8StrictBug(args) {
-    var fixed = _.chop(args, 1);
-
-    if (fixed.length > 1 && !_.isNil(fixed[1]) && !_.isObject(fixed[1])) {
-      fixed[1] = valueOf.call(fixed[1]);
-    }
-
-    return fixed;
-  }
 
   /**
    * Apply a function against an accumulator and each value of the array
@@ -749,16 +974,10 @@
    * Global_Objects/Array/reduce
    */
   /* istanbul ignore else */
-  if (Array.prototype.reduce && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.reduce = function reduce(array) {
-        return Array.prototype.reduce.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.reduce = function reduce(array) {
-        return Array.prototype.reduce.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($reduce && !_.useShims) {
+    _.reduce = function reduce(array) {
+      return $reduce.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.reduce = function reduce(array, callback, initialValue) {
       var object = _.toObject(array),
@@ -779,7 +998,7 @@
       } else {
         kPresent = false;
         while (!kPresent && index < length) {
-          kPresent = index in object;
+          kPresent = _.hasProperty(object, index);
           if (kPresent) {
             acc = object[index];
             index += 1;
@@ -792,9 +1011,9 @@
       }
 
       while (index < length) {
-        if (index in object) {
+        if (_.hasProperty(object, index)) {
           acc = callback.call(
-            undefined,
+            fixCall(_.noop()),
             acc,
             object[index],
             index,
@@ -841,7 +1060,7 @@
         }
 
         if (codePnt <= 0xFFFF) {
-          codeUnits.push(codePnt);
+          _.push(codeUnits, codePnt);
         } else {
           codePnt -= 0x10000;
           /*jshint singleGroups:false */
@@ -850,7 +1069,7 @@
           /*jshint bitwise:true */
           lowSurrogate = (codePnt % 0x400) + 0xDC00;
           /*jshint singleGroups:true */
-          codeUnits.push(highSurrogate, lowSurrogate);
+          _.push(codeUnits, highSurrogate, lowSurrogate);
         }
 
         if (codeUnits.length > MAX_SIZE) {
@@ -894,16 +1113,10 @@
     return number;
   };
 
-  if (Array.prototype.map && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.map = function map(array) {
-        return Array.prototype.map.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.map = function map(array) {
-        return Array.prototype.map.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($map && !_.useShims) {
+    _.map = function map(array) {
+      return $map.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.map = function map(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -916,9 +1129,9 @@
       arr.length = length = _.toLength(object.length);
       index = 0;
       while (index < length) {
-        if (index in object) {
+        if (_.hasProperty(object, index)) {
           arr[index] = callback.call(
-            thisArg,
+            fixCall(thisArg),
             object[index],
             index,
             object
@@ -932,16 +1145,10 @@
     };
   }
 
-  if (Array.prototype.filter && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.filter = function filter(array) {
-        return Array.prototype.filter.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.filter = function filter(array) {
-        return Array.prototype.filter.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($filter && !_.useShims) {
+    _.filter = function filter(array) {
+      return $filter.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.filter = function filter(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -955,10 +1162,10 @@
       arr = [];
       index = 0;
       while (index < length) {
-        if (index in object) {
+        if (_.hasProperty(object, index)) {
           it = object[index];
-          if (callback.call(thisArg, it, index, object)) {
-            arr.push(it);
+          if (callback.call(fixCall(thisArg), it, index, object)) {
+            _.push(arr, it);
           }
         }
 
@@ -992,16 +1199,10 @@
    * Global_Objects/Array/forEach
    */
   /* istanbul ignore else */
-  if (Array.prototype.forEach && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.forEach = function forEach(array) {
-        return Array.prototype.forEach.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.forEach = function forEach(array) {
-        return Array.prototype.forEach.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($forEach && !_.useShims) {
+    _.forEach = function forEach(array) {
+      return $forEach.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.forEach = function forEach(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -1012,8 +1213,8 @@
       length = _.toLength(object.length);
       index = 0;
       while (index < length) {
-        if (index in object) {
-          callback.call(thisArg, object[index], index, object);
+        if (_.hasProperty(object, index)) {
+          callback.call(fixCall(thisArg), object[index], index, object);
         }
 
         index += 1;
@@ -1022,16 +1223,10 @@
   }
 
   /* istanbul ignore else */
-  if (Array.prototype.some && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.some = function some(array) {
-        return Array.prototype.some.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.some = function some(array) {
-        return Array.prototype.some.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($some && !_.useShims) {
+    _.some = function some(array) {
+      return $some.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.some = function some(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -1044,8 +1239,13 @@
       val = false;
       index = 0;
       while (index < length) {
-        if (index in object) {
-          val = !!callback.call(thisArg, object[index], index, object);
+        if (_.hasProperty(object, index)) {
+          val = !!callback.call(
+            fixCall(thisArg),
+            object[index],
+            index, object
+          );
+
           if (val) {
             break;
           }
@@ -1059,16 +1259,10 @@
   }
 
   /* istanbul ignore else */
-  if (Array.prototype.every && !_.useShims) {
-    if (hasV8Strictbug) {
-      _.every = function every(array) {
-        return Array.prototype.every.apply(array, fixV8StrictBug(arguments));
-      };
-    } else {
-      _.every = function every(array) {
-        return Array.prototype.every.apply(array, _.chop(arguments, 1));
-      };
-    }
+  if ($every && !_.useShims) {
+    _.every = function every(array) {
+      return $every.apply(array, fixV8StrictBug(arguments));
+    };
   } else {
     _.every = function every(array, callback, thisArg) {
       var object = _.toObject(array),
@@ -1081,8 +1275,14 @@
       val = true;
       index = 0;
       while (index < length) {
-        if (index in object) {
-          val = !!callback.call(thisArg, object[index], index, object);
+        if (_.hasProperty(object, index)) {
+          val = !!callback.call(
+            fixCall(thisArg),
+            object[index],
+            index,
+            object
+          );
+
           if (!val) {
             break;
           }
@@ -1106,7 +1306,7 @@
 
       for (key in object) {
         if (_.hasOwn(object, key)) {
-          ownKeys.push(key);
+          _.push(ownKeys, key);
         }
       }
 
@@ -1145,70 +1345,74 @@
     };
   }
 
-  _.from = function from(items, mapfn, thisArg) {
-    var usingIterator = items && items[_.symIt],
-      iterator,
-      object,
-      length,
-      array,
-      mapping,
-      index,
-      next;
+  if (Array.from && !_.useShims) {
+    _.from = Array.from;
+  } else {
+    _.from = function from(items, mapfn, thisArg) {
+      var usingIterator = items && items[_.symIt],
+        iterator,
+        object,
+        length,
+        array,
+        mapping,
+        index,
+        next;
 
-    if (!_.isUndefined(mapfn)) {
-      mapping = !!_.assertIsFunction(mapfn);
-    }
-
-    index = 0;
-    if (usingIterator) {
-      if (_.isFunction(this)) {
-        array = new this();
-      } else {
-        array = [];
+      if (!_.isUndefined(mapfn)) {
+        mapping = !!_.assertIsFunction(mapfn);
       }
 
-      iterator = usingIterator();
-      next = iterator.next();
-      while (!next.done) {
-        if (mapping) {
-          array[index] = mapfn.call(thisArg, next.value, index);
+      index = 0;
+      if (usingIterator) {
+        if (_.isFunction(this)) {
+          array = new this();
         } else {
-          array[index] = next.value;
+          array = [];
         }
 
+        iterator = usingIterator();
         next = iterator.next();
-        index += 1;
-      }
+        while (!next.done) {
+          if (mapping) {
+            array[index] = mapfn.call(fixCall(thisArg), next.value, index);
+          } else {
+            array[index] = next.value;
+          }
 
-      array.length = index;
-    } else {
-      object = _.toObject(items);
-      length = _.toLength(object.length);
-      if (_.isFunction(this)) {
-        array = new this(length);
-      } else {
-        array = [];
-      }
-
-      array.length = length;
-      while (index < length) {
-        if (mapping) {
-          array[index] = mapfn.call(thisArg, object[index], index);
-        } else {
-          array[index] = object[index];
+          next = iterator.next();
+          index += 1;
         }
 
-        index += 1;
-      }
-    }
+        array.length = index;
+      } else {
+        object = _.toObject(items);
+        length = _.toLength(object.length);
+        if (_.isFunction(this)) {
+          array = new this(length);
+        } else {
+          array = [];
+        }
 
-    return array;
-  };
+        array.length = length;
+        while (index < length) {
+          if (mapping) {
+            array[index] = mapfn.call(fixCall(thisArg), object[index], index);
+          } else {
+            array[index] = object[index];
+          }
+
+          index += 1;
+        }
+      }
+
+      return array;
+    };
+  }
 
   /* istanbul ignore else */
-  if (Array.prototype.indexOf && !_.useShims) {
+  if ($indexOf && !_.useShims) {
     _.indexOf = function indexOf(array) {
-      return Array.prototype.indexOf.apply(array, _.chop(arguments, 1));
+      return $indexOf.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.indexOf = function indexOf(array, searchElement, fromIndex) {
@@ -1234,7 +1438,8 @@
 
           index = fromIndex;
           while (index < length) {
-            if (index in object && searchElement === object[index]) {
+            if (_.hasProperty(object, index) &&
+              searchElement === object[index]) {
               val = index;
               break;
             }
@@ -1273,7 +1478,7 @@
 
     while (index < howMany || carry) {
       zi = carry + (index < length ? this.id[index] : 0) + !index;
-      result.push(zi % 10);
+      _.push(result, zi % 10);
       carry = Math.floor(zi / 10);
       index += 1;
     }
@@ -1289,7 +1494,7 @@
 
   _.setValue(_.IdGenerator.prototype, 'reset', function () {
     this.id.length = 0;
-    this.id.push(0);
+    _.push(this.id, 0);
 
     return this;
   });
@@ -1300,9 +1505,9 @@
     return (x === y) || (_.numIsNaN(x) && _.numIsNaN(y));
   };
 
-  if (Array.prototype.findIndex) {
+  if ($findIndex && !_.useShims) {
     _.findIndex = function findIndex(array) {
-      return Array.prototype.findIndex.apply(array, _.chop(arguments, 1));
+      return $findIndex.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.findIndex = function findIndex(array, callback, thisArg) {
@@ -1316,7 +1521,7 @@
       val = -1;
       index = 0;
       while (index < length) {
-        if (callback.call(thisArg, object[index], index, object)) {
+        if (callback.call(fixCall(thisArg), object[index], index, object)) {
           val = index;
           break;
         }
@@ -1345,9 +1550,9 @@
     return searchIndex;
   };
 
-  if (Array.prototype.includes) {
+  if ($includes && !_.useShims) {
     _.includes = function includes(array) {
-      return Array.prototype.includes.call(array, _.chop(arguments, 1));
+      return $includes.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.includes = function includes(array, searchElement, fromIndex) {
@@ -1388,7 +1593,7 @@
      * AMD. Register as an anonymous module.
      */
     define([], function () {
-      return factory(_);
+      return factory(_, fixCall);
     });
   } else {
     /* istanbul ignore else */
@@ -1398,7 +1603,7 @@
        * only CommonJS-like environments that support module.exports,
        * like Node.
        */
-      module.exports = factory(_);
+      module.exports = factory(_, fixCall);
     } else {
       /*jshint singleGroups:false */
       root = (
@@ -1408,7 +1613,7 @@
         (typeof global === 'object' && global) ||
         (typeof thisArg === 'object' && thisArg) || {};
 
-      _.setValue(root, 'reiterate', factory(_));
+      _.setValue(root, 'reiterate', factory(_, fixCall));
     }
   }
 }(
@@ -1419,11 +1624,11 @@
    * Factory function
    *
    * @private
-   * @param {function} isObject
-   * @param {function} defineProperty
+   * @param {object} _
+   * @param {function} fixCall
    * @return {function} The function be exported
    */
-  function (_) {
+  function factory(_, fixCall) {
     'use strict';
 
     /* constants */
@@ -1440,7 +1645,7 @@
 
         DONE: {
           done: true,
-          value: undefined
+          value: _.noop()
         },
 
         /**
@@ -1558,11 +1763,11 @@
               indexof = _.getIndex(context['[[key]]'], key);
               if (indexof < 0) {
                 if (kind === 'map') {
-                  context['[[value]]'].push(next.value[1]);
+                  _.push(context['[[value]]'], next.value[1]);
                 }
 
-                context['[[key]]'].push(key);
-                context['[[order]]'].push(context['[[id]]'].get());
+                _.push(context['[[key]]'], key);
+                _.push(context['[[order]]'], context['[[id]]'].get());
                 context['[[id]]'].next();
               } else if (kind === 'map') {
                 context['[[value]]'][indexof] = next.value[1];
@@ -1606,7 +1811,7 @@
                 context['[[value]]'][pointers.index] :
                 key;
 
-              callback.call(thisArg, value, key, context);
+              callback.call(fixCall(thisArg), value, key, context);
             }
 
             if (context['[[change]]']) {
@@ -1669,11 +1874,11 @@
           context['[[value]]'][index] = value;
         } else {
           if (kind === 'map') {
-            context['[[value]]'].push(value);
+            _.push(context['[[value]]'], value);
           }
 
-          context['[[key]]'].push(key);
-          context['[[order]]'].push(context['[[id]]'].get());
+          _.push(context['[[key]]'], key);
+          _.push(context['[[order]]'], context['[[id]]'].get());
           context['[[id]]'].next();
           context['[[change]]'] = true;
           context.size = context['[[key]]'].length;
@@ -1686,7 +1891,6 @@
         var S = typeof Set === typeFunction && !_.useShims && Set,
           createSetIterator,
           SetIterator,
-          callback,
           typeIdenifier,
           fn,
           s;
@@ -1707,14 +1911,13 @@
               throw new Error('Missing methods');
             }
 
-            callback = function () {};
-            s.add(callback);
-            s.add(callback);
-            s.add(callback);
+            s.add(_.noop);
+            s.add(_.noop);
+            s.add(_.noop);
             s.add(s);
             s.add(NaN);
             s.add(NaN);
-            s.add('key');
+            s.add(strDelete);
             s.add(-0);
             s.add(0);
             if (s.size !== 7) {
@@ -1815,8 +2018,6 @@
       MapObject = (function (typeFunction) {
         var M = typeof Map === typeFunction && !_.useShims && Map,
           MapIterator,
-          generic,
-          callback,
           typeIdenifier,
           fn,
           m;
@@ -1841,18 +2042,16 @@
               throw new Error('Missing methods');
             }
 
-            generic = {};
-            callback = function () {};
-            m.set(callback, generic);
-            m.set(callback, callback);
-            m.set(callback, m);
-            m.set(m, callback);
-            m.set(NaN, generic);
-            m.set(NaN, callback);
-            m.set('key', undefined);
-            m.set(-0, callback);
-            m.set(0, generic);
-            if (m.get(0) !== generic || m.get(-0) !== generic || m.size !== 7) {
+            m.set(_.noop, _);
+            m.set(_.noop, _.noop);
+            m.set(_.noop, m);
+            m.set(m, _.noop);
+            m.set(NaN, _);
+            m.set(NaN, _.noop);
+            m.set(strDelete, _.noop());
+            m.set(-0, _.noop);
+            m.set(0, _);
+            if (m.get(0) !== _ || m.get(-0) !== _ || m.size !== 7) {
               throw new Error('Incorrect result');
             }
           } catch (e) {
@@ -1923,7 +2122,7 @@
           _.setValue(fn.prototype, 'get', function (key) {
             var index = _.getIndex(_.assertIsObject(this)['[[key]]'], key);
 
-            return index > -1 ? this['[[value]]'][index] : undefined;
+            return index > -1 ? this['[[value]]'][index] : _.noop();
           });
 
           _.setValue(fn.prototype, strDelete, function (key) {
@@ -2100,7 +2299,7 @@
                 itertor = itertor || generator();
                 next = next && next.done ? next : itertor.next();
                 if (!next.done) {
-                  callback.call(thisArg, next.value, index);
+                  callback.call(fixCall(thisArg), next.value, index);
                   object = {
                     done: false,
                     value: next.value
@@ -2131,7 +2330,7 @@
           result = true;
           index = 0;
           while (result && !next.done) {
-            if (!callback.call(thisArg, next.value, index)) {
+            if (!callback.call(fixCall(thisArg), next.value, index)) {
               result = false;
             } else {
               next = iterator.next();
@@ -2154,7 +2353,7 @@
           result = false;
           index = 0;
           while (!result && !next.done) {
-            if (callback.call(thisArg, next.value, index)) {
+            if (callback.call(fixCall(thisArg), next.value, index)) {
               result = true;
             } else {
               next = iterator.next();
@@ -2171,7 +2370,7 @@
             result = [];
 
           while (!next.done) {
-            result.push(next.value);
+            _.push(result, next.value);
             next = iterator.next();
           }
 
@@ -2349,7 +2548,7 @@
                 iterator = iterator || generator();
                 next = next && !dropped ? next : iterator.next();
                 while (!dropped && !next.done && callback.call(
-                    thisArg,
+                    fixCall(thisArg),
                     next.value,
                     index
                   )) {
@@ -2427,7 +2626,11 @@
 
                 iterator = iterator || generator();
                 next = next && next.done ? next : iterator.next();
-                if (!next.done && callback.call(thisArg, next.value, index)) {
+                if (!next.done && callback.call(
+                    fixCall(thisArg),
+                    next.value,
+                    index
+                  )) {
                   object = {
                     done: false,
                     value: next.value
@@ -2466,7 +2669,7 @@
                 }
 
                 while (!next.done && chunk && chunk.length < howMany) {
-                  chunk.push(next.value);
+                  _.push(chunk, next.value);
                   next = iterator.next();
                 }
 
@@ -2595,7 +2798,7 @@
         first: function () {
           var next = this[_.symIt]().next();
 
-          return next.done ? undefined : next.value;
+          return next.done ? _.noop() : next.value;
         },
 
         last: function () {
@@ -2665,7 +2868,7 @@
 
           function push(argSets, arg) {
             if (_.isArrayLike(arg) || _.isFunction(arg[_.symIt])) {
-              argSets.push(new SetObject($reiterate(arg)));
+              _.push(argSets, new SetObject($reiterate(arg)));
             }
 
             return argSets;
@@ -2817,9 +3020,9 @@
             var next = iterator.next();
 
             if (next.done) {
-              zip.value.push(undefined);
+              _.push(zip.value, _.noop());
             } else {
-              zip.value.push(next.value);
+              _.push(zip.value, next.value);
               zip.done = false;
             }
 
@@ -2828,7 +3031,7 @@
 
           function push(iterators, arg) {
             if (_.isArrayLike(arg) || _.isFunction(arg[_.symIt])) {
-              iterators.push($reiterate(arg, true)[_.symIt]());
+              _.push(iterators, $reiterate(arg, true)[_.symIt]());
             }
 
             return iterators;
@@ -3041,7 +3244,7 @@
                 if (!next.done) {
                   object = {
                     done: false,
-                    value: callback.call(thisArg, next.value, index)
+                    value: callback.call(fixCall(thisArg), next.value, index)
                   };
 
                   index += 1;
@@ -3074,7 +3277,7 @@
                 iterator = iterator || generator();
                 next = next && next.done ? next : iterator.next();
                 while (!next.done &&
-                  !callback.call(thisArg, next.value, index)) {
+                  !callback.call(fixCall(thisArg), next.value, index)) {
                   next = iterator.next();
                   index += 1;
                 }
@@ -3186,15 +3389,6 @@
               }
             };
           };
-
-          /*
-          this[_.symIt] = function () {
-            var inter = Function.prototype.apply.bind(generator, argsArray);
-
-            inter[_.symIt] = generator[_.symIt];
-            return inter;
-          };
-          */
         },
 
         CounterGenerator: (function () {
@@ -3617,7 +3811,7 @@
               keys = [];
               for (key in subject) {
                 /*jshint forin:false */
-                keys.push(key);
+                _.push(keys, key);
               }
             }
 
@@ -3809,8 +4003,11 @@
       /*
        * Static methods
        */
+      _.setValue($reiterate, '$', {});
+      _.setValue($reiterate.$, 'Map', MapObject);
+      _.setValue($reiterate.$, 'Set', SetObject);
       _.forEach(_.keys(_), function (key) {
-        _.setValue($reiterate, key, _[key]);
+        _.setValue($reiterate.$, key, _[key]);
       });
 
       _.setValue($reiterate, 'array', g.ArrayGenerator);
@@ -3819,8 +4016,6 @@
       _.setValue($reiterate, 'repeat', g.RepeatGenerator);
       _.setValue($reiterate, 'unzip', g.UnzipGenerator);
       _.setValue($reiterate, 'iterator', _.symIt);
-      _.setValue($reiterate, 'Map', MapObject);
-      _.setValue($reiterate, 'Set', SetObject);
 
       return $reiterate;
     }());
@@ -7008,22 +7203,34 @@ process.umask = function() { return 0; };
 
 }).call(this,require("buffer").Buffer)
 },{"buffer":3}],9:[function(require,module,exports){
-(function (process){
+(function (process,global){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:true, es3:true, plusplus:true, maxparams:3, maxdepth:3,
-    maxstatements:25, maxcomplexity:10
+    esnext:true, es3:true, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
 */
-/*global module, require, process */
+/*global window, self, global, module, require, process */
 /* istanbul ignore next */
-(function () {
+(function (context) {
   'use strict';
 
-  module.exports.MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;
-  module.exports.MIN_SAFE_INTEGER = -module.exports.MAX_SAFE_INTEGER;
+  module.exports.global = context;
+
+  function toStringTag(subject) {
+    return Object.prototype.toString.call(subject);
+  }
+
+  module.exports.toStringTag = toStringTag;
+
+  module.exports.isStrictMode = function isStrictMode() {
+    return (function () {
+      return !this;
+    }());
+  };
+
   module.exports.expect = require('expect.js');
   if (process.env.MIN) {
     module.exports.subject = require('../lib/reiterate.min');
@@ -7031,65 +7238,63 @@ process.umask = function() { return 0; };
     module.exports.subject = require('../lib/reiterate');
   }
 
+  var $ = module.exports.subject.$;
+
   module.exports.isGeneratorSupported = (function () {
     try {
-      /*jslint evil:true */
+      /*jshint evil:true */
       eval('(function*(){})()');
       return true;
-    } catch (ignore) {}
-
-    return false;
+    } catch (e) {
+      return !e;
+    }
   }());
 
-  module.exports.isNativeSymbolIterator = typeof module.exports.iterator ===
-    'symbol';
+  module.exports.isNativeSymbolIterator = $.isSymbol($.symIt);
 
   module.exports.forOf = (function () {
     var val,
       fn;
 
-    if (!module.exports.subject.useShims &&
-      module.exports.isNativeSymbolIterator) {
-      try {
-        /*jshint evil:true */
-        fn = new Function('return function(iterable,callback,thisArg){for(' +
-          'var item of iterable)if(callback.call(thisArg,item))break};')();
+    try {
+      /*jshint evil:true */
+      fn = new Function('return function(iterable,callback,thisArg){for(' +
+        'var item of iterable)if(callback.call(thisArg,item))break};')();
 
-        val = 1;
-        fn([1, 2, 3], function (entry) {
-          if (entry !== val) {
-            throw new Error();
-          }
-
-          val += 1;
-        });
-
-        if (val !== 4) {
+      val = 1;
+      fn([1, 2, 3], function (entry) {
+        if (entry !== val) {
           throw new Error();
         }
 
-        val = 1;
-        fn('123', function (entry) {
-          if (entry !== String(val)) {
-            throw new Error();
-          }
+        val += 1;
+      });
 
-          val += 1;
-        });
-
-        if (val !== 4) {
-          throw new Error();
-        }
-
-        module.exports.isForOfSupported = true;
-      } catch (e) {
-        fn = module.exports.isForOfSupported = false;
+      if (val !== 4) {
+        throw new Error();
       }
+
+      val = 1;
+      fn('123', function (entry) {
+        if (entry !== String(val)) {
+          throw new Error();
+        }
+
+        val += 1;
+      });
+
+      if (val !== 4) {
+        throw new Error();
+      }
+
+      module.exports.isForOfSupported = true;
+    } catch (e) {
+      fn = module.exports.isForOfSupported = !e;
     }
 
     if (!fn) {
       fn = function (iterable, callback, thisArg) {
-        var generator = iterable[module.exports.subject.iterator],
+        var generator = iterable[$.symIt],
           iterator = generator(),
           next = iterator.next();
 
@@ -7101,9 +7306,82 @@ process.umask = function() { return 0; };
 
     return fn;
   }());
-}());
 
-}).call(this,require('_process'))
+  module.exports.create = function (varArgs) {
+    var length = arguments.length,
+      result = [],
+      sliced,
+      idx,
+      it;
+
+    if (!length) {
+      result.length = 0;
+    } else if (length === 1) {
+      if ($.isNumber(varArgs)) {
+        result.length = varArgs;
+      } else if ($.isString(varArgs)) {
+        sliced = varArgs.slice(1, -1).replace(/^\s+|\s+$/g, '');
+        if (sliced[sliced.length - 1] === ',') {
+          sliced = sliced.slice(0, -1);
+        }
+
+        sliced = sliced.split(',');
+        length = sliced.length;
+        for (idx = 0; idx < length; idx += 1) {
+          it = sliced[idx].replace(/^\s+|\s+$/g, '');
+          if (it) {
+            /*jshint evil: true */
+            result[idx] = eval(it);
+            if (idx + 1 > result.length) {
+              result.length = idx + 1;
+            }
+          }
+        }
+      } else {
+        result[0] = varArgs;
+        result.length = 1;
+      }
+    } else {
+      for (idx = 0; idx < length; idx += 1) {
+        result[idx] = arguments[idx];
+        if (idx + 1 > result.length) {
+          result.length = idx + 1;
+        }
+      }
+    }
+
+    return result;
+  };
+
+  module.exports.array2Object = function array2Object(array) {
+    var object = $.toObject(array),
+      accumulator = {},
+      length,
+      index;
+
+    if (!$.isFunction(object)) {
+      accumulator.length = length = $.toLength(object.length);
+      for (index = 0; index < length; index += 1) {
+        if (index in object) {
+          accumulator[index] = object[index];
+        }
+      }
+    } else {
+      accumulator.length = 0;
+    }
+
+    return accumulator;
+  };
+
+}(
+  /*jshint singleGroups:false */
+  ((typeof window === 'function' || typeof window === 'object') && window) ||
+  (typeof self === 'object' && self) ||
+  (typeof global === 'object' && global) ||
+  (typeof this === 'object' && this) || {}
+));
+
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../lib/reiterate":1,"../lib/reiterate.min":2,"_process":7,"expect.js":8}],10:[function(require,module,exports){
 /*jslint maxlen:80, es6:true, this:true */
 /*jshint
@@ -7120,21 +7398,23 @@ process.umask = function() { return 0; };
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    MapObject = reiterate.$.Map,
+    SetObject = reiterate.$.Set;
 
   describe('Basic tests', function () {
     var proto = '__proto__';
 
-    it('reiterate.Map existence', function () {
-      expect(reiterate.Map).to.be.ok();
+    it('MapObject existence', function () {
+      expect(MapObject).to.be.ok();
     });
 
-    it('reiterate.Map constructor behavior', function () {
-      expect(new reiterate.Map()).to.be.a(reiterate.Map);
+    it('MapObject constructor behavior', function () {
+      expect(new MapObject()).to.be.a(MapObject);
       var a = 1,
         b = {},
-        c = new reiterate.Map(),
-        m = new reiterate.Map([
+        c = new MapObject(),
+        m = new MapObject([
           [1, 1],
           [b, 2],
           [c, 3]
@@ -7145,14 +7425,14 @@ process.umask = function() { return 0; };
       expect(m.has(c)).to.be.ok();
       expect(m.size).to.be(3);
       if (proto in {}) {
-        expect(new reiterate.Map()[proto].isPrototypeOf(new reiterate.Map()))
+        expect(new MapObject()[proto].isPrototypeOf(new MapObject()))
           .to.be.ok();
-        expect(new reiterate.Map()[proto]).to.be(reiterate.Map.prototype);
+        expect(new MapObject()[proto]).to.be(MapObject.prototype);
       }
     });
 
-    it('reiterate.Map#size - Mozilla only', function () {
-      var o = new reiterate.Map();
+    it('MapObject#size - Mozilla only', function () {
+      var o = new MapObject();
 
       if ('size' in o) {
         expect(o.size).to.be(0);
@@ -7163,8 +7443,8 @@ process.umask = function() { return 0; };
       }
     });
 
-    it('reiterate.Map#has', function () {
-      var o = new reiterate.Map(),
+    it('MapObject#has', function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -7173,8 +7453,8 @@ process.umask = function() { return 0; };
       expect(o.has(callback)).to.be.ok();
     });
 
-    it('reiterate.Map#get', function () {
-      var o = new reiterate.Map(),
+    it('MapObject#get', function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -7184,8 +7464,8 @@ process.umask = function() { return 0; };
       expect(o.get(callback)).to.be(generic);
     });
 
-    it('reiterate.Map#set', function () {
-      var o = new reiterate.Map(),
+    it('MapObject#set', function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -7218,8 +7498,8 @@ process.umask = function() { return 0; };
       expect(o.get(0)).to.be(generic);
     });
 
-    it("reiterate.Map#['delete']", function () {
-      var o = new reiterate.Map(),
+    it("MapObject#['delete']", function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -7237,7 +7517,7 @@ process.umask = function() { return 0; };
     });
 
     it('non object key does not throw an error', function () {
-      var o = new reiterate.Map();
+      var o = new MapObject();
 
       try {
         o.set('key', o);
@@ -7248,7 +7528,7 @@ process.umask = function() { return 0; };
 
     it('keys, values, entries behavior', function () {
       // test that things get returned in insertion order as per the specs
-      var o = new reiterate.Map([
+      var o = new MapObject([
           ['1', 1],
           ['2', 2],
           ['3', 3]
@@ -7293,8 +7573,8 @@ process.umask = function() { return 0; };
       expect(entriesagain.next().done).to.be.ok();
     });
 
-    it('reiterate.Map#forEach', function () {
-      var o = new reiterate.Map();
+    it('MapObject#forEach', function () {
+      var o = new MapObject();
 
       o.set('key 0', 0);
       o.set('key 1', 1);
@@ -7308,8 +7588,8 @@ process.umask = function() { return 0; };
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Map#forEach with mutations', function () {
-      var o = new reiterate.Map([
+    it('MapObject#forEach with mutations', function () {
+      var o = new MapObject([
           ['0', 0],
           ['1', 1],
           ['2', 2]
@@ -7333,8 +7613,8 @@ process.umask = function() { return 0; };
       expect(seen).to.eql([0, 1, 3, 0]);
     });
 
-    it('reiterate.Map#clear', function () {
-      var o = new reiterate.Map();
+    it('MapObject#clear', function () {
+      var o = new MapObject();
 
       o.set(1, '1');
       o.set(2, '2');
@@ -7343,26 +7623,26 @@ process.umask = function() { return 0; };
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Set existence', function () {
-      expect(reiterate.Set).to.be.ok();
+    it('SetObject existence', function () {
+      expect(SetObject).to.be.ok();
     });
 
-    it('reiterate.Set constructor behavior', function () {
-      expect(new reiterate.Set()).to.be.a(reiterate.Set);
-      var s = new reiterate.Set([1, 2]);
+    it('SetObject constructor behavior', function () {
+      expect(new SetObject()).to.be.a(SetObject);
+      var s = new SetObject([1, 2]);
 
       expect(s.has(1)).to.be.ok();
       expect(s.has(2)).to.be.ok();
       expect(s.size).to.be(2);
       if (proto in {}) {
-        expect(new reiterate.Set()[proto].isPrototypeOf(new reiterate.Set()))
+        expect(new SetObject()[proto].isPrototypeOf(new SetObject()))
           .to.be.ok();
-        expect(new reiterate.Set()[proto]).to.be(reiterate.Set.prototype);
+        expect(new SetObject()[proto]).to.be(SetObject.prototype);
       }
     });
 
-    it('reiterate.Set#size - Mozilla only', function () {
-      var o = new reiterate.Set();
+    it('SetObject#size - Mozilla only', function () {
+      var o = new SetObject();
 
       if ('size' in o) {
         expect(o.size).to.be(0);
@@ -7373,15 +7653,15 @@ process.umask = function() { return 0; };
       }
     });
 
-    it('reiterate.Set#add', function () {
-      var o = new reiterate.Set();
+    it('SetObject#add', function () {
+      var o = new SetObject();
 
       expect(o.add(NaN)).to.be.ok();
       expect(o.has(NaN)).to.be.ok();
     });
 
-    it("reiterate.Set#['delete']", function () {
-      var o = new reiterate.Set(),
+    it("SetObject#['delete']", function () {
+      var o = new SetObject(),
         generic = {},
         callback = function () {};
 
@@ -7400,7 +7680,7 @@ process.umask = function() { return 0; };
 
     it('values behavior', function () {
       // test that things get returned in insertion order as per the specs
-      var o = new reiterate.Set([1, 2, 3]);
+      var o = new SetObject([1, 2, 3]);
 
       expect(o.keys).to.be(o.values); // same function, as per the specs
       var values = o.values(),
@@ -7432,8 +7712,8 @@ process.umask = function() { return 0; };
       expect(entriesagain.next().done).to.be.ok();
     });
 
-    it('reiterate.Set#has', function () {
-      var o = new reiterate.Set(),
+    it('SetObject#has', function () {
+      var o = new SetObject(),
         callback = function () {};
 
       expect(o.has(callback)).to.not.be.ok();
@@ -7441,8 +7721,8 @@ process.umask = function() { return 0; };
       expect(o.has(callback)).to.be.ok();
     });
 
-    it('reiterate.Set#forEach', function () {
-      var o = new reiterate.Set(),
+    it('SetObject#forEach', function () {
+      var o = new SetObject(),
         i = 0;
 
       o.add('value 0');
@@ -7459,8 +7739,8 @@ process.umask = function() { return 0; };
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Set#forEach with mutations', function () {
-      var o = new reiterate.Set([0, 1, 2]),
+    it('SetObject#forEach with mutations', function () {
+      var o = new SetObject([0, 1, 2]),
         seen = [];
 
       o.forEach(function (value, sameValue, obj) {
@@ -7480,8 +7760,8 @@ process.umask = function() { return 0; };
       expect(seen).to.eql([0, 1, 3, 0]);
     });
 
-    it('reiterate.Set#clear', function () {
-      var o = new reiterate.Set();
+    it('SetObject#clear', function () {
+      var o = new SetObject();
 
       o.add(1);
       o.add(2);
@@ -7489,9 +7769,9 @@ process.umask = function() { return 0; };
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Set#add, reiterate.Map#set are chainable now', function () {
-      var s = new reiterate.Set(),
-        m = new reiterate.Map(),
+    it('Set#add, Map#set are chainable now', function () {
+      var s = new SetObject(),
+        m = new MapObject(),
         a = {};
 
       s.add(1).add(2);
@@ -7502,7 +7782,7 @@ process.umask = function() { return 0; };
     });
 
     it('Recognize any iterable as the constructor input', function () {
-      var a = new reiterate.Set(new reiterate.Set([1, 2]));
+      var a = new SetObject(new SetObject([1, 2]));
 
       expect(a.has(1)).to.be.ok();
     });
@@ -7566,11 +7846,11 @@ process.umask = function() { return 0; };
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new reiterate.Map());
+        reiterate(new reiterate.$.Map());
       }).to.not.throwException();
 
       expect(function () {
-        reiterate(new reiterate.Set());
+        reiterate(new reiterate.$.Set());
       }).to.not.throwException();
 
       expect(function () {
@@ -7599,13 +7879,13 @@ process.umask = function() { return 0; };
     reiterate = required.subject,
     symIt = reiterate.iterator,
     forOf = required.forOf,
-    reduce = reiterate.reduce,
+    reduce = reiterate.$.reduce,
     isGeneratorSupported = required.isGeneratorSupported,
-    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER,
-    MIN_SAFE_INTEGER = required.MIN_SAFE_INTEGER,
+    MAX_SAFE_INTEGER = reiterate.$.MAX_SAFE_INTEGER,
+    MIN_SAFE_INTEGER = reiterate.$.MIN_SAFE_INTEGER,
     aGenerator;
 
-  if (isGeneratorSupported && !reiterate.useShims) {
+  if (isGeneratorSupported) {
     /*jshint evil:true */
     aGenerator = new Function('reduce', 'return function*(){var x=reduce(' +
       'arguments,function(acc,arg){return acc+arg},0),item;' +
@@ -8560,7 +8840,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = reiterate.map;
+    map = reiterate.$.map;
 
   describe('Basic tests', function () {
     it('Array of primatives', function () {
@@ -8637,7 +8917,7 @@ process.umask = function() { return 0; };
       array = reiterate(a).values().unique().asArray();
       expect(array).to.eql(b);
 
-      array = reiterate(a).values().unique().asSet(reiterate.Set);
+      array = reiterate(a).values().unique().asSet(reiterate.$.Set);
       expect(array.size).to.be(b.length);
       array.forEach(function (item) {
         expect(b.indexOf(item)).to.not.be(-1);
@@ -8918,8 +9198,8 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    codePointAt = reiterate.codePointAt,
-    map = reiterate.map;
+    codePointAt = reiterate.$.codePointAt,
+    map = reiterate.$.map;
 
   describe('Basic tests', function () {
     it('UTF-16 string', function () {
@@ -9057,8 +9337,8 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = reiterate.map,
-    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER;
+    map = reiterate.$.map,
+    MAX_SAFE_INTEGER = reiterate.$.MAX_SAFE_INTEGER;
 
   describe('Basic tests', function () {
     it('ArrayLike of primatives', function () {
@@ -9383,7 +9663,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = reiterate.map;
+    map = reiterate.$.map;
 
   describe('Basic static tests', function () {
     it('Array of primatives', function () {
@@ -9525,8 +9805,8 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    codePointAt = reiterate.codePointAt,
-    map = reiterate.map;
+    codePointAt = reiterate.$.codePointAt,
+    map = reiterate.$.map;
 
   describe('Basic static tests', function () {
     it('UTF-16 string', function () {
@@ -9620,7 +9900,7 @@ process.umask = function() { return 0; };
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = reiterate.map;
+    map = reiterate.$.map;
 
   describe('Basic static tests', function () {
     it('ArrayLike of primatives', function () {
@@ -10143,7 +10423,7 @@ process.umask = function() { return 0; };
         2: 5
       });
 
-      array = reiterate(a).values().difference([4, 2]).asMap(reiterate.Map);
+      array = reiterate(a).values().difference([4, 2]).asMap(reiterate.$.Map);
       expect(array.size).to.be(3);
       expect(array.get(0)).to.be(1);
       expect(array.get(1)).to.be(3);
@@ -10166,13 +10446,13 @@ process.umask = function() { return 0; };
 }());
 
 },{"../scripts/":9}],28:[function(require,module,exports){
-/*jslint maxlen:80, es6:true, this:true */
+/*jslint maxlen:80, es6:false, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:false, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
-    maxcomplexity:9
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
 */
 /*global require, describe, it */
 
@@ -10187,7 +10467,7 @@ process.umask = function() { return 0; };
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
-      var a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3),
+      var a = new reiterate.$.Map().set(0, 1).set(1, 2).set(2, 3),
         array = reiterate(a).asArray();
 
       expect(array).to.eql([
@@ -10200,7 +10480,7 @@ process.umask = function() { return 0; };
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
-      a = new reiterate.Set().add(0).add(1).add(2);
+      a = new reiterate.$.Set().add(0).add(1).add(2);
       array = reiterate(a).asArray();
       expect(array).to.eql([0, 1, 2]);
 
@@ -10210,7 +10490,7 @@ process.umask = function() { return 0; };
         c: 3
       };
 
-      if (isGeneratorSupported && !reiterate.useShims) {
+      if (isGeneratorSupported) {
         /*jshint evil:true */
         a[symIt] = new Function('return function*(){for(var key in this)' +
           'if(this.hasOwnProperty(key))yield this[key]};')();
@@ -10261,7 +10541,7 @@ process.umask = function() { return 0; };
       array = reiterate(a).asArray();
       expect(array.sort()).to.eql([1, 2, 3]);
 
-      if (isGeneratorSupported && !reiterate.useShims) {
+      if (isGeneratorSupported) {
         /*jshint evil:true */
         a[symIt] = new Function('return function*(){for(var key in this)' +
           'if(this.hasOwnProperty(key))yield key};')();
@@ -10353,7 +10633,7 @@ process.umask = function() { return 0; };
         3: 4
       });
 
-      array = reiterate(a).values().initial().asMap(reiterate.Map);
+      array = reiterate(a).values().initial().asMap(reiterate.$.Map);
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(1);
       expect(array.get(1)).to.be(2);
@@ -10480,7 +10760,7 @@ process.umask = function() { return 0; };
         3: 5
       });
 
-      array = reiterate(a).values().rest().asMap(reiterate.Map);
+      array = reiterate(a).values().rest().asMap(reiterate.$.Map);
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(2);
       expect(array.get(1)).to.be(3);
@@ -10541,7 +10821,7 @@ process.umask = function() { return 0; };
       b = reiterate().from(3).to(6);
       c = reiterate().from(6).to(9);
       d = reiterate().to(10);
-      value = reiterate(a).union(b, c, d).asSet(reiterate.Set);
+      value = reiterate(a).union(b, c, d).asSet(reiterate.$.Set);
       expect(value.size).to.be(11);
       expect(value.has(0)).to.be(true);
       expect(value.has(1)).to.be(true);
@@ -10560,13 +10840,13 @@ process.umask = function() { return 0; };
       expect(value).to.eql([1]);
       value = reiterate([]).union([1]).asArray();
       expect(value).to.eql([1]);
-      value = reiterate([]).union().asSet(reiterate.Set);
+      value = reiterate([]).union().asSet(reiterate.$.Set);
       expect(value.size).to.be(0);
-      value = reiterate([]).union([]).asSet(reiterate.Set);
+      value = reiterate([]).union([]).asSet(reiterate.$.Set);
       expect(value.size).to.be(0);
-      value = reiterate([]).union([1]).asSet(reiterate.Set);
+      value = reiterate([]).union([1]).asSet(reiterate.$.Set);
       expect(value.size).to.be(1);
-      value = reiterate([1]).union().asSet(reiterate.Set);
+      value = reiterate([1]).union().asSet(reiterate.$.Set);
       expect(value.size).to.be(1);
     });
   });
@@ -10619,7 +10899,11 @@ process.umask = function() { return 0; };
 
       a = reiterate([5, 2, 2, 1, 4]).values();
       b = reiterate([2, 1, 1]).values();
-      array = reiterate([1, 1, 3, 2, 2]).values().intersection(a, b).asSet();
+      array = reiterate([1, 1, 3, 2, 2])
+        .values()
+        .intersection(a, b)
+        .asSet(reiterate.$.Set);
+
       expect(array.size).to.be(2);
       expect(array.has(1)).to.be(true);
       expect(array.has(2)).to.be(true);
@@ -10778,4 +11062,5145 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]);
+},{"../scripts/":9}],36:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.chop', function () {
+    var arr = required.create(
+        undefined,
+        null,
+        1,
+        'a',
+        2,
+        'b',
+        null,
+        undefined
+      ),
+      testValue;
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.chop();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.chop(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.chop(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.chop(arr)).to.eql(arr);
+      expect(reiterate.$.chop(arr, undefined, undefined)).to.eql(arr);
+
+      testValue = required.create(undefined);
+      expect(reiterate.$.chop(arr, -1)).to.eql(testValue);
+      expect(reiterate.$.chop(arr, -1).length).to.be(1);
+      expect(reiterate.$.chop(arr, 0)).to.eql(arr);
+
+      testValue = required.create('a', 2, 'b', null, undefined);
+      expect(reiterate.$.chop(arr, 3)).to.eql(testValue);
+      expect(reiterate.$.chop(arr, -1, 4)).to.eql([]);
+      expect(reiterate.$.chop(arr, -1, 4).length).to.be(0);
+
+      testValue = required.create(undefined, null, 1, 'a');
+      expect(reiterate.$.chop(arr, 0, 4)).to.eql(testValue);
+
+      testValue = ['a', 2, 'b'];
+      expect(reiterate.$.chop(arr, 3, 6)).to.eql(testValue);
+    });
+
+    it('should work with objects that have length', function () {
+      var obj = required.array2Object(arr);
+
+      expect(reiterate.$.chop(obj)).to.eql(arr);
+      expect(reiterate.$.chop(obj, undefined, undefined)).to.eql(arr);
+
+      testValue = required.create(undefined);
+      expect(reiterate.$.chop(obj, -1)).to.eql(testValue);
+      expect(reiterate.$.chop(obj, -1).length).to.be(1);
+      expect(reiterate.$.chop(obj, 0)).to.eql(arr);
+
+      testValue = required.create('a', 2, 'b', null, undefined);
+      expect(reiterate.$.chop(obj, 3)).to.eql(testValue);
+      expect(reiterate.$.chop(obj, -1, 4)).to.eql([]);
+      expect(reiterate.$.chop(obj, -1, 4).length).to.be(0);
+
+      testValue = required.create(undefined, null, 1, 'a');
+      expect(reiterate.$.chop(obj, 0, 4)).to.eql(testValue);
+
+      testValue = ['a', 2, 'b'];
+      expect(reiterate.$.chop(obj, 3, 6)).to.eql(testValue);
+    });
+
+    it('should work with arguments', function () {
+      var obj = reiterate.$.returnArgs(
+        undefined,
+        null,
+        1,
+        'a',
+        2,
+        'b',
+        null,
+        undefined
+      );
+
+      expect(reiterate.$.chop(obj)).to.eql(arr);
+      expect(reiterate.$.chop(obj, undefined, undefined)).to.eql(arr);
+
+      testValue = required.create(undefined);
+      expect(reiterate.$.chop(obj, -1)).to.eql(testValue);
+      expect(reiterate.$.chop(obj, -1).length).to.be(1);
+      expect(reiterate.$.chop(obj, 0)).to.eql(arr);
+
+      testValue = required.create('a', 2, 'b', null, undefined);
+      expect(reiterate.$.chop(obj, 3)).to.eql(testValue);
+      expect(reiterate.$.chop(obj, -1, 4), []).to.eql([]);
+      expect(reiterate.$.chop(obj, -1, 4).length).to.be(0);
+
+      testValue = required.create(undefined, null, 1, 'a');
+      expect(reiterate.$.chop(obj, 0, 4)).to.eql(testValue);
+
+      testValue = ['a', 2, 'b'];
+      expect(reiterate.$.chop(obj, 3, 6)).to.eql(testValue);
+    });
+
+    it('should work with string', function () {
+      var obj = '1234567890';
+
+      expect(reiterate.$.chop(obj)).to.eql([
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        '0'
+      ]);
+      expect(reiterate.$.chop(obj, undefined, undefined))
+        .to.eql(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
+
+      expect(reiterate.$.chop(obj, -1)).to.eql(['0']);
+      expect(reiterate.$.chop(obj, -1).length).to.be(1);
+      expect(reiterate.$.chop(obj, 0)).to.eql([
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        '0'
+      ]);
+
+      testValue = required.create('a', 2, 'b', null, undefined);
+      expect(reiterate.$.chop(obj, 3)).to.eql([
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        '0'
+      ]);
+      expect(reiterate.$.chop(obj, -1, 4), []).to.eql([]);
+      expect(reiterate.$.chop(obj, -1, 4).length).to.be(0);
+
+      testValue = required.create(undefined, null, 1, 'a');
+      expect(reiterate.$.chop(obj, 0, 4)).to.eql(['1', '2', '3', '4']);
+
+      testValue = ['a', 2, 'b'];
+      expect(reiterate.$.chop(obj, 3, 6)).to.eql(['4', '5', '6']);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],37:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it, beforeEach */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.every', function () {
+    var lastIndex = Math.pow(2, 32) - 1,
+      everyArray = required.create(
+        0,
+        1,
+        2,
+        'a',
+        'b',
+        'c', [8, 9, 10], {},
+        true,
+        false,
+        undefined,
+        null,
+        new Date(),
+        new Error('x'),
+        new RegExp('t'),
+        Infinity, -Infinity
+      ),
+      testSubject,
+      testIndex,
+      expected,
+      numberOfRuns;
+
+    beforeEach(function () {
+      testSubject = required.create(
+        2,
+        3,
+        undefined,
+        true,
+        'hej',
+        null,
+        false,
+        0,
+        8,
+        9
+      );
+      delete testSubject[1];
+      delete testSubject[8];
+      numberOfRuns = 0;
+      expected = {
+        0: 2,
+        2: undefined,
+        3: true
+      };
+    });
+
+    everyArray.length = 25;
+    everyArray[24] = NaN;
+    everyArray[25] = 'end';
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.every();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.every(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.every(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if function argument is not a function', function () {
+      expect(function () {
+        reiterate.$.every(everyArray);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.every(everyArray, undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.every(everyArray, null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should not throw an error in each case', function () {
+      var result = reiterate.$.every(
+        everyArray,
+        function (element, index, array) {
+          expect(array).to.be(everyArray);
+          expect(typeof index === 'number').to.be.ok();
+          expect(index >= 0).to.be.ok();
+          expect(index <= lastIndex).to.be.ok();
+          if (reiterate.$.numIsNaN(element)) {
+            expect(reiterate.$.numIsNaN(everyArray[index])).to.be(true);
+          } else {
+            expect(element).to.be(everyArray[index]);
+          }
+
+          testIndex = index;
+          if (element === 'end') {
+            return false;
+          }
+
+          return true;
+        });
+
+      expect(result).to.be(false);
+
+      expect(testIndex).to.be(everyArray.length - 1);
+    });
+
+    it('should pass the right parameters', function () {
+      var array = ['1'];
+
+      reiterate.$.every(array, function (item, index, list) {
+        expect(item).to.be('1');
+        expect(index).to.be(0);
+        expect(list).to.be(array);
+      });
+    });
+
+    it(
+      'should not affect elements added to the array after it has begun',
+      function () {
+        var arr = [1, 2, 3],
+          i = 0;
+
+        reiterate.$.every(arr, function (a) {
+          i += 1;
+          arr.push(a + 3);
+
+          return i <= 3;
+        });
+
+        expect(arr).to.eql([1, 2, 3, 4, 5, 6]);
+        expect(i).to.be(3);
+      }
+    );
+
+    it('should set the right context when given none', function () {
+      var context;
+
+      reiterate.$.every([1], function () {
+        context = this;
+      });
+
+      expect(context).to.be((function () {
+        return function () {
+          return this;
+        };
+      }()).call());
+    });
+
+    it('should return true if it runs to the end', function () {
+      var actual = reiterate.$.every(testSubject, function () {
+        return true;
+      });
+
+      expect(actual).to.be.ok();
+    });
+
+    it('should return false if it is stopped somewhere', function () {
+      var actual = reiterate.$.every(testSubject, function () {
+        return false;
+      });
+
+      expect(actual).to.not.be.ok();
+    });
+
+    it('should return true if there are no elements', function () {
+      var actual = reiterate.$.every([], function () {
+        return true;
+      });
+
+      expect(actual).to.be.ok();
+    });
+
+    it('should stop after 3 elements', function () {
+      var actual = {};
+
+      reiterate.$.every(testSubject, function (obj, index) {
+        actual[index] = obj;
+        numberOfRuns += 1;
+        if (numberOfRuns === 3) {
+          return false;
+        }
+
+        return true;
+      });
+
+      expect(actual).to.eql(expected);
+    });
+
+    it('should stop after 3 elements using a context', function () {
+      var actual = {},
+        o = {
+          a: actual
+        };
+
+      reiterate.$.every(testSubject, function (obj, index) {
+        this.a[index] = obj;
+        numberOfRuns += 1;
+        if (numberOfRuns === 3) {
+          return false;
+        }
+
+        return true;
+      }, o);
+
+      expect(actual).to.eql(expected);
+    });
+
+    it('should stop after 3 elements in an array-like object', function () {
+      var ts = Object(testSubject),
+        actual = {};
+
+      reiterate.$.every(ts, function (obj, index) {
+        actual[index] = obj;
+        numberOfRuns += 1;
+        if (numberOfRuns === 3) {
+          return false;
+        }
+
+        return true;
+      });
+
+      expect(actual).to.eql(expected);
+    });
+
+    it(
+      'should stop after 3 elements in an array-like object using a context',
+      function () {
+        var ts = Object(testSubject),
+          actual = {},
+          o = {
+            a: actual
+          };
+
+        reiterate.$.every(ts, function (obj, index) {
+          this.a[index] = obj;
+          numberOfRuns += 1;
+          if (numberOfRuns === 3) {
+            return false;
+          }
+
+          return true;
+        }, o);
+
+        expect(actual).to.eql(expected);
+      }
+    );
+
+    it('should have a boxed object as list argument of callback', function () {
+      var actual;
+
+      reiterate.$.every('foo', function (item, index, list) {
+        /*jslint unparam: true */
+        /*jshint unused: false */
+        actual = list;
+      });
+
+      expect(typeof actual).to.be('object');
+      expect(required.toStringTag(actual)).to.be('[object String]');
+      expect(String(actual)).to.be('foo');
+      expect(actual.charAt(0)).to.be('f');
+    });
+
+    if (required.isStrictMode()) {
+      it('does not autobox the content in strict mode', function () {
+        var actual;
+
+        reiterate.$.every([1], function () {
+          actual = this;
+        }, 'x');
+
+        expect(typeof actual).to.be('string');
+
+        reiterate.$.every([1], function () {
+          actual = this;
+        });
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.every([1], function () {
+          actual = this;
+        }, undefined);
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.every([1], function () {
+          actual = this;
+        }, null);
+
+        expect(actual).to.be(null);
+      });
+    }
+  });
+}());
+
+/*jslint sloppy: true */
+(function () {
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.every', function () {
+    it('does autobox the content in non-strict mode', function () {
+      var actual;
+
+      reiterate.$.every([1], function () {
+        actual = this;
+      }, 'x');
+
+      expect(typeof actual).to.be('object');
+
+      reiterate.$.every([1], function () {
+        actual = this;
+      });
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.every([1], function () {
+        actual = this;
+      }, undefined);
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.every([1], function () {
+        actual = this;
+      }, null);
+
+      expect(actual).to.be(required.global);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],38:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it, beforeEach */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.filter', function () {
+    var lastIndex = Math.pow(2, 32) - 1,
+      filterArray = required.create(
+        0,
+        1,
+        2,
+        'a',
+        'b',
+        'c', [8, 9, 10], {},
+        true,
+        false,
+        undefined,
+        null,
+        new Date(),
+        new Error('x'),
+        new RegExp('t'),
+        Infinity, -Infinity
+      ),
+      testSubject,
+      testIndex,
+      filteredArray,
+      callback;
+
+    filterArray.length = 25;
+    filterArray[24] = NaN;
+    filterArray[25] = 'end';
+
+    callback = function callback(o, i) {
+      /*jslint unparam: true */
+      /*jshint unused: false */
+      return i !== 3 && i !== 5;
+    };
+
+    beforeEach(function () {
+      testSubject = required.create(
+        2,
+        3,
+        undefined,
+        true,
+        'hej',
+        null,
+        false,
+        0,
+        8,
+        9
+      );
+      delete testSubject[1];
+      delete testSubject[8];
+      filteredArray = required.create(2, undefined, 'hej', false, 0, 9);
+    });
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.filter();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.filter(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.filter(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if function argument is not a function', function () {
+      expect(function () {
+        reiterate.$.filter(filterArray);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.filter(filterArray, undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.filter(filterArray, null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.filter(
+        filterArray,
+        function (element, index, array) {
+          expect(array).to.be(filterArray);
+          expect(typeof index === 'number').to.be.ok();
+          expect(index >= 0).to.be.ok();
+          expect(index <= lastIndex).to.be.ok();
+          if (reiterate.$.numIsNaN(element)) {
+            expect(reiterate.$.numIsNaN(filterArray[index])).to.be.ok();
+          } else {
+            expect(element).to.be(filterArray[index]);
+          }
+
+          testIndex = index;
+          if (reiterate.$.isString(element)) {
+            return element;
+          }
+
+          return undefined;
+        }
+      ).toString()).to.be(['a', 'b', 'c', 'end'].toString());
+
+      expect(testIndex).to.be(filterArray.length - 1);
+    });
+
+    it('should pass the right parameters', function () {
+      var array = ['1'];
+
+      reiterate.$.filter(array, function (item, index, list) {
+        expect(item).to.be('1');
+        expect(index).to.be(0);
+        expect(list).to.be(array);
+      });
+    });
+
+    it(
+      'should not affect elements added to the array after it has begun',
+      function () {
+        var arr = [1, 2, 3],
+          i = 0;
+
+        reiterate.$.filter(arr, function (a) {
+          i += 1;
+          if (i <= 4) {
+            arr.push(a + 3);
+          }
+
+          return true;
+        });
+
+        expect(arr).to.eql([1, 2, 3, 4, 5, 6]);
+        expect(i).to.be(3);
+      }
+    );
+
+    it('should skip non-set values', function () {
+      var passedValues = {},
+        expected = {
+          0: 1,
+          2: 3,
+          3: 4
+        };
+
+      testSubject = [1, 2, 3, 4];
+      delete testSubject[1];
+      reiterate.$.filter(testSubject, function (o, i) {
+        passedValues[i] = o;
+
+        return true;
+      });
+
+      expect(passedValues).to.eql(expected);
+    });
+
+    it('should pass the right context to the filter', function () {
+      var passedValues = {},
+        expected = {
+          0: 1,
+          2: 3,
+          3: 4
+        };
+
+      testSubject = [1, 2, 3, 4];
+      delete testSubject[1];
+      reiterate.$.filter(testSubject, function (o, i) {
+        this[i] = o;
+
+        return true;
+      }, passedValues);
+
+      expect(passedValues).to.eql(expected);
+    });
+
+    it('should set the right context when given none', function () {
+      var context;
+
+      reiterate.$.filter([1], function () {
+        context = this;
+      });
+
+      expect(context).to.be((function () {
+        return function () {
+          return this;
+        };
+      }()).call());
+    });
+
+    it(
+      'should remove only the values for which the callback returns false',
+      function () {
+        expect(reiterate.$.filter(testSubject, callback)).to.eql(filteredArray);
+      }
+    );
+
+    it('should leave the original array untouched', function () {
+      var copy = reiterate.$.chop(testSubject);
+
+      reiterate.$.filter(testSubject, callback);
+      expect(testSubject).to.eql(copy);
+    });
+
+    it('should have a boxed object as list argument of callback', function () {
+      var actual;
+
+      reiterate.$.filter('foo', function (item, index, list) {
+        /*jslint unparam: true */
+        /*jshint unused: false */
+        actual = list;
+      });
+
+      expect(typeof actual).to.be('object');
+      expect(required.toStringTag(actual)).to.be('[object String]');
+      expect(String(actual)).to.be('foo');
+      expect(actual.charAt(0)).to.be('f');
+    });
+
+    it('should not be affected by same-index mutation', function () {
+      var results = reiterate.$.filter(
+        [1, 2, 3],
+        function (value, index, array) {
+          /*jslint unparam: true */
+          /*jshint unused: false */
+          array[index] = 'a';
+
+          return true;
+        }
+      );
+
+      expect(results).to.eql([1, 2, 3]);
+    });
+
+    if (required.isStrictMode()) {
+      it('does not autobox the content in strict mode', function () {
+        var actual;
+
+        reiterate.$.filter([1], function () {
+          actual = this;
+        }, 'x');
+
+        expect(typeof actual).to.be('string');
+
+        reiterate.$.filter([1], function () {
+          actual = this;
+        });
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.filter([1], function () {
+          actual = this;
+        }, undefined);
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.filter([1], function () {
+          actual = this;
+        }, null);
+
+        expect(actual).to.be(null);
+      });
+    }
+  });
+}());
+
+/*jslint sloppy: true */
+(function () {
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.filter', function () {
+    it('does autobox the content in non-strict mode', function () {
+      var actual;
+
+      reiterate.$.filter([1], function () {
+        actual = this;
+      }, 'x');
+
+      expect(typeof actual).to.be('object');
+
+      reiterate.$.filter([1], function () {
+        actual = this;
+      });
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.filter([1], function () {
+        actual = this;
+      }, undefined);
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.filter([1], function () {
+        actual = this;
+      }, null);
+
+      expect(actual).to.be(required.global);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],39:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.findIndex', function () {
+    var list = [5, 10, 15, 20];
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.findIndex();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.findIndex(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.findIndex(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if function argument is not a function', function () {
+      expect(function () {
+        reiterate.$.findIndex(list);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.findIndex(list, undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.findIndex(list, null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should find item key by predicate', function () {
+      var result = reiterate.$.findIndex(list, function (item) {
+        return item === 15;
+      });
+
+      expect(result).to.be(2);
+    });
+
+    it('should return -1 when nothing matched', function () {
+      var result = reiterate.$.findIndex(list, function (item) {
+        return item === 'a';
+      });
+
+      expect(result).to.be(-1);
+    });
+
+    it('should receive all three parameters', function () {
+      var index = reiterate.$.findIndex(list, function (value, index, arr) {
+        expect(list[index]).to.be(value);
+        expect(list).to.eql(arr);
+
+        return false;
+      });
+
+      expect(index).to.be(-1);
+    });
+
+    it('should work with the context argument', function () {
+      var context = {};
+
+      reiterate.$.findIndex([1], function () {
+        expect(this).to.be(context);
+      }, context);
+    });
+
+    it('should work with an array-like object', function () {
+      var obj = {
+          0: 1,
+          1: 2,
+          2: 3,
+          length: 3
+        },
+        foundIndex = reiterate.$.findIndex(obj, function (item) {
+          return item === 3;
+        });
+
+      expect(foundIndex).to.be(2);
+    });
+
+    it(
+      'should work with an array-like object with negative length',
+      function () {
+        var obj = {
+            0: 1,
+            1: 2,
+            2: 3,
+            length: -3
+          },
+          foundIndex = reiterate.$.findIndex(obj, function () {
+            throw new Error('should not reach here');
+          });
+
+        expect(foundIndex).to.be(-1);
+      }
+    );
+
+    it('should work with a sparse array', function () {
+      var obj = required.create(1, 2, undefined),
+        seen = [],
+        foundIndex,
+        expected = [];
+
+      seen.length = 3;
+      delete obj[1];
+      foundIndex = reiterate.$.findIndex(obj, function (item, idx) {
+        if (Object.prototype.hasOwnProperty.call(obj, idx)) {
+          seen[idx] = required.create(idx, item);
+
+          return reiterate.$.isUndefined(item);
+        }
+
+        return false;
+      });
+
+      expected.length = 3;
+      expected[0] = [0, 1];
+      expected[2] = required.create(2, undefined);
+      expect(foundIndex).to.be(2);
+      expect(seen).to.eql(expected);
+    });
+
+    it('should work with a sparse array-like object', function () {
+      var obj = {
+          0: 1,
+          2: undefined,
+          length: 3.2
+        },
+        seen = [],
+        expected = [],
+        foundIndex;
+
+      seen.length = 3;
+      foundIndex = reiterate.$.findIndex(obj, function (item, idx) {
+        if (Object.prototype.hasOwnProperty.call(obj, idx)) {
+          seen[idx] = required.create(idx, item);
+
+          return reiterate.$.isUndefined(item);
+        }
+
+        return false;
+      });
+
+      expected.length = 3;
+      expected[0] = [0, 1];
+      expected[2] = required.create(2, undefined);
+      expect(foundIndex).to.be(2);
+      expect(seen).to.eql(expected);
+    });
+
+    if (required.isStrictMode()) {
+      it('does not autobox the content in strict mode', function () {
+        var actual;
+
+        reiterate.$.findIndex([1], function () {
+          actual = this;
+        }, 'x');
+
+        expect(typeof actual).to.be('string');
+
+        reiterate.$.findIndex([1], function () {
+          actual = this;
+        });
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.findIndex([1], function () {
+          actual = this;
+        }, undefined);
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.findIndex([1], function () {
+          actual = this;
+        }, null);
+
+        expect(actual).to.be(null);
+      });
+    }
+  });
+}());
+
+/*jslint sloppy: true */
+(function () {
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.findIndex', function () {
+    it('does autobox the content in non-strict mode', function () {
+      var actual;
+
+      reiterate.$.findIndex([1], function () {
+        actual = this;
+      }, 'x');
+
+      expect(typeof actual).to.be('object');
+
+      reiterate.$.findIndex([1], function () {
+        actual = this;
+      });
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.findIndex([1], function () {
+        actual = this;
+      }, undefined);
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.findIndex([1], function () {
+        actual = this;
+      }, null);
+
+      expect(actual).to.be(required.global);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],40:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.from', function () {
+    it('should create correct array from iterable', function () {
+      expect(reiterate.$.from(reiterate.$.returnArgs(0, 1, 2)))
+        .to.eql([0, 1, 2]);
+
+      expect(reiterate.$.from(required.create(null, undefined, 0.1248, -0, 0)))
+        .to.eql(required.create(null, undefined, 0.1248, -0, 0));
+    });
+
+    it('should handle empty iterables correctly', function () {
+      expect(reiterate.$.from(reiterate.$.returnArgs())).to.eql([]);
+    });
+
+    it('should work with other constructors', function () {
+      var Foo = function (length, args) {
+          /*jslint unparam: true */
+          /*jshint unused: false */
+          this.length = length;
+        },
+        args = ['a', 'b', 'c'],
+        expected = new Foo(args.length);
+
+      reiterate.$.forEach(args, function (arg, index) {
+        expected[index] = arg;
+      });
+
+      expect(reiterate.$.from.call(Foo, args)).to.eql(expected);
+    });
+
+    it('supports a from function', function () {
+      var original = [1, 2, 3],
+        mapper = function (item) {
+          return item * 2;
+        },
+        mapped = reiterate.$.from(original, mapper);
+
+      expect(mapped).to.eql([2, 4, 6]);
+    });
+
+    it('throws when provided a nonfunction second arg', function () {
+      expect(function () {
+        reiterate.$.from([], false);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.from([], true);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.from([], /a/g);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.from([], {});
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.from([], []);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.from([], '');
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.from([], 3);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('supports a this arg', function () {
+      var original = [1, 2, 3],
+        context = {},
+        mapper = function (item) {
+          expect(this).to.equal(context);
+
+          return item * 2;
+        },
+        mapped = reiterate.$.from(original, mapper, context);
+
+      expect(mapped).to.eql([2, 4, 6]);
+    });
+
+    it('throws when provided null or undefined', function () {
+      expect(function () {
+        reiterate.$.from();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+      expect(function () {
+        reiterate.$.from(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+      expect(function () {
+        reiterate.$.from(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('returns [] when given 3', function () {
+      expect(reiterate.$.from(3)).to.eql([]);
+    });
+
+    it('removes holes', function () {
+      var input = required.create('[0, , 2]'),
+        result = reiterate.$.from(input);
+
+      expect(reiterate.$.hasProperty(input, 1)).not.to.be.ok();
+      expect(reiterate.$.hasProperty(result, 1)).to.be.ok();
+      expect(result).to.eql(required.create(0, undefined, 2));
+    });
+
+    if (required.isStrictMode()) {
+      it('does not autobox the content in strict mode', function () {
+        var actual;
+
+        reiterate.$.from([1], function () {
+          actual = this;
+        }, 'x');
+
+        expect(typeof actual).to.be('string');
+
+        reiterate.$.from([1], function () {
+          actual = this;
+        });
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.from([1], function () {
+          actual = this;
+        }, undefined);
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.from([1], function () {
+          actual = this;
+        }, null);
+
+        expect(actual).to.be(null);
+      });
+    }
+  });
+}());
+
+/*jslint sloppy: true */
+(function () {
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.from', function () {
+    it('does autobox the content in non-strict mode', function () {
+      var actual;
+
+      reiterate.$.from([1], function () {
+        actual = this;
+      }, 'x');
+
+      expect(typeof actual).to.be('object');
+
+      reiterate.$.from([1], function () {
+        actual = this;
+      });
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.from([1], function () {
+        actual = this;
+      }, undefined);
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.from([1], function () {
+        actual = this;
+      }, null);
+
+      expect(actual).to.be(required.global);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],41:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.indexOf', function () {
+    var arr = [
+        'toString',
+        'toLocaleString',
+        'valueOf',
+        'hasOwnProperty',
+        'isPrototypeOf',
+        'propertyIsEnumerable',
+        'constructor'
+      ],
+      arr2 = required.create(
+        2,
+        3,
+        undefined,
+        true,
+        'hej',
+        null,
+        2,
+        false,
+        0,
+        8,
+        9
+      ),
+      arr3 = [0, 1, 2, 3, 4, 5];
+
+    delete arr2[1];
+    delete arr2[8];
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.indexOf();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.indexOf(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.indexOf(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should find the string in array', function () {
+      expect(reiterate.$.indexOf(arr, 'toString')).to.be(0);
+      expect(reiterate.$.indexOf(arr, 'toLocaleString')).to.be(1);
+      expect(reiterate.$.indexOf(arr, 'valueOf')).to.be(2);
+      expect(reiterate.$.indexOf(arr, 'hasOwnProperty')).to.be(3);
+      expect(reiterate.$.indexOf(arr, 'isPrototypeOf')).to.be(4);
+      expect(reiterate.$.indexOf(arr, 'propertyIsEnumerable')).to.be(5);
+      expect(reiterate.$.indexOf(arr, 'constructor')).to.be(6);
+    });
+
+    it('should not find the string in array', function () {
+      expect(reiterate.$.indexOf(arr, 'foo')).to.be(-1);
+      expect(reiterate.$.indexOf(arr, 'bar')).to.be(-1);
+      expect(reiterate.$.indexOf(arr, 'fuz')).to.be(-1);
+      expect(reiterate.$.indexOf(arr, 'push')).to.be(-1);
+      expect(reiterate.$.indexOf(arr, 'pop')).to.be(-1);
+    });
+
+    it('should find the number in the array', function () {
+      expect(reiterate.$.indexOf(arr3, 0)).to.be(0);
+      expect(reiterate.$.indexOf(arr3, 1)).to.be(1);
+      expect(reiterate.$.indexOf(arr3, 2)).to.be(2);
+      expect(reiterate.$.indexOf(arr3, 3)).to.be(3);
+      expect(reiterate.$.indexOf(arr3, 4)).to.be(4);
+      expect(reiterate.$.indexOf(arr3, 5)).to.be(5);
+    });
+
+    it('should not find the number in the array', function () {
+      expect(reiterate.$.indexOf(arr3, 6)).to.be(-1);
+      expect(reiterate.$.indexOf(arr3, 7)).to.be(-1);
+      expect(reiterate.$.indexOf(arr3, 8)).to.be(-1);
+      expect(reiterate.$.indexOf(arr3, 9)).to.be(-1);
+      expect(reiterate.$.indexOf(arr3, 10)).to.be(-1);
+    });
+
+    it('should find the element', function () {
+      expect(reiterate.$.indexOf(arr2, 'hej')).to.be(4);
+    });
+
+    it('should not find the element', function () {
+      expect(reiterate.$.indexOf(arr2, 'mus')).to.be(-1);
+    });
+
+    it('should find undefined as well', function () {
+      expect(reiterate.$.indexOf(arr2, undefined)).to.not.be(-1);
+    });
+
+    it('should skip unset indexes', function () {
+      expect(reiterate.$.indexOf(arr2, undefined)).to.be(2);
+    });
+
+    it('should use a strict test', function () {
+      expect(reiterate.$.indexOf(arr2, null)).to.be(5);
+      expect(reiterate.$.indexOf(arr2, '2')).to.be(-1);
+    });
+
+    it('should skip the first if fromIndex is set', function () {
+      expect(reiterate.$.indexOf(arr2, 2, 2)).to.be(6);
+      expect(reiterate.$.indexOf(arr2, 2, 0)).to.be(0);
+      expect(reiterate.$.indexOf(arr2, 2, 6)).to.be(6);
+    });
+
+    it('should work with negative fromIndex', function () {
+      expect(reiterate.$.indexOf(arr2, 2, -5)).to.be(6);
+      expect(reiterate.$.indexOf(arr2, 2, -11)).to.be(0);
+    });
+
+    it('should work with fromIndex being greater than the length', function () {
+      expect(reiterate.$.indexOf(arr2, 0, 20)).to.be(-1);
+    });
+
+    it(
+      'should work with fromIndex being negative and greater than the length',
+      function () {
+        expect(reiterate.$.indexOf(arr2, 'hej', -20)).to.be(4);
+      }
+    );
+  });
+}());
+
+},{"../../scripts/":9}],42:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+
+  describe('Array.isArray', function () {
+    it('missing, null and undefined', function () {
+      expect(reiterate.$.isArray()).to.not.be.ok();
+      expect(reiterate.$.isArray(undefined)).to.not.be.ok();
+      expect(reiterate.$.isArray(null)).to.not.be.ok();
+    });
+
+    it('primitives', function () {
+      expect(reiterate.$.isArray(1)).to.not.be.ok();
+      expect(reiterate.$.isArray(true)).to.not.be.ok();
+      expect(reiterate.$.isArray('')).to.not.be.ok();
+    });
+
+    it('array', function () {
+      expect(reiterate.$.isArray([])).to.be.ok();
+    });
+
+    it('objects', function () {
+      expect(reiterate.$.isArray(new Error('x'))).to.not.be.ok();
+      expect(reiterate.$.isArray(new Date())).to.not.be.ok();
+      expect(reiterate.$.isArray(new RegExp('x'))).to.not.be.ok();
+      expect(reiterate.$.isArray(reiterate.$.noop)).to.not.be.ok();
+      expect(reiterate.$.isArray({
+        0: 'a',
+        length: 1
+      })).to.not.be.ok();
+    });
+
+    it('arguments', function () {
+      expect(reiterate.$.isArray(reiterate.$.returnArgs())).to.not.be.ok();
+    });
+
+    it('Array.prototype', function () {
+      expect(reiterate.$.isArray(Array.prototype)).to.be.ok();
+    });
+
+    if (required.frame) {
+      it('should work accross frames', function () {
+        expect(reiterate.$.isArray(new required.frame.Array(1, 2, 3)))
+          .to.be.ok();
+      });
+    }
+  });
+}());
+
+},{"../../scripts/":9}],43:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it, beforeEach */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.map', function () {
+    var lastIndex = Math.pow(2, 32) - 1,
+      mapArray = required.create(
+        0,
+        1,
+        2,
+        'a',
+        'b',
+        'c', [8, 9, 10], {},
+        true,
+        false,
+        undefined,
+        null,
+        new Date(),
+        new Error('x'),
+        new RegExp('t'),
+        Infinity, -Infinity
+      ),
+      testSubject,
+      testIndex,
+      callback;
+
+    mapArray.length = 25;
+    mapArray[24] = NaN;
+    mapArray[25] = 'end';
+
+    beforeEach(function () {
+      var i = -1;
+
+      testSubject = required.create(
+        2,
+        3,
+        undefined,
+        true,
+        'hej',
+        null,
+        false,
+        0,
+        8,
+        9
+      );
+      delete testSubject[1];
+      delete testSubject[8];
+      callback = function () {
+        i += 1;
+
+        return i;
+      };
+    });
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.map();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.map(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.map(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if function argument is not a function', function () {
+      expect(function () {
+        reiterate.$.map(mapArray);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.map(mapArray, undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.map(mapArray, null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.map(mapArray, function (element, index, array) {
+        expect(array).to.be(mapArray);
+        expect(typeof index === 'number').to.be.ok();
+        expect(index >= 0).to.be.ok();
+        expect(index <= lastIndex).to.be.ok();
+        if (reiterate.$.numIsNaN(element)) {
+          expect(reiterate.$.numIsNaN(mapArray[index])).to.be(true);
+        } else {
+          expect(element).to.be(mapArray[index]);
+        }
+
+        testIndex = index;
+
+        return element;
+      }).toString()).to.be(mapArray.toString());
+
+      expect(testIndex).to.be(mapArray.length - 1);
+    });
+
+    it('should pass the right parameters', function () {
+      var array = ['1'];
+
+      reiterate.$.map(array, function (item, index, list) {
+        expect(item).to.be('1');
+        expect(index).to.be(0);
+        expect(list).to.be(array);
+      });
+    });
+
+    it('should set the context correctly', function () {
+      var context = {};
+
+      reiterate.$.map(testSubject, function (o, i) {
+        this[i] = o;
+      }, context);
+
+      expect(context).to.eql(testSubject);
+    });
+
+    it('should set the right context when given none', function () {
+      var context;
+
+      reiterate.$.map([1], function () {
+        context = this;
+      });
+
+      expect(context).to.be((function () {
+        return function () {
+          return this;
+        };
+      }()).call());
+    });
+
+    it('should not change the array it is called on', function () {
+      var copy = reiterate.$.chop(testSubject);
+
+      reiterate.$.map(testSubject, callback);
+      expect(testSubject).to.eql(copy);
+    });
+
+    it(
+      'should only run for the number of objects in the array when it started',
+      function () {
+        var arr1 = [1, 2, 3, 4, 5],
+          arr2 = [1, 2, 3, 4, 5, 4, 5, 6, 8],
+          i = 0;
+
+        delete arr1[3];
+        delete arr2[3];
+        reiterate.$.map(arr1, function (o) {
+          arr1.push(o + 3);
+          i += 1;
+
+          return o;
+        });
+
+        expect(arr1).to.eql(arr2);
+        expect(i).to.be(4);
+      }
+    );
+
+    it(
+      'should properly translate the values as according to the callback',
+      function () {
+        var result = reiterate.$.map(testSubject, callback),
+          expected = [0, 0, 1, 2, 3, 4, 5, 6, 'a', 7];
+
+        delete expected[1];
+        delete expected[8];
+        expect(result).to.eql(expected);
+      }
+    );
+
+    it('should skip non-existing values', function () {
+      var array = [1, 2, 3, 4, 5, 6],
+        i = 0;
+
+      delete array[2];
+      delete array[5];
+      reiterate.$.map(array, function () {
+        i += 1;
+      });
+
+      expect(i).to.be(4);
+    });
+
+    it('should have a boxed object as list argument of callback', function () {
+      var actual;
+
+      reiterate.$.map('foo', function (item, index, list) {
+        /*jslint unparam: true */
+        /*jshint unused: true */
+        actual = list;
+      });
+
+      expect(typeof actual).to.be('object');
+      expect(required.toStringTag(actual)).to.be('[object String]');
+      expect(String(actual)).to.be('foo');
+      expect(actual.charAt(0)).to.be('f');
+    });
+
+    if (required.isStrictMode()) {
+      it('does not autobox the content in strict mode', function () {
+        var actual;
+
+        reiterate.$.map([1], function () {
+          actual = this;
+        }, 'x');
+
+        expect(typeof actual).to.be('string');
+
+        reiterate.$.map([1], function () {
+          actual = this;
+        });
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.map([1], function () {
+          actual = this;
+        }, undefined);
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.map([1], function () {
+          actual = this;
+        }, null);
+
+        expect(actual).to.be(null);
+      });
+    }
+  });
+}());
+
+/*jslint sloppy: true */
+(function () {
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.map', function () {
+    it('does autobox the content in non-strict mode', function () {
+      var actual;
+
+      reiterate.$.map([1], function () {
+        actual = this;
+      }, 'x');
+
+      expect(typeof actual).to.be('object');
+
+      reiterate.$.map([1], function () {
+        actual = this;
+      });
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.map([1], function () {
+        actual = this;
+      }, undefined);
+
+      expect(actual).to.be(required.global);
+
+      reiterate.$.map([1], function () {
+        actual = this;
+      }, null);
+
+      expect(actual).to.be(required.global);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],44:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.push', function () {
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.push();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.push(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.push(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('array', function () {
+      var arrCmp = required.create(
+          undefined,
+          null, -1,
+          0,
+          1,
+          false,
+          true,
+          undefined,
+          '',
+          'abc',
+          null,
+          undefined
+        ),
+        arr = [],
+        i;
+
+      expect(reiterate.$.push(arr, undefined)).to.be(1);
+      expect(reiterate.$.push(arr, null)).to.be(2);
+      expect(reiterate.$.push(arr, -1)).to.be(3);
+      expect(reiterate.$.push(arr, 0)).to.be(4);
+      expect(reiterate.$.push(arr, 1)).to.be(5);
+      expect(reiterate.$.push(arr, false)).to.be(6);
+      expect(reiterate.$.push(arr, true)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr, undefined)).to.be(8);
+      expect(reiterate.$.push(arr, '')).to.be(9);
+      expect(reiterate.$.push(arr, 'abc')).to.be(10);
+      expect(reiterate.$.push(arr, null)).to.be(11);
+      expect(reiterate.$.push(arr, undefined)).to.be(12);
+      expect(arr.length).to.be(arrCmp.length);
+      for (i = 0; i < arr.length; i += 1) {
+        expect(Object.prototype.hasOwnProperty.call(arr, i)).to.be.ok();
+        expect(arr[i]).to.be(arrCmp[i]);
+      }
+
+      expect(arr).to.eql(arrCmp);
+    });
+
+    it('arguments', function () {
+      var arrCmp = required.create(
+          undefined,
+          null, -1,
+          0,
+          1,
+          false,
+          true,
+          undefined,
+          '',
+          'abc',
+          null,
+          undefined
+        ),
+        arr = reiterate.$.returnArgs(),
+        i;
+
+      expect(reiterate.$.push(arr, undefined)).to.be(1);
+      expect(reiterate.$.push(arr, null)).to.be(2);
+      expect(reiterate.$.push(arr, -1)).to.be(3);
+      expect(reiterate.$.push(arr, 0)).to.be(4);
+      expect(reiterate.$.push(arr, 1)).to.be(5);
+      expect(reiterate.$.push(arr, false)).to.be(6);
+      expect(reiterate.$.push(arr, true)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr, undefined)).to.be(8);
+      expect(reiterate.$.push(arr, '')).to.be(9);
+      expect(reiterate.$.push(arr, 'abc')).to.be(10);
+      expect(reiterate.$.push(arr, null)).to.be(11);
+      expect(reiterate.$.push(arr, undefined)).to.be(12);
+      expect(arr.length).to.be(arrCmp.length);
+      for (i = 0; i < arr.length; i += 1) {
+        expect(Object.prototype.hasOwnProperty.call(arr, i)).to.be.ok();
+        expect(arr[i]).to.be(arrCmp[i]);
+      }
+
+      expect(reiterate.$.chop(arr)).to.eql(arrCmp);
+    });
+
+    it('object with length', function () {
+      var arrCmp = {
+          0: undefined,
+          1: null,
+          2: -1,
+          3: 0,
+          4: 1,
+          5: false,
+          6: true,
+          7: undefined,
+          8: '',
+          9: 'abc',
+          10: null,
+          11: undefined,
+          length: 12
+        },
+        arr = {
+          length: 0
+        },
+        i;
+
+      expect(reiterate.$.push(arr, undefined)).to.be(1);
+      expect(reiterate.$.push(arr, null)).to.be(2);
+      expect(reiterate.$.push(arr, -1)).to.be(3);
+      expect(reiterate.$.push(arr, 0)).to.be(4);
+      expect(reiterate.$.push(arr, 1)).to.be(5);
+      expect(reiterate.$.push(arr, false)).to.be(6);
+      expect(reiterate.$.push(arr, true)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr, undefined)).to.be(8);
+      expect(reiterate.$.push(arr, '')).to.be(9);
+      expect(reiterate.$.push(arr, 'abc')).to.be(10);
+      expect(reiterate.$.push(arr, null)).to.be(11);
+      expect(reiterate.$.push(arr, undefined)).to.be(12);
+      expect(arr.length).to.be(arrCmp.length);
+      for (i = 0; i < arr.length; i += 1) {
+        expect(Object.prototype.hasOwnProperty.call(arr, i)).to.be.ok();
+        expect(arr[i]).to.be(arrCmp[i]);
+      }
+
+      expect(arr).to.eql(arrCmp);
+    });
+
+    it('object without length', function () {
+      var arrCmp = {
+          0: undefined,
+          1: null,
+          2: -1,
+          3: 0,
+          4: 1,
+          5: false,
+          6: true,
+          7: undefined,
+          8: '',
+          9: 'abc',
+          10: null,
+          11: undefined,
+          length: 12
+        },
+        arr = {},
+        i;
+
+      expect(reiterate.$.push(arr, undefined)).to.be(1);
+      expect(reiterate.$.push(arr, null)).to.be(2);
+      expect(reiterate.$.push(arr, -1)).to.be(3);
+      expect(reiterate.$.push(arr, 0)).to.be(4);
+      expect(reiterate.$.push(arr, 1)).to.be(5);
+      expect(reiterate.$.push(arr, false)).to.be(6);
+      expect(reiterate.$.push(arr, true)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr)).to.be(7);
+      expect(reiterate.$.push(arr, undefined)).to.be(8);
+      expect(reiterate.$.push(arr, '')).to.be(9);
+      expect(reiterate.$.push(arr, 'abc')).to.be(10);
+      expect(reiterate.$.push(arr, null)).to.be(11);
+      expect(reiterate.$.push(arr, undefined)).to.be(12);
+      expect(arr.length).to.be(arrCmp.length);
+      for (i = 0; i < arr.length; i += 1) {
+        expect(Object.prototype.hasOwnProperty.call(arr, i)).to.be.ok();
+        expect(arr[i]).to.be(arrCmp[i]);
+      }
+
+      expect(arr).to.eql(arrCmp);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],45:[function(require,module,exports){
+/*jslint maxlen:80, es6:false, this:true */
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it, beforeEach */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.reduce', function () {
+    var testSubject;
+
+    beforeEach(function () {
+      testSubject = [1, 2, 3];
+    });
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.reduce();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.reduce(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.reduce(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if function argument is not a function', function () {
+      expect(function () {
+        reiterate.$.reduce([]);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.reduce([], undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.reduce([], null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should pass the right parameters', function () {
+      var array = ['1'];
+
+      reiterate.$.reduce(array, function (prev, item, index, list) {
+        expect(prev).to.be('');
+        expect(item).to.be('1');
+        expect(index).to.be(0);
+        expect(list).to.be(array);
+      }, '');
+    });
+
+    it('should start with the right initialValue', function () {
+      var array = ['1'];
+
+      reiterate.$.reduce(array, function (prev, item, index, list) {
+        expect(prev).to.be(10);
+        expect(item).to.be('1');
+        expect(index).to.be(0);
+        expect(list).to.be(array);
+      }, 10);
+    });
+
+
+    it(
+      'should not affect elements added to the array after it has begun',
+      function () {
+        var arr = [1, 2, 3],
+          i = 0;
+
+        reiterate.$.reduce(arr, function (a, b) {
+          i += 1;
+          if (i <= 4) {
+            arr.push(a + 3);
+          }
+
+          return b;
+        });
+
+        expect(arr).to.eql([1, 2, 3, 4, 5]);
+        expect(i).to.be(2);
+      }
+    );
+
+    it('should work as expected for empty arrays', function () {
+      expect(function () {
+        reiterate.$.reduce([], function () {
+          throw new Error('function should not be called!');
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should return the expected result', function () {
+      expect(reiterate.$.reduce(testSubject, function (a, b) {
+        return String(a || '') + String(b || '');
+      })).to.eql(testSubject.join(''));
+    });
+
+    it('should not directly affect the passed array', function () {
+      var copy = reiterate.$.chop(testSubject);
+
+      reiterate.$.reduce(testSubject, function (a, b) {
+        return a + b;
+      });
+
+      expect(testSubject).to.eql(copy);
+    });
+
+    it('should skip non-set values', function () {
+      delete testSubject[1];
+      var visited = {};
+
+      reiterate.$.reduce(testSubject, function (a, b) {
+        if (a) {
+          visited[a] = true;
+        }
+
+        if (b) {
+          visited[b] = true;
+        }
+
+        return 0;
+      });
+
+      expect(visited).to.eql({
+        1: true,
+        3: true
+      });
+    });
+
+    it('should have a boxed object as list argument of callback', function () {
+      var actual;
+
+      reiterate.$.reduce('foo', function (previous, item, index, list) {
+        /*jslint unparam: true */
+        /*jshint unused: true */
+        actual = list;
+      });
+
+      expect(typeof actual).to.be('object');
+      expect(required.toStringTag(actual)).to.be('[object String]');
+      expect(String(actual)).to.be('foo');
+      expect(actual.charAt(0)).to.be('f');
+    });
+
+    if (required.isStrictMode()) {
+      it('has the correct context ins strict mode', function () {
+        var actual;
+
+        reiterate.$.reduce([1], function () {
+          actual = this;
+        });
+
+        expect(actual).to.be(undefined);
+
+        reiterate.$.reduce([1, 2], function () {
+          actual = this;
+        });
+
+        expect(actual).to.be(undefined);
+      });
+    }
+  });
+}());
+
+/*jslint sloppy: true */
+(function () {
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.reduce', function () {
+    it('has the correct context in non-strict mode', function () {
+      var actual;
+
+      reiterate.$.reduce([1], function () {
+        actual = this;
+      });
+
+      expect(actual).to.be(undefined);
+
+      reiterate.$.reduce([1, 2], function () {
+        actual = this;
+      });
+
+      expect(actual).to.be(required.global);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],46:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it, beforeEach */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Array.some', function () {
+    var lastIndex = Math.pow(2, 32) - 1,
+      someArray = required.create(
+        0,
+        1,
+        2,
+        'a',
+        'b',
+        'c', [8, 9, 10], {},
+        true,
+        false,
+        undefined,
+        null,
+        new Date(),
+        new Error('x'),
+        new RegExp('t'),
+        Infinity, -Infinity
+      ),
+      testSubject,
+      testIndex,
+      expected,
+      numberOfRuns;
+
+    beforeEach(function () {
+      testSubject = required.create(
+        2,
+        3,
+        undefined,
+        true,
+        'hej',
+        null,
+        false,
+        0,
+        8,
+        9
+      );
+      delete testSubject[1];
+      delete testSubject[8];
+      numberOfRuns = 0;
+      expected = {
+        0: 2,
+        2: undefined,
+        3: true
+      };
+    });
+
+    someArray.length = 25;
+    someArray[24] = NaN;
+    someArray[25] = 'end';
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.some();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.some(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.some(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if function argument is not a function', function () {
+      expect(function () {
+        reiterate.$.some(someArray);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.some(someArray, undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.some(someArray, null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.some(someArray, function (element, index, array) {
+        expect(array).to.be(someArray);
+        expect(typeof index === 'number').to.be.ok();
+        expect(index >= 0).to.be.ok();
+        expect(index <= lastIndex).to.be.ok();
+        if (reiterate.$.numIsNaN(element)) {
+          expect(reiterate.$.numIsNaN(someArray[index])).to.be(true);
+        } else {
+          expect(element).to.be(someArray[index]);
+        }
+
+        testIndex = index;
+        if (element === 'end') {
+          return true;
+        }
+
+        return false;
+      })).to.be(true);
+
+      expect(testIndex).to.be(someArray.length - 1);
+    });
+
+    it('should pass the right parameters', function () {
+      var array = ['1'];
+
+      reiterate.$.some(array, function (item, index, list) {
+        expect(item).to.be('1');
+        expect(index).to.be(0);
+        expect(list).to.be(array);
+      });
+    });
+
+    it(
+      'should not affect elements added to the array after it has begun',
+      function () {
+        var arr = [1, 2, 3],
+          i = 0;
+
+        reiterate.$.some(arr, function (a) {
+          i += 1;
+          arr.push(a + 3);
+
+          return i === 3;
+        });
+
+        expect(arr).to.eql([1, 2, 3, 4, 5, 6]);
+        expect(i).to.be(3);
+      }
+    );
+
+    it('should set the right context when given none', function () {
+      var context;
+
+      reiterate.$.some([1], function () {
+        context = this;
+      });
+
+      expect(context).to.be((function () {
+        return function () {
+          return this;
+        };
+      }()).call());
+    });
+
+    it('should return false if it runs to the end', function () {
+      var actual = reiterate.$.some(testSubject, function () {
+        return;
+      });
+
+      expect(actual).to.not.be.ok();
+    });
+
+    it('should return true if it is stopped somewhere', function () {
+      var actual = reiterate.$.some(testSubject, function () {
+        return true;
+      });
+
+      expect(actual).to.be.ok();
+    });
+
+    it('should return false if there are no elements', function () {
+      var actual = reiterate.$.some([], function () {
+        return true;
+      });
+
+      expect(actual).to.not.be.ok();
+    });
+
+    it('should stop after 3 elements', function () {
+      var actual = {};
+
+      reiterate.$.some(testSubject, function (obj, index) {
+        actual[index] = obj;
+        numberOfRuns += 1;
+        if (numberOfRuns === 3) {
+          return true;
+        }
+
+        return false;
+      });
+
+      expect(actual).to.eql(expected);
+    });
+
+    it('should stop after 3 elements using a context', function () {
+      var actual = {},
+        o = {
+          a: actual
+        };
+
+      reiterate.$.some(testSubject, function (obj, index) {
+        this.a[index] = obj;
+        numberOfRuns += 1;
+        if (numberOfRuns === 3) {
+          return true;
+        }
+
+        return false;
+      }, o);
+
+      expect(actual).to.eql(expected);
+    });
+
+    it('should stop after 3 elements in an array-like object', function () {
+      var ts = required.array2Object(testSubject),
+        actual = {};
+
+      reiterate.$.some(ts, function (obj, index) {
+        actual[index] = obj;
+        numberOfRuns += 1;
+        if (numberOfRuns === 3) {
+          return true;
+        }
+
+        return false;
+      });
+
+      expect(actual).to.eql(expected);
+    });
+
+    it(
+      'should stop after 3 elements in an array-like object using a context',
+      function () {
+        var ts = required.array2Object(testSubject),
+          actual = {},
+          o = {
+            a: actual
+          };
+
+        reiterate.$.some(ts, function (obj, index) {
+          this.a[index] = obj;
+          numberOfRuns += 1;
+          if (numberOfRuns === 3) {
+            return true;
+          }
+
+          return false;
+        }, o);
+
+        expect(actual).to.eql(expected);
+      }
+    );
+
+    it('should have a boxed object as list argument of callback', function () {
+      var actual;
+
+      reiterate.$.some('foo', function (item, index, list) {
+        /*jslint unparam: true */
+        /*jshint unused: true */
+        actual = list;
+      });
+
+      expect(typeof actual).to.be('object');
+      expect(required.toStringTag(actual)).to.be('[object String]');
+      expect(String(actual)).to.be('foo');
+      expect(actual.charAt(0)).to.be('f');
+    });
+
+    it('does not autobox the content in strict mode', function () {
+      var actual;
+
+      reiterate.$.some([1], function () {
+        actual = this;
+      }, 'x');
+
+      expect(typeof actual)
+        .to.be(required.isStrictMode() ? 'string' : 'object');
+    });
+  });
+}());
+
+},{"../../scripts/":9}],47:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Date.isDate', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.isDate(new RegExp('test'))).to.not.be.ok();
+      expect(reiterate.$.isDate(new Date())).to.be.ok();
+      expect(reiterate.$.isDate(/test/)).to.not.be.ok();
+      expect(reiterate.$.isDate([])).to.not.be.ok();
+      expect(reiterate.$.isDate({})).to.not.be.ok();
+      expect(reiterate.$.isDate('')).to.not.be.ok();
+      expect(reiterate.$.isDate(1)).to.not.be.ok();
+      expect(reiterate.$.isDate(true)).to.not.be.ok();
+      expect(reiterate.$.isDate()).to.not.be.ok();
+      expect(reiterate.$.isDate(null)).to.not.be.ok();
+      expect(reiterate.$.isDate(reiterate.$.noop)).to.not.be.ok();
+      expect(reiterate.$.isDate(reiterate.$.returnArgs())).to.not.be.ok();
+      expect(reiterate.$.isDate(Date.prototype)).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],48:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Function.isFunction', function () {
+    it('non functions should be not ok in each case', function () {
+      expect(reiterate.$.isFunction()).to.not.be.ok();
+      expect(reiterate.$.isFunction(undefined)).to.not.be.ok();
+      expect(reiterate.$.isFunction(null)).to.not.be.ok();
+      expect(reiterate.$.isFunction(1)).to.not.be.ok();
+      expect(reiterate.$.isFunction(true)).to.not.be.ok();
+      expect(reiterate.$.isFunction('')).to.not.be.ok();
+      expect(reiterate.$.isFunction(new Error('x'))).to.not.be.ok();
+      expect(reiterate.$.isFunction(new Date())).to.not.be.ok();
+      expect(reiterate.$.isFunction(new RegExp('x'))).to.not.be.ok();
+      expect(reiterate.$.isFunction([])).to.not.be.ok();
+      expect(reiterate.$.isFunction({})).to.not.be.ok();
+      expect(reiterate.$.isFunction(reiterate.$.returnArgs())).to.not.be.ok();
+      expect(reiterate.$.isFunction(Function.prototype)).to.be.ok();
+    });
+
+    it('user functions should not ok in each case', function () {
+      expect(reiterate.$.isFunction(reiterate.$.noop)).to.be.ok();
+      expect(reiterate.$.isFunction(describe)).to.be.ok();
+      expect(reiterate.$.isFunction(expect)).to.be.ok();
+      expect(reiterate.$.isFunction(it)).to.be.ok();
+    });
+
+    it('Error constructor should be ok', function () {
+      expect(reiterate.$.isFunction(Error)).to.be.ok();
+    });
+
+    it('Date constructor should be ok', function () {
+      expect(reiterate.$.isFunction(Date)).to.be.ok();
+    });
+
+    it('RegExp constructor should be ok', function () {
+      expect(reiterate.$.isFunction(RegExp)).to.be.ok();
+    });
+
+    it('Function constructor should be ok', function () {
+      expect(reiterate.$.isFunction(Function)).to.be.ok();
+    });
+
+    it('Boolean constructor should be ok', function () {
+      expect(reiterate.$.isFunction(Boolean)).to.be.ok();
+    });
+
+    it('Number constructor should be ok', function () {
+      expect(reiterate.$.isFunction(Number)).to.be.ok();
+    });
+
+    it('String constructor should be ok', function () {
+      expect(reiterate.$.isFunction(String)).to.be.ok();
+    });
+
+    it('Object constructor should be ok', function () {
+      expect(reiterate.$.isFunction(Object)).to.be.ok();
+    });
+
+    it('isNaN should be ok', function () {
+      expect(reiterate.$.isFunction(isNaN)).to.be.ok();
+    });
+
+    it('isFinite should be ok', function () {
+      expect(reiterate.$.isFunction(isFinite)).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],49:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Function.noop', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.noop()).to.be(undefined);
+      expect(reiterate.$.noop(1, 2, 3)).to.be(undefined);
+      expect(reiterate.$.isFunction(reiterate.$.noop)).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],50:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Function.returnArgs', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.chop(reiterate.$.returnArgs())).to.eql([]);
+      expect(reiterate.$.chop(reiterate.$.returnArgs(1, 2, 3))).to.eql([1, 2, 3]);
+      expect(reiterate.$.chop(reiterate.$.returnArgs(reiterate.$.noop)))
+        .to.eql([reiterate.$.noop]);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],51:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Math.sign', function () {
+    it('should not throw an error in each case', function () {
+      var x = reiterate.$.sign();
+
+      expect(reiterate.$.numIsNaN(x)).to.be.ok();
+      x = reiterate.$.sign(undefined);
+      expect(reiterate.$.numIsNaN(reiterate.$.sign(undefined))).to.be.ok();
+      x = reiterate.$.sign(null);
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+
+      expect(reiterate.$.sign(-1)).to.be(-1);
+
+      x = reiterate.$.sign(+0);
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+      x = reiterate.$.sign('0');
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+      x = reiterate.$.sign('+0');
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+      x = reiterate.$.sign(-0);
+      expect(typeof x === 'number' && x === 0 && 1 / x === -Infinity)
+        .to.be.ok();
+      x = reiterate.$.sign('-0');
+      expect(typeof x === 'number' && x === 0 && 1 / x === -Infinity)
+        .to.be.ok();
+
+      expect(reiterate.$.sign(1)).to.be(1);
+      expect(reiterate.$.sign(Infinity)).to.be(1);
+      expect(reiterate.$.sign(-Infinity)).to.be(-1);
+
+      x = reiterate.$.sign(NaN);
+      expect(reiterate.$.numIsNaN(x)).to.be.ok();
+      x = reiterate.$.sign('NaN');
+      expect(reiterate.$.numIsNaN(x)).to.be.ok();
+      x = reiterate.$.sign('');
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+      x = reiterate.$.sign(' ');
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+
+      expect(reiterate.$.sign(true)).to.be(1);
+
+      x = reiterate.$.sign(false);
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+      x = reiterate.$.sign(reiterate.$.noop);
+      expect(reiterate.$.numIsNaN(x)).to.be.ok();
+      x = reiterate.$.sign({});
+      expect(reiterate.$.numIsNaN(x)).to.be.ok();
+      x = reiterate.$.sign([]);
+      expect(typeof x === 'number' && x === 0 && 1 / x === Infinity).to.be.ok();
+      x = reiterate.$.sign(new RegExp('c'));
+      expect(reiterate.$.numIsNaN(x)).to.be.ok();
+
+      expect(reiterate.$.sign(new Date(2013, 11, 11))).to.be(1);
+
+      x = reiterate.$.sign(new Error('x'));
+      expect(reiterate.$.numIsNaN(x)).to.be.ok();
+
+      // we also verify that [[toNumber]] is being called
+      reiterate.$.forEach([Infinity, 1], function (value) {
+        expect(reiterate.$.sign(value)).to.be(1);
+        expect(reiterate.$.sign(value.toString())).to.be(1);
+      });
+
+      expect(reiterate.$.sign(true)).to.be(1);
+      reiterate.$.forEach([-Infinity, -1], function (value) {
+        expect(reiterate.$.sign(value)).to.be(-1);
+        expect(reiterate.$.sign(value.toString())).to.be(-1);
+      });
+    });
+  });
+}());
+
+},{"../../scripts/":9}],52:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Number.isFinite', function () {
+    it('should not throw an error in each case', function () {
+      var zero = 0;
+
+      expect(reiterate.$.numIsFinite()).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(undefined)).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(null)).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(1)).to.be.ok();
+      expect(reiterate.$.numIsFinite(Infinity)).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(-Infinity)).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(NaN)).to.not.be.ok();
+      expect(reiterate.$.numIsFinite('')).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(true)).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(false)).to.not.be.ok();
+      expect(reiterate.$.numIsFinite({})).to.not.be.ok();
+      expect(reiterate.$.numIsFinite([])).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(new RegExp('c'))).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(new Date(2013, 11, 11))).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(new Error('x'))).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(4)).to.be.ok();
+      expect(reiterate.$.numIsFinite(4.5)).to.be.ok();
+      expect(reiterate.$.numIsFinite('hi')).to.not.be.ok();
+      expect(reiterate.$.numIsFinite('1.3')).to.not.be.ok();
+      expect(reiterate.$.numIsFinite('51')).to.not.be.ok();
+      expect(reiterate.$.numIsFinite(0)).to.be.ok();
+      expect(reiterate.$.numIsFinite(-0)).to.be.ok();
+      expect(reiterate.$.numIsFinite({
+        valueOf: function () {
+          return 3;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.numIsFinite({
+        valueOf: function () {
+          return zero / zero;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.numIsFinite({
+        valueOf: function () {
+          throw 17;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.numIsFinite({
+        toString: function () {
+          throw 17;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.numIsFinite({
+        valueOf: function () {
+          throw 17;
+        },
+        toString: function () {
+          throw 42;
+        }
+      })).to.not.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],53:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Number.isInteger', function () {
+    it('should be truthy on integers', function () {
+      expect(reiterate.$.isInteger(4)).to.be.ok();
+      expect(reiterate.$.isInteger(4.0)).to.be.ok();
+      expect(reiterate.$.isInteger(reiterate.$.MAX_SAFE_INTEGER)).to.be.ok();
+      expect(reiterate.$.isInteger(reiterate.$.MIN_SAFE_INTEGER)).to.be.ok();
+    });
+
+    it('should be falsy on non-integers', function () {
+      var zero = 0;
+
+      expect(reiterate.$.isInteger()).to.not.be.ok();
+      expect(reiterate.$.isInteger(undefined)).to.not.be.ok();
+      expect(reiterate.$.isInteger(null)).to.not.be.ok();
+      expect(reiterate.$.isInteger(4.2)).to.not.be.ok();
+      expect(reiterate.$.isInteger(Infinity)).to.not.be.ok();
+      expect(reiterate.$.isInteger(-Infinity)).to.not.be.ok();
+      expect(reiterate.$.isInteger(NaN)).to.not.be.ok();
+      expect(reiterate.$.isInteger(true)).to.not.be.ok();
+      expect(reiterate.$.isInteger(false)).to.not.be.ok();
+      expect(reiterate.$.isInteger('str')).to.not.be.ok();
+      expect(reiterate.$.isInteger('')).to.not.be.ok();
+      expect(reiterate.$.isInteger({})).to.not.be.ok();
+
+      expect(reiterate.$.isInteger(-10.123)).to.not.be.ok();
+      expect(reiterate.$.isInteger(0)).to.be.ok();
+      expect(reiterate.$.isInteger(0.123)).to.not.be.ok();
+      expect(reiterate.$.isInteger(10)).to.be.ok();
+      expect(reiterate.$.isInteger(10.123)).to.not.be.ok();
+      expect(reiterate.$.isInteger([])).to.not.be.ok();
+      expect(reiterate.$.isInteger([10.123])).to.not.be.ok();
+      expect(reiterate.$.isInteger(new RegExp('c'))).to.not.be.ok();
+      expect(reiterate.$.isInteger(new Error('x'))).to.not.be.ok();
+      /*jshint -W047 */
+      expect(reiterate.$.isInteger(10.)).to.be.ok();
+      /*jshint +W047 */
+      expect(reiterate.$.isInteger(10.0)).to.be.ok();
+      expect(reiterate.$.isInteger('10.')).to.not.be.ok();
+      expect(reiterate.$.isInteger(' 10.')).to.not.be.ok();
+      expect(reiterate.$.isInteger('10. ')).to.not.be.ok();
+      expect(reiterate.$.isInteger(' 10. ')).to.not.be.ok();
+      expect(reiterate.$.isInteger('10.0')).to.not.be.ok();
+      expect(reiterate.$.isInteger(' 10.0')).to.not.be.ok();
+      expect(reiterate.$.isInteger('10.0 ')).to.not.be.ok();
+      expect(reiterate.$.isInteger(' 10.0 ')).to.not.be.ok();
+      expect(reiterate.$.isInteger('10.123')).to.not.be.ok();
+      expect(reiterate.$.isInteger(' 10.123')).to.not.be.ok();
+      expect(reiterate.$.isInteger('10.123 ')).to.not.be.ok();
+      expect(reiterate.$.isInteger(' 10.123 ')).to.not.be.ok();
+
+      expect(reiterate.$.isInteger('-1')).to.not.be.ok();
+      expect(reiterate.$.isInteger('0')).to.not.be.ok();
+      expect(reiterate.$.isInteger('1')).to.not.be.ok();
+      expect(reiterate.$.isInteger('-1.')).to.not.be.ok();
+      expect(reiterate.$.isInteger('0.')).to.not.be.ok();
+      expect(reiterate.$.isInteger('1.')).to.not.be.ok();
+      /*jshint -W047 */
+      expect(reiterate.$.isInteger(-1.)).to.be.ok();
+      expect(reiterate.$.isInteger(0.)).to.be.ok();
+      expect(reiterate.$.isInteger(1.)).to.be.ok();
+      /*jshint +W047 */
+      expect(reiterate.$.isInteger(new Date(2013, 11, 11))).to.not.be.ok();
+      expect(reiterate.$.isInteger(new Date(2013, 11, 11).getTime()))
+        .to.be.ok();
+      expect(reiterate.$.isInteger('NaN')).to.not.be.ok();
+      expect(reiterate.$.isInteger('Infinity')).to.not.be.ok();
+      expect(reiterate.$.isInteger('-Infinity')).to.not.be.ok();
+      expect(reiterate.$.isInteger([])).to.not.be.ok();
+      expect(reiterate.$.isInteger([1])).to.not.be.ok();
+      expect(reiterate.$.isInteger([1.1])).to.not.be.ok();
+
+      expect(reiterate.$.isInteger({
+        valueOf: function () {
+          return 3;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.isInteger({
+        valueOf: function () {
+          return zero / zero;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.isInteger({
+        valueOf: function () {
+          throw 17;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.isInteger({
+        toString: function () {
+          throw 17;
+        }
+      })).to.not.be.ok();
+
+      expect(reiterate.$.isInteger({
+        valueOf: function () {
+          throw 17;
+        },
+        toString: function () {
+          throw 42;
+        }
+      })).to.not.be.ok();
+    });
+
+    it('should be false when the type is not number', function () {
+      var nonNumbers = [
+        false,
+        true,
+        null,
+        undefined,
+        '',
+        reiterate.$.noop, {
+          valueOf: function () {
+            return 3;
+          }
+        },
+        new RegExp('a', 'g'), {}
+      ];
+
+      reiterate.$.forEach(nonNumbers, function (thing) {
+        expect(reiterate.$.isInteger(thing)).to.not.be.ok();
+      });
+    });
+
+    it('should be false when NaN', function () {
+      expect(reiterate.$.isInteger(NaN)).to.not.be.ok();
+    });
+
+    it('should be false when Infinity', function () {
+      expect(reiterate.$.isInteger(Infinity)).to.not.be.ok();
+      expect(reiterate.$.isInteger(-Infinity)).to.not.be.ok();
+    });
+
+    it('should be false when number is not integer', function () {
+      expect(reiterate.$.isInteger(3.4)).to.not.be.ok();
+      expect(reiterate.$.isInteger(-3.4)).to.not.be.ok();
+    });
+
+    it('should be true when abs(number) is 2^53 or larger', function () {
+      expect(reiterate.$.isInteger(Math.pow(2, 53))).to.be.ok();
+      expect(reiterate.$.isInteger(-Math.pow(2, 53))).to.be.ok();
+    });
+
+    it('should be true when abs(number) is less than 2^53', function () {
+      var safeIntegers = [0, 1, Math.pow(2, 53) - 1];
+
+      reiterate.$.forEach(safeIntegers, function (safeInt) {
+        expect(reiterate.$.isInteger(safeInt)).to.be.ok();
+        expect(reiterate.$.isInteger(-safeInt)).to.be.ok();
+      });
+    });
+  });
+}());
+
+},{"../../scripts/":9}],54:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Number.isNaN', function () {
+    var toObj = Object;
+
+    it('NaN should be be true', function () {
+      expect(reiterate.$.numIsNaN(NaN)).to.be(true);
+    });
+
+    it('Object(NaN) should be false', function () {
+      expect(reiterate.$.numIsNaN(toObj(NaN))).to.be(false);
+    });
+
+    it('No arguments, undefined and null should be false', function () {
+      expect(reiterate.$.numIsNaN()).to.be(false);
+      expect(reiterate.$.numIsNaN(undefined)).to.be(false);
+      expect(reiterate.$.numIsNaN(null)).to.be(false);
+    });
+
+    it('Other numbers should be false', function () {
+      expect(reiterate.$.numIsNaN(Infinity)).to.be(false);
+      expect(reiterate.$.numIsNaN(-Infinity)).to.be(false);
+      expect(reiterate.$.numIsNaN(0)).to.be(false);
+      expect(reiterate.$.numIsNaN(-0)).to.be(false);
+      expect(reiterate.$.numIsNaN(-4)).to.be(false);
+      expect(reiterate.$.numIsNaN(4)).to.be(false);
+      expect(reiterate.$.numIsNaN(4.5)).to.be(false);
+      expect(reiterate.$.numIsNaN(required.MAX_VALUE)).to.be(false);
+      expect(reiterate.$.numIsNaN(required.MIN_VALUE)).to.be(false);
+    });
+
+    it('Strings should be false', function () {
+      expect(reiterate.$.numIsNaN('')).to.be(false);
+      expect(reiterate.$.numIsNaN('hi')).to.be(false);
+      expect(reiterate.$.numIsNaN('1.3')).to.be(false);
+      expect(reiterate.$.numIsNaN('51')).to.be(false);
+    });
+
+    it('Booleans should be false', function () {
+      expect(reiterate.$.numIsNaN(true)).to.be(false);
+      expect(reiterate.$.numIsNaN(false)).to.be(false);
+    });
+
+    it('Functions should be false', function () {
+      expect(reiterate.$.numIsNaN(reiterate.$.noop)).to.be(false);
+    });
+
+    it('Objects should be false', function () {
+      expect(reiterate.$.numIsNaN({})).to.be(false);
+      expect(reiterate.$.numIsNaN([])).to.be(false);
+      expect(reiterate.$.numIsNaN(new RegExp('c'))).to.be(false);
+      expect(reiterate.$.numIsNaN(new Date(2013, 11, 11))).to.be(false);
+      expect(reiterate.$.numIsNaN(new Error('x'))).to.be(false);
+    });
+
+    it('Others should be false', function () {
+      expect(reiterate.$.numIsNaN({
+        valueOf: function () {
+          return 3;
+        }
+      })).to.be(false);
+
+      expect(reiterate.$.numIsNaN({
+        valueOf: function () {
+          return Infinity;
+        }
+      })).to.be(false);
+
+      expect(reiterate.$.numIsNaN({
+        valueOf: function () {
+          throw 17;
+        }
+      })).to.be(false);
+
+      expect(reiterate.$.numIsNaN({
+        toString: function () {
+          throw 17;
+        }
+      })).to.be(false);
+
+      expect(reiterate.$.numIsNaN({
+        valueOf: function () {
+          throw 17;
+        },
+
+        toString: function () {
+          throw 42;
+        }
+      })).to.be(false);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],55:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Number.toInteger', function () {
+    it('should throw a TypeError in each case', function () {
+      expect(function () {
+        reiterate.$.toInteger({
+          toString: ''
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toInteger({
+          toString: '1'
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toInteger({
+          toString: 1
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toInteger({
+          toString: 1.1
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      /*jshint -W047 */
+      expect(function () {
+        reiterate.$.toInteger({
+          toString: 1.
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+      /*jshint +W047 */
+    });
+
+    it('argument missing, undefined and null', function () {
+      expect(reiterate.$.toInteger()).to.be(0);
+      expect(reiterate.$.toInteger(undefined)).to.be(0);
+      expect(reiterate.$.toInteger(null)).to.be(0);
+    });
+
+    it('number', function () {
+      expect(reiterate.$.toInteger(-10.123)).to.be(-10);
+      expect(reiterate.$.toInteger(0)).to.be(0);
+      expect(reiterate.$.toInteger(0.123)).to.be(0);
+      expect(reiterate.$.toInteger(10)).to.be(10);
+      expect(reiterate.$.toInteger(10.123)).to.be(10);
+      expect(reiterate.$.toInteger(Infinity)).to.be(Infinity);
+      expect(reiterate.$.toInteger(-Infinity)).to.be(-Infinity);
+      expect(reiterate.$.toInteger(NaN)).to.be(0);
+    });
+
+    it('string', function () {
+      expect(reiterate.$.toInteger('')).to.be(0);
+      expect(reiterate.$.toInteger(' ')).to.be(0);
+      expect(reiterate.$.toInteger('x')).to.be(0);
+    });
+
+    it('boolean', function () {
+      expect(reiterate.$.toInteger(true)).to.be(1);
+      expect(reiterate.$.toInteger(false)).to.be(0);
+    });
+
+    it('mixed objects', function () {
+      expect(reiterate.$.toInteger({})).to.be(0);
+      expect(reiterate.$.toInteger([])).to.be(0);
+      expect(reiterate.$.toInteger([10.123])).to.be(10);
+      expect(reiterate.$.toInteger(new RegExp('c'))).to.be(0);
+      expect(reiterate.$.toInteger(new Error('x'))).to.be(0);
+    });
+
+    it('tens', function () {
+      /*jshint -W047 */
+      expect(reiterate.$.toInteger(10.)).to.be(10);
+      /*jshint +W047 */
+      expect(reiterate.$.toInteger(10.0)).to.be(10);
+      expect(reiterate.$.toInteger('10.')).to.be(10);
+      expect(reiterate.$.toInteger(' 10.')).to.be(10);
+      expect(reiterate.$.toInteger('10. ')).to.be(10);
+      expect(reiterate.$.toInteger(' 10. ')).to.be(10);
+      expect(reiterate.$.toInteger('10.0')).to.be(10);
+      expect(reiterate.$.toInteger(' 10.0')).to.be(10);
+      expect(reiterate.$.toInteger('10.0 ')).to.be(10);
+      expect(reiterate.$.toInteger(' 10.0 ')).to.be(10);
+      expect(reiterate.$.toInteger('10.123')).to.be(10);
+      expect(reiterate.$.toInteger(' 10.123')).to.be(10);
+      expect(reiterate.$.toInteger('10.123 ')).to.be(10);
+      expect(reiterate.$.toInteger(' 10.123 ')).to.be(10);
+    });
+
+    it('-1, 0, 1', function () {
+      expect(reiterate.$.toInteger('-1')).to.be(-1);
+      expect(reiterate.$.toInteger('0')).to.be(0);
+      expect(reiterate.$.toInteger('1')).to.be(1);
+      expect(reiterate.$.toInteger('-1.')).to.be(-1);
+      expect(reiterate.$.toInteger('0.')).to.be(0);
+      expect(reiterate.$.toInteger('1.')).to.be(1);
+      /*jshint -W047 */
+      expect(reiterate.$.toInteger(-1.)).to.be(-1);
+      expect(reiterate.$.toInteger(0.)).to.be(0);
+      expect(reiterate.$.toInteger(1.)).to.be(1);
+      /*jshint +W047 */
+      expect(reiterate.$.toInteger('-1.1')).to.be(-1);
+      expect(reiterate.$.toInteger('0.1')).to.be(0);
+      expect(reiterate.$.toInteger('1.1')).to.be(1);
+    });
+
+    it('date', function () {
+      var dateInt;
+
+      expect(function () {
+        dateInt = reiterate.$.toInteger(new Date(2013, 11, 11));
+      }).to.not.throwException();
+
+      expect(typeof dateInt === 'number').to.be.ok();
+      expect(reiterate.$.numIsNaN(dateInt)).to.not.be.ok();
+    });
+
+    it('string NaN, Infinity, -Infinity', function () {
+      expect(reiterate.$.toInteger('NaN')).to.be(0);
+      expect(reiterate.$.toInteger('Infinity')).to.be(Infinity);
+      expect(reiterate.$.toInteger('-Infinity')).to.be(-Infinity);
+    });
+
+    it('array', function () {
+      expect(reiterate.$.toInteger([])).to.be(0);
+      expect(reiterate.$.toInteger([1])).to.be(1);
+      expect(reiterate.$.toInteger([1.1])).to.be(1);
+      /*jshint -W047 */
+      expect(reiterate.$.toInteger([1.])).to.be(1);
+      /*jshint +W047 */
+      expect(reiterate.$.toInteger([''])).to.be(0);
+      expect(reiterate.$.toInteger(['1'])).to.be(1);
+      expect(reiterate.$.toInteger(['1.1'])).to.be(1);
+    });
+
+    it('object', function () {
+      expect(reiterate.$.toInteger({})).to.be(0);
+      expect(reiterate.$.toInteger({
+        valueOf: ''
+      })).to.be(0);
+      expect(reiterate.$.toInteger({
+        valueOf: '1'
+      })).to.be(0);
+      expect(reiterate.$.toInteger({
+        valueOf: 1
+      })).to.be(0);
+      expect(reiterate.$.toInteger({
+        valueOf: 1.1
+      })).to.be(0);
+      /*jshint -W047 */
+      expect(reiterate.$.toInteger({
+        valueOf: 1.
+      })).to.be(0);
+      /*jshint +W047 */
+    });
+
+    it('function', function () {
+      expect(reiterate.$.toInteger(function () {
+        return 1;
+      })).to.be(0);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],56:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.reiterate.$.requireObjectCoercible', function () {
+    it('should not throw an error in each case', function () {
+      expect(function () {
+        reiterate.$.requireObjectCoercible();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(-1);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(0);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(1);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(NaN);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(Infinity);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(-Infinity);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(true);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(false);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible('');
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible('x');
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(reiterate.$.noop);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(new RegExp('y'));
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.requireObjectCoercible(new Date());
+      }).to.not.throwException();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],57:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.toNumber', function () {
+    it('should throw a TypeError in each case', function () {
+      expect(function () {
+        reiterate.$.toNumber({
+          toString: ''
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toNumber({
+          toString: '1'
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toNumber({
+          toString: 1
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toNumber({
+          toString: 1.1
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      /*jshint -W047 */
+      expect(function () {
+        reiterate.$.toNumber({
+          toString: 1.
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+      /*jshint +W047 */
+    });
+
+    it('argument missing, undefined and null', function () {
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber())).to.be.ok();
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber(undefined))).to.be.ok();
+      expect(reiterate.$.toNumber(null)).to.be(0);
+    });
+
+    it('number', function () {
+      expect(reiterate.$.toNumber(-10.123)).to.be(-10.123);
+      expect(reiterate.$.toNumber(0)).to.be(0);
+      expect(reiterate.$.toNumber(0.123)).to.be(0.123);
+      expect(reiterate.$.toNumber(10)).to.be(10);
+      expect(reiterate.$.toNumber(10.123)).to.be(10.123);
+      expect(reiterate.$.toNumber(Infinity)).to.be(Infinity);
+      expect(reiterate.$.toNumber(-Infinity)).to.be(-Infinity);
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber(NaN))).to.be.ok();
+    });
+
+    it('string', function () {
+      expect(reiterate.$.toNumber('')).to.be(0);
+      expect(reiterate.$.toNumber(' ')).to.be(0);
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber('x'))).to.be.ok();
+    });
+
+    it('boolean', function () {
+      expect(reiterate.$.toNumber(true)).to.be(1);
+      expect(reiterate.$.toNumber(false)).to.be(0);
+    });
+
+    it('mixed objects', function () {
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber({}))).to.be.ok();
+      expect(reiterate.$.toNumber([])).to.be(0);
+      expect(reiterate.$.toNumber([10.123])).to.be(10.123);
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber(new RegExp('c')))).to.be.ok();
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber(new Error('x')))).to.be.ok();
+      expect(reiterate.$.toNumber(new Date(123456789))).to.be(123456789);
+    });
+
+    it('tens', function () {
+      /*jshint -W047 */
+      expect(reiterate.$.toNumber(10.)).to.be(10);
+      /*jshint +W047 */
+      expect(reiterate.$.toNumber(10.0)).to.be(10);
+      expect(reiterate.$.toNumber('10.')).to.be(10);
+      expect(reiterate.$.toNumber(' 10.')).to.be(10);
+      expect(reiterate.$.toNumber('10. ')).to.be(10);
+      expect(reiterate.$.toNumber(' 10. ')).to.be(10);
+      expect(reiterate.$.toNumber('10.0')).to.be(10);
+      expect(reiterate.$.toNumber(' 10.0')).to.be(10);
+      expect(reiterate.$.toNumber('10.0 ')).to.be(10);
+      expect(reiterate.$.toNumber(' 10.0 ')).to.be(10);
+      expect(reiterate.$.toNumber('10.123')).to.be(10.123);
+      expect(reiterate.$.toNumber(' 10.123')).to.be(10.123);
+      expect(reiterate.$.toNumber('10.123 ')).to.be(10.123);
+      expect(reiterate.$.toNumber(' 10.123 ')).to.be(10.123);
+    });
+
+    it('-1, 0, 1', function () {
+      expect(reiterate.$.toNumber('-1')).to.be(-1);
+      expect(reiterate.$.toNumber('0')).to.be(0);
+      expect(reiterate.$.toNumber('1')).to.be(1);
+      expect(reiterate.$.toNumber('-1.')).to.be(-1);
+      expect(reiterate.$.toNumber('0.')).to.be(0);
+      expect(reiterate.$.toNumber('1.')).to.be(1);
+      /*jshint -W047 */
+      expect(reiterate.$.toNumber(-1.)).to.be(-1);
+      expect(reiterate.$.toNumber(0.)).to.be(0);
+      expect(reiterate.$.toNumber(1.)).to.be(1);
+      /*jshint +W047 */
+      expect(reiterate.$.toNumber('-1.1')).to.be(-1.1);
+      expect(reiterate.$.toNumber('0.1')).to.be(0.1);
+      expect(reiterate.$.toNumber('1.1')).to.be(1.1);
+    });
+
+    it('date', function () {
+      var dateInt;
+
+      expect(function () {
+        dateInt = reiterate.$.toNumber(new Date(2013, 11, 11));
+      }).to.not.throwException();
+
+      expect(typeof dateInt === 'number').to.be.ok();
+      expect(reiterate.$.numIsNaN(dateInt)).to.not.be.ok();
+    });
+
+    it('string NaN, Infinity, -Infinity', function () {
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber('NaN'))).to.be.ok();
+      expect(reiterate.$.toNumber('Infinity')).to.be(Infinity);
+      expect(reiterate.$.toNumber('-Infinity')).to.be(-Infinity);
+    });
+
+    it('array', function () {
+      expect(reiterate.$.toNumber([])).to.be(0);
+      expect(reiterate.$.toNumber([1])).to.be(1);
+      expect(reiterate.$.toNumber([1.1])).to.be(1.1);
+      /*jshint -W047 */
+      expect(reiterate.$.toNumber([1.])).to.be(1);
+      /*jshint +W047 */
+      expect(reiterate.$.toNumber([''])).to.be(0);
+      expect(reiterate.$.toNumber(['1'])).to.be(1);
+      expect(reiterate.$.toNumber(['1.1'])).to.be(1.1);
+    });
+
+    it('object', function () {
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber({}))).to.be.ok();
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber({
+        valueOf: ''
+      }))).to.be.ok();
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber({
+        valueOf: '1'
+      }))).to.be.ok();
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber({
+        valueOf: 1
+      }))).to.be.ok();
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber({
+        valueOf: 1.1
+      }))).to.be.ok();
+      /*jshint -W047 */
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber({
+        valueOf: 1.
+      }))).to.be.ok();
+      /*jshint +W047 */
+    });
+
+    it('function', function () {
+      expect(reiterate.$.numIsNaN(reiterate.$.toNumber(function () {
+        return 1;
+      }))).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],58:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.toObject', function () {
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.toObject();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.toObject(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.toObject(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should not throw an error in each case', function () {
+      expect(typeof reiterate.$.toObject(1)).to.be('object');
+      expect(typeof reiterate.$.toObject(true)).to.be('object');
+      expect(typeof reiterate.$.toObject('')).to.be('object');
+      expect(typeof reiterate.$.toObject([])).to.be('object');
+      expect(typeof reiterate.$.toObject({})).to.be('object');
+      expect(typeof reiterate.$.toObject(Object('a'))).to.be('object');
+      expect(typeof reiterate.$.toObject(reiterate.$.noop)).to.be('function');
+      expect(typeof reiterate.$.toObject(new Date())).to.be('object');
+      expect(reiterate.$.toObject(new RegExp('c')).toString()).to.be('/c/');
+    });
+
+    it('should have correct values', function () {
+      var str = reiterate.$.toObject('foo');
+
+      expect(typeof str).to.be('object');
+      expect(str.length).to.be(3);
+      expect(reiterate.$.toStringTag(str)).to.be('[object String]');
+      expect(str.toString()).to.be('foo');
+      expect(str.charAt(0)).to.be('f');
+      expect(str.charAt(1)).to.be('o');
+      expect(str.charAt(2)).to.be('o');
+    });
+
+    it('should be same object', function () {
+      var testObject = [];
+
+      expect(reiterate.$.toObject(testObject)).to.be(testObject);
+      testObject = {};
+      expect(reiterate.$.toObject(testObject)).to.be(testObject);
+      testObject = reiterate.$.noop;
+      expect(reiterate.$.toObject(testObject)).to.be(testObject);
+      testObject = Object('test');
+      expect(reiterate.$.toObject(testObject)).to.be(testObject);
+      testObject = Object(true);
+      expect(reiterate.$.toObject(testObject)).to.be(testObject);
+      testObject = Object(10);
+      expect(reiterate.$.toObject(testObject)).to.be(testObject);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],59:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.toPrimitive', function () {
+    it('should throw a TypeError in each case', function () {
+      expect(function () {
+        reiterate.$.toPrimitive({
+          toString: ''
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toPrimitive({
+          toString: '1'
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toPrimitive({
+          toString: 1
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      expect(function () {
+        reiterate.$.toPrimitive({
+          toString: 1.1
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+
+      /*jshint -W047 */
+      expect(function () {
+        reiterate.$.toPrimitive({
+          toString: 1.
+        });
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+      /*jshint +W047 */
+    });
+
+    it('argument missing, undefined and null', function () {
+      expect(reiterate.$.toPrimitive()).to.be(undefined);
+      expect(reiterate.$.toPrimitive(undefined)).to.be(undefined);
+      expect(reiterate.$.toPrimitive(null)).to.be(null);
+    });
+
+    it('number', function () {
+      expect(reiterate.$.toPrimitive(-10.123)).to.be(-10.123);
+      expect(reiterate.$.toPrimitive(0)).to.be(0);
+      expect(reiterate.$.toPrimitive(0.123)).to.be(0.123);
+      expect(reiterate.$.toPrimitive(10)).to.be(10);
+      expect(reiterate.$.toPrimitive(10.123)).to.be(10.123);
+      expect(reiterate.$.toPrimitive(Infinity)).to.be(Infinity);
+      expect(reiterate.$.toPrimitive(-Infinity)).to.be(-Infinity);
+      expect(reiterate.$.numIsNaN(reiterate.$.toPrimitive(NaN))).to.be.ok();
+    });
+
+    it('string', function () {
+      expect(reiterate.$.toPrimitive('')).to.be('');
+      expect(reiterate.$.toPrimitive(' ')).to.be(' ');
+      expect(reiterate.$.toPrimitive('x')).to.be('x');
+    });
+
+    it('boolean', function () {
+      expect(reiterate.$.toPrimitive(true)).to.be(true);
+      expect(reiterate.$.toPrimitive(false)).to.be(false);
+    });
+
+    it('mixed objects', function () {
+      expect(reiterate.$.toPrimitive({})).to.be.ok();
+      expect(reiterate.$.toPrimitive([])).to.be('');
+      expect(reiterate.$.toPrimitive([10.123])).to.be('10.123');
+      expect(reiterate.$.toPrimitive(new RegExp('c'))).to.be(new RegExp('c')
+        .toString());
+      expect(reiterate.$.toPrimitive(new Error('x')))
+        .to.be(new Error('x').toString());
+      expect(reiterate.$.toPrimitive(new Date(123456789)))
+        .to.be(new Date(123456789).toString());
+      expect(reiterate.$.toPrimitive(new Date(123456789), 'number'))
+      .to.be(123456789);
+    });
+
+    it('tens', function () {
+      /*jshint -W047 */
+      expect(reiterate.$.toPrimitive(10.)).to.be(10);
+      /*jshint +W047 */
+      expect(reiterate.$.toPrimitive(10.0)).to.be(10);
+      expect(reiterate.$.toPrimitive('10.')).to.be('10.');
+      expect(reiterate.$.toPrimitive(' 10.')).to.be(' 10.');
+      expect(reiterate.$.toPrimitive('10. ')).to.be('10. ');
+      expect(reiterate.$.toPrimitive(' 10. ')).to.be(' 10. ');
+      expect(reiterate.$.toPrimitive('10.0')).to.be('10.0');
+      expect(reiterate.$.toPrimitive(' 10.0')).to.be(' 10.0');
+      expect(reiterate.$.toPrimitive('10.0 ')).to.be('10.0 ');
+      expect(reiterate.$.toPrimitive(' 10.0 ')).to.be(' 10.0 ');
+      expect(reiterate.$.toPrimitive('10.123')).to.be('10.123');
+      expect(reiterate.$.toPrimitive(' 10.123')).to.be(' 10.123');
+      expect(reiterate.$.toPrimitive('10.123 ')).to.be('10.123 ');
+      expect(reiterate.$.toPrimitive(' 10.123 ')).to.be(' 10.123 ');
+    });
+
+    it('-1, 0, 1', function () {
+      expect(reiterate.$.toPrimitive('-1')).to.be('-1');
+      expect(reiterate.$.toPrimitive('0')).to.be('0');
+      expect(reiterate.$.toPrimitive('1')).to.be('1');
+      expect(reiterate.$.toPrimitive('-1.')).to.be('-1.');
+      expect(reiterate.$.toPrimitive('0.')).to.be('0.');
+      expect(reiterate.$.toPrimitive('1.')).to.be('1.');
+      /*jshint -W047 */
+      expect(reiterate.$.toPrimitive(-1.)).to.be(-1);
+      expect(reiterate.$.toPrimitive(0.)).to.be(0);
+      expect(reiterate.$.toPrimitive(1.)).to.be(1);
+      /*jshint +W047 */
+      expect(reiterate.$.toPrimitive('-1.1')).to.be('-1.1');
+      expect(reiterate.$.toPrimitive('0.1')).to.be('0.1');
+      expect(reiterate.$.toPrimitive('1.1')).to.be('1.1');
+    });
+
+    it('date', function () {
+      var date;
+
+      expect(function () {
+        date = reiterate.$.toPrimitive(new Date(2013, 11, 11));
+      }).to.not.throwException();
+
+      expect(typeof date === 'string').to.be.ok();
+      expect(date).to.be(new Date(2013, 11, 11).toString());
+
+      expect(function () {
+        date = reiterate.$.toPrimitive(new Date(2013, 11, 11), 'number');
+      }).to.not.throwException();
+
+      expect(typeof date === 'number').to.be.ok();
+      expect(date).to.be(new Date(2013, 11, 11).valueOf());
+    });
+
+    it('string NaN, Infinity, -Infinity', function () {
+      expect(reiterate.$.toPrimitive('NaN')).to.be('NaN');
+      expect(reiterate.$.toPrimitive('Infinity')).to.be('Infinity');
+      expect(reiterate.$.toPrimitive('-Infinity')).to.be('-Infinity');
+    });
+
+    it('array', function () {
+      expect(reiterate.$.toPrimitive([])).to.be('');
+      expect(reiterate.$.toPrimitive([1])).to.be('1');
+      expect(reiterate.$.toPrimitive([1.1])).to.be('1.1');
+      /*jshint -W047 */
+      expect(reiterate.$.toPrimitive([1.])).to.be('1');
+      /*jshint +W047 */
+      expect(reiterate.$.toPrimitive([''])).to.be('');
+      expect(reiterate.$.toPrimitive(['1', '2'])).to.be('1,2');
+      expect(reiterate.$.toPrimitive(['1.1'])).to.be('1.1');
+    });
+
+    it('object', function () {
+      expect(reiterate.$.toPrimitive({})).to.be('[object Object]');
+      expect(reiterate.$.toPrimitive({
+        valueOf: ''
+      })).to.be('[object Object]');
+      expect(reiterate.$.toPrimitive({
+        valueOf: '1'
+      })).to.be('[object Object]');
+      expect(reiterate.$.toPrimitive({
+        valueOf: 1
+      })).to.be('[object Object]');
+      expect(reiterate.$.toPrimitive({
+        valueOf: 1.1
+      })).to.be('[object Object]');
+      /*jshint -W047 */
+      expect(reiterate.$.toPrimitive({
+        valueOf: 1.
+      })).to.be('[object Object]');
+      /*jshint +W047 */
+    });
+
+    it('function', function () {
+      var fn = function () {
+        return 1;
+      };
+
+      expect(reiterate.$.toPrimitive(fn)).to.be(fn.toString());
+    });
+  });
+}());
+
+},{"../../scripts/":9}],60:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.assign', function () {
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.assign();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.assign(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.assign(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if source argument is undefined', function () {
+      expect(function () {
+        reiterate.$.assign({}, undefined);
+      }).to.not.throwException();
+    });
+
+    it('should throw if source argument is null', function () {
+      expect(function () {
+        reiterate.$.assign({}, null);
+      }).to.not.throwException();
+    });
+
+    it('returns the modified target object', function () {
+      var target = {},
+        returned = reiterate.$.assign(target, {
+          a: 1
+        });
+
+      expect(returned).to.equal(target);
+    });
+
+    it('should return target if no sources', function () {
+      var target = {};
+
+      expect(reiterate.$.assign(target)).to.be(target);
+    });
+
+    it('should merge two objects', function () {
+      var target = {
+          a: 1
+        },
+        returned = reiterate.$.assign(target, {
+          b: 2
+        });
+
+      expect(returned).to.eql({
+        a: 1,
+        b: 2
+      });
+    });
+
+    it('should merge three objects', function () {
+      var target = {
+          a: 1
+        },
+        source1 = {
+          b: 2
+        },
+        source2 = {
+          c: 3
+        },
+        returned = reiterate.$.assign(target, source1, source2);
+
+      expect(returned).to.eql({
+        a: 1,
+        b: 2,
+        c: 3
+      });
+    });
+
+    it('only iterates over own keys', function () {
+      var Foo = function () {
+          return;
+        },
+        target = {
+          a: 1
+        },
+        foo,
+        returned;
+
+      Foo.prototype.bar = true;
+      foo = new Foo();
+      foo.baz = true;
+      returned = reiterate.$.assign(target, foo);
+      expect(returned).to.equal(target);
+      expect(target).to.eql({
+        baz: true,
+        a: 1
+      });
+    });
+
+    it('works with arrays', function () {
+      var x = required.create(undefined, undefined, undefined, {}, 4, 5, 6),
+        y = required.create(1, null, undefined, {}, 4, 5, 6);
+
+      delete x[0];
+      delete x[1];
+      delete x[2];
+      expect(reiterate.$.assign([1, 2, 3], x)).to.eql([1, 2, 3, {}, 4, 5, 6]);
+      expect(reiterate.$.assign([1, 2, 3], y)).to.eql(y);
+
+      expect(reiterate.$.assign([1, 2, 3], {
+        3: 4,
+        4: 5,
+        5: 6,
+        length: 6
+      })).to.eql([1, 2, 3, 4, 5, 6]);
+
+      expect(reiterate.$.assign([1, 2, 3, 6, 7, 8, 9], {
+        3: 4,
+        4: 5,
+        5: 6,
+        length: 6
+      })).to.eql([1, 2, 3, 4, 5, 6]);
+
+      expect(reiterate.$.assign([1, 2, 3, 6, 7, 8, 9], {
+        3: 4,
+        4: 5,
+        5: 6
+      })).to.eql([1, 2, 3, 4, 5, 6, 9]);
+    });
+
+    it('should not throw when target is not an object', function () {
+      expect(function () {
+        reiterate.$.assign(true, {});
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.assign(1, {});
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.assign('a', {});
+      }).to.not.throwException();
+    });
+
+    it('should not throw when source is not an object', function () {
+      var target = {};
+
+      expect(function () {
+        reiterate.$.assign(target, true);
+      }).to.not.throwException();
+
+      expect(function () {
+        reiterate.$.assign(target, 1);
+      }).to.not.throwException();
+      expect(function () {
+        reiterate.$.assign(target, 'a');
+      }).to.not.throwException();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],61:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.hasOwnProperty', function () {
+    /*jshint -W001 */
+    var obj = {
+        'toString': reiterate.$.noop,
+        'toLocaleString': reiterate.$.noop,
+        'valueOf': reiterate.$.noop,
+        'hasOwnProperty': reiterate.$.noop,
+        'isPrototypeOf': reiterate.$.noop,
+        'propertyIsEnumerable': reiterate.$.noop,
+        'constructor': reiterate.$.noop
+      },
+      obj2 = {};
+    /*jshint +W001 */
+
+    it('defined on object "toString"', function () {
+      expect(reiterate.$.hasOwn(obj, 'toString')).to.be.ok();
+    });
+
+    it('defined on object "toLocaleString"', function () {
+      expect(reiterate.$.hasOwn(obj, 'toLocaleString')).to.be.ok();
+    });
+
+    it('defined on object "valueOf"', function () {
+      expect(reiterate.$.hasOwn(obj, 'valueOf')).to.be.ok();
+    });
+
+    it('defined on object "hasOwnProperty"', function () {
+      expect(reiterate.$.hasOwn(obj, 'hasOwnProperty')).to.be.ok();
+    });
+
+    it('defined on object "isPrototypeOf"', function () {
+      expect(reiterate.$.hasOwn(obj, 'isPrototypeOf')).to.be.ok();
+    });
+
+    it('defined on object "propertyIsEnumerable"', function () {
+      expect(reiterate.$.hasOwn(obj, 'propertyIsEnumerable')).to.be.ok();
+    });
+
+    it('defined on object "constructor"', function () {
+      expect(reiterate.$.hasOwn(obj, 'constructor')).to.be.ok();
+    });
+
+    it('properties that are not defined', function () {
+      expect(reiterate.$.hasOwn(obj, 'foo')).to.not.be.ok();
+      expect(reiterate.$.hasOwn(obj, 'bar')).to.not.be.ok();
+      expect(reiterate.$.hasOwn(obj, 'fuz')).to.not.be.ok();
+    });
+
+    it('not defined on object "toString"', function () {
+      expect(reiterate.$.hasOwn(obj2, 'toString')).to.not.be.ok();
+    });
+
+    it('not defined on object "toLocaleString"', function () {
+      expect(reiterate.$.hasOwn(obj2, 'toLocaleString')).to.not.be.ok();
+    });
+
+    it('not defined on object "valueOf"', function () {
+      expect(reiterate.$.hasOwn(obj2, 'valueOf')).to.not.be.ok();
+    });
+
+    it('not defined on object "hasOwnProperty"', function () {
+      expect(reiterate.$.hasOwn(obj2, 'hasOwnProperty')).to.not.be.ok();
+    });
+
+    it('not defined on object "isPrototypeOf"', function () {
+      expect(reiterate.$.hasOwn(obj2, 'isPrototypeOf')).to.not.be.ok();
+    });
+
+    it('not defined on object "propertyIsEnumerable"', function () {
+      expect(reiterate.$.hasOwn(obj2, 'propertyIsEnumerable')).to.not.be.ok();
+    });
+
+    it('not defined on object "constructor"', function () {
+      expect(reiterate.$.hasOwn(obj2, 'constructor')).to.not.be.ok();
+    });
+
+    it('not defined on object should be not ok in each case', function () {
+      expect(reiterate.$.hasOwn(obj2, 'foo')).to.not.be.ok();
+      expect(reiterate.$.hasOwn(obj2, 'bar')).to.not.be.ok();
+      expect(reiterate.$.hasOwn(obj2, 'fuz')).to.not.be.ok();
+    });
+
+    it('defined on object with "undefined" value "toString"', function () {
+      expect(reiterate.$.hasOwn({
+        toString: undefined
+      }, 'toString')).to.be.ok();
+    });
+
+    it('defined on object with "undefined" value "toLocaleString"', function () {
+      expect(reiterate.$.hasOwn({
+        toLocaleString: undefined
+      }, 'toLocaleString')).to.be.ok();
+    });
+
+    it('defined on object with "undefined" value "valueOf"', function () {
+      expect(reiterate.$.hasOwn({
+        valueOf: undefined
+      }, 'valueOf')).to.be.ok();
+    });
+
+    it('defined on object with "undefined" value "hasOwnProperty"', function () {
+      /*jshint -W001 */
+      expect(reiterate.$.hasOwn({
+        hasOwnProperty: undefined
+      }, 'hasOwnProperty')).to.be.ok();
+      /*jshint +W001 */
+    });
+
+    it('defined on object with "undefined" value "isPrototypeOf"', function () {
+      expect(reiterate.$.hasOwn({
+        isPrototypeOf: undefined
+      }, 'isPrototypeOf')).to.be.ok();
+    });
+
+    it(
+      'defined on object with "undefined" value "propertyIsEnumerable"',
+      function () {
+        expect(reiterate.$.hasOwn({
+          propertyIsEnumerable: undefined
+        }, 'propertyIsEnumerable')).to.be.ok();
+      }
+    );
+
+    it('defined on object with "undefined" value "constructor"', function () {
+      expect(reiterate.$.hasOwn({
+        constructor: undefined
+      }, 'constructor')).to.be.ok();
+    });
+
+    it('string defined', function () {
+      var str = 'abc';
+
+      expect(reiterate.$.hasOwn(str, '0')).to.be.ok();
+      expect(reiterate.$.hasOwn(str, '1')).to.be.ok();
+      expect(reiterate.$.hasOwn(str, '2')).to.be.ok();
+    });
+
+    it('string not-defined', function () {
+      var str = 'abc';
+
+      expect(reiterate.$.hasOwn(str, '3')).to.not.be.ok();
+    });
+
+    it('string object defined', function () {
+      var strObj = Object('abc');
+
+      expect(reiterate.$.hasOwn(strObj, '0')).to.be.ok();
+      expect(reiterate.$.hasOwn(strObj, '1')).to.be.ok();
+      expect(reiterate.$.hasOwn(strObj, '2')).to.be.ok();
+    });
+
+    it('string object not-defined', function () {
+      var strObj = Object('abc');
+
+      expect(reiterate.$.hasOwn(strObj, '3')).to.not.be.ok();
+    });
+
+    it('arguments defined', function () {
+      var args = reiterate.$.returnArgs(false, undefined, null, '', 0);
+
+      expect(reiterate.$.hasOwn(args, '0')).to.be.ok();
+      expect(reiterate.$.hasOwn(args, '1')).to.be.ok();
+      expect(reiterate.$.hasOwn(args, '2')).to.be.ok();
+      expect(reiterate.$.hasOwn(args, '3')).to.be.ok();
+      expect(reiterate.$.hasOwn(args, '4')).to.be.ok();
+    });
+
+    it('arguments not-defined', function () {
+      var args = reiterate.$.returnArgs(false, undefined, null, '', 0);
+
+      expect(reiterate.$.hasOwn(args, '5')).to.not.be.ok();
+    });
+
+    it('should not list prototype or constructor', function () {
+      function Constructor() {
+        this.constructor = this.prototype = 1;
+      }
+
+      Constructor.prototype.constructor = 1;
+      expect(reiterate.$.hasOwn(Constructor, 'constructor')).to.not.be.ok();
+    });
+
+    it('should list prototype and constructor', function () {
+      function Constructor() {
+        this.constructor = this.prototype = 1;
+      }
+
+      Constructor.prototype.constructor = 1;
+      expect(reiterate.$.hasOwn(Constructor, 'prototype')).to.be.ok();
+      expect(reiterate.$.hasOwn(Constructor.prototype, 'constructor'))
+        .to.be.ok();
+      expect(reiterate.$.hasOwn(new Constructor(), 'prototype')).to.be.ok();
+      expect(reiterate.$.hasOwn(new Constructor(), 'constructor')).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],62:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.hasProperty', function () {
+    it('object, enumerable bugged properties', function () {
+      var testObj = [];
+
+      expect(reiterate.$.hasProperty(testObj, 'toString')).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'toLocaleString')).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'valueOf')).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'hasOwnProperty')).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'isPrototypeOf')).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'propertyIsEnumerable'))
+        .to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'constructor')).to.be.ok();
+    });
+
+    it('array, enumerable bugged properties', function () {
+      var testArr = [];
+
+      expect(reiterate.$.hasProperty(testArr, 'toString')).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'toLocaleString')).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'valueOf')).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'hasOwnProperty')).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'isPrototypeOf')).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'propertyIsEnumerable'))
+        .to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'constructor')).to.be.ok();
+    });
+
+    it('function prototype property', function () {
+      expect(reiterate.$.hasProperty(function () {
+        return;
+      }, 'prototype')).to.be.ok();
+    });
+
+    it('string index, literal and object', function () {
+      var testStr = 'abc',
+        testObj = Object(testStr);
+
+      expect(reiterate.$.hasProperty(testStr, 0)).to.be.ok();
+      expect(reiterate.$.hasProperty(testStr, 3)).to.not.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 0)).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 3)).to.not.be.ok();
+    });
+
+    it('array index', function () {
+      var testArr = ['a', 'b', 'c'];
+
+      expect(reiterate.$.hasProperty(testArr, 0)).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 3)).to.not.be.ok();
+    });
+
+    it('arguments index', function () {
+      var testArg = reiterate.$.returnArgs('a', 'b', 'c');
+
+      expect(reiterate.$.hasProperty(testArg, 0)).to.be.ok();
+      expect(reiterate.$.hasProperty(testArg, 3)).to.not.be.ok();
+    });
+
+    it('array prototype methods', function () {
+      var testArr = [];
+
+      expect(reiterate.$.hasProperty(testArr, 'push')).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'pop')).to.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'foo')).to.not.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'bar')).to.not.be.ok();
+      expect(reiterate.$.hasProperty(testArr, 'fuz')).to.not.be.ok();
+    });
+
+    it('object direct properties', function () {
+      var testObj = {
+        foo: undefined,
+        bar: null
+      };
+
+      if (testObj.getPrototypeOf) {
+        expect(reiterate.$.hasProperty(testObj, 'getPrototypeOf')).to.be.ok();
+      }
+
+      expect(reiterate.$.hasProperty(testObj, 'foo')).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'bar')).to.be.ok();
+      expect(reiterate.$.hasProperty(testObj, 'fuz')).to.not.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],63:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.is', function () {
+    var date = new Date(),
+      rx = new RegExp('x'),
+      err = new Error('y');
+
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.is(undefined, undefined)).to.be.ok();
+      expect(reiterate.$.is(null, null)).to.be.ok();
+      expect(reiterate.$.is(1, 1)).to.be.ok();
+      expect(reiterate.$.is(true, true)).to.be.ok();
+      expect(reiterate.$.is('x', 'x')).to.be.ok();
+      expect(reiterate.$.is([1, 2, 3], [1, 2, 3])).to.not.be.ok();
+      expect(reiterate.$.is(reiterate.$.returnArgs(), reiterate.$.returnArgs()))
+        .to.not.be.ok();
+      expect(reiterate.$.is({}, {}), false, 'Object.is');
+      expect(reiterate.$.is(reiterate.$.noop, reiterate.$.noop)).to.be.ok();
+      expect(reiterate.$.is(new RegExp('c'), new RegExp('c'))).to.not.be.ok();
+      expect(reiterate.$.is(new Date(2013, 11, 23), new Date(2013, 11, 23)))
+        .to.not.be.ok();
+      expect(reiterate.$.is(new Error('x'), new Error('x'))).to.not.be.ok();
+      expect(reiterate.$.is(date, date)).to.be.ok();
+      expect(reiterate.$.is(rx, rx)).to.be.ok();
+      expect(reiterate.$.is(err, err)).to.be.ok();
+      expect(reiterate.$.is(NaN, NaN)).to.be.ok();
+      expect(reiterate.$.is(0, -0)).to.not.be.ok();
+      expect(reiterate.$.is(0, 0)).to.be.ok();
+      expect(reiterate.$.is(0, +0)).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],64:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.isNil', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.isNil()).to.be.ok();
+      expect(reiterate.$.isNil(null)).to.be.ok();
+      expect(reiterate.$.isNil(undefined)).to.be.ok();
+      expect(reiterate.$.isNil('undefined')).to.not.be.ok();
+      expect(reiterate.$.isNil('null')).to.not.be.ok();
+      expect(reiterate.$.isNil(0)).to.not.be.ok();
+      expect(reiterate.$.isNil(1)).to.not.be.ok();
+      expect(reiterate.$.isNil('')).to.not.be.ok();
+      expect(reiterate.$.isNil([])).to.not.be.ok();
+      expect(reiterate.$.isNil({})).to.not.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],65:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.isNull', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.isNull()).to.not.be.ok();
+      expect(reiterate.$.isNull(null)).to.be.ok();
+      expect(reiterate.$.isNull(undefined)).to.not.be.ok();
+      expect(reiterate.$.isNull('undefined')).to.not.be.ok();
+      expect(reiterate.$.isNull('null')).to.not.be.ok();
+      expect(reiterate.$.isNull(0)).to.not.be.ok();
+      expect(reiterate.$.isNull(1)).to.not.be.ok();
+      expect(reiterate.$.isNull('')).to.not.be.ok();
+      expect(reiterate.$.isNull([])).to.not.be.ok();
+      expect(reiterate.$.isNull({})).to.not.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],66:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.isObject', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.isObject()).to.not.be.ok();
+      expect(reiterate.$.isObject(null)).to.not.be.ok();
+      expect(reiterate.$.isObject('')).to.not.be.ok();
+      expect(reiterate.$.isObject(1)).to.not.be.ok();
+      expect(reiterate.$.isObject(false)).to.not.be.ok();
+      expect(reiterate.$.isObject({})).to.be.ok();
+      expect(reiterate.$.isObject([])).to.be.ok();
+      expect(reiterate.$.isObject(reiterate.$.noop)).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],67:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.isUndefined', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.isUndefined()).to.be.ok();
+      expect(reiterate.$.isUndefined(null)).to.not.be.ok();
+      expect(reiterate.$.isUndefined(undefined)).to.be.ok();
+      expect(reiterate.$.isUndefined('undefined')).to.not.be.ok();
+      expect(reiterate.$.isUndefined('null')).to.not.be.ok();
+      expect(reiterate.$.isUndefined(0)).to.not.be.ok();
+      expect(reiterate.$.isUndefined(1)).to.not.be.ok();
+      expect(reiterate.$.isUndefined('')).to.not.be.ok();
+      expect(reiterate.$.isUndefined([])).to.not.be.ok();
+      expect(reiterate.$.isUndefined({})).to.not.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}],68:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.keys', function () {
+    /*jshint -W001 */
+    var loopedValues = [
+        'str',
+        'obj',
+        'arr',
+        'bool',
+        'num',
+        'null',
+        'undefined',
+        'toString',
+        'toLocaleString',
+        'valueOf',
+        'hasOwnProperty',
+        'isPrototypeOf',
+        'propertyIsEnumerable',
+        'constructor'
+      ],
+      obj = {
+        'str': 'boz',
+        'obj': {},
+        'arr': [],
+        'bool': true,
+        'num': 42,
+        'null': null,
+        'undefined': undefined,
+        'toString': reiterate.$.noop,
+        'toLocaleString': reiterate.$.noop,
+        'valueOf': reiterate.$.noop,
+        'hasOwnProperty': reiterate.$.noop,
+        'isPrototypeOf': reiterate.$.noop,
+        'propertyIsEnumerable': reiterate.$.noop,
+        'constructor': reiterate.$.noop
+      },
+      keys = reiterate.$.keys(obj),
+      loopedValues2 = [
+        'str',
+        'obj',
+        'arr',
+        'bool',
+        'num',
+        'null',
+        'undefined'
+      ],
+      obj2 = {
+        'str': 'boz',
+        'obj': {},
+        'arr': [],
+        'bool': true,
+        'num': 42,
+        'null': null,
+        'undefined': undefined
+      },
+      keys2 = reiterate.$.keys(obj2);
+    /*jshint +W001 */
+
+    it('should throw if no arguments', function () {
+      expect(function () {
+        reiterate.$.keys();
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is undefined', function () {
+      expect(function () {
+        reiterate.$.keys(undefined);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should throw if argument is null', function () {
+      expect(function () {
+        reiterate.$.keys(null);
+      }).to.throwException(function (e) {
+        expect(e).to.be.a(TypeError);
+      });
+    });
+
+    it('should not throw an TypeError if argument is primitive', function () {
+      var primKeys;
+
+      expect(function () {
+        primKeys = reiterate.$.keys(42);
+      }).to.not.throwException();
+
+      expect(primKeys.length).to.be(0);
+
+      expect(function () {
+        primKeys = reiterate.$.keys(true);
+      }).to.not.throwException();
+
+      expect(primKeys.length).to.be(0);
+
+      expect(function () {
+        primKeys = reiterate.$.keys('abc');
+      }).to.not.throwException();
+
+      expect(primKeys.length).to.be(3);
+    });
+
+    it('should not throw an error in each case', function () {
+      expect(keys.length).to.be(14);
+      expect(reiterate.$.isArray(keys)).to.be.ok();
+      reiterate.$.forEach(keys, function (name) {
+        expect(Object.prototype.hasOwnProperty.call(obj, name)).to.be.ok();
+      });
+
+      reiterate.$.forEach(keys, function (name) {
+        // should return names which are enumerable
+        expect(reiterate.$.indexOf(loopedValues, name)).not.to.be(-1);
+      });
+
+      expect(keys2.length).to.be(7);
+      expect(reiterate.$.isArray(keys2)).to.be.ok();
+      reiterate.$.forEach(keys2, function (name) {
+        expect(Object.prototype.hasOwnProperty.call(obj, name)).to.be.ok();
+      });
+
+      reiterate.$.forEach(keys2, function (name) {
+        // should return names which are enumerable
+        expect(reiterate.$.indexOf(loopedValues2, name)).not.to.be(-1);
+      });
+    });
+
+    it('should work with arguments object', function () {
+      var testValue = [0, 1],
+        theArgs = reiterate.$.returnArgs(1, 2),
+        theKeys;
+
+      expect(function () {
+        theKeys = reiterate.$.keys(theArgs);
+      }).to.not.throwException();
+
+      expect(theKeys.length).to.be(2);
+      expect(theKeys).to.eql(testValue);
+    });
+
+    it('should work with string object', function () {
+      var testValue = ['0', '1', '2'],
+        theObj = Object('hej'),
+        theKeys;
+
+      expect(function () {
+        theKeys = reiterate.$.keys(theObj);
+      }).to.not.throwException();
+
+      expect(theKeys).to.eql(testValue);
+      expect(theKeys.length).to.be(3);
+    });
+
+    it('Constructor should not list prototype or constructor', function () {
+      var pKeys;
+
+      function Constructor() {
+        this.constructor = this.prototype = 1;
+      }
+
+      Constructor.prototype.constructor = 1;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Constructor);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('Constructor prototype should not list constructor', function () {
+      var pKeys;
+
+      function Constructor() {
+        this.constructor = this.prototype = 1;
+      }
+
+      Constructor.prototype.constructor = 1;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Constructor.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('should list prototype and constructor', function () {
+      var pKeys;
+
+      function Constructor() {
+        this.constructor = this.prototype = 1;
+      }
+
+      Constructor.prototype.constructor = 1;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(new Constructor());
+      }).to.not.throwException();
+
+      expect(pKeys.sort()).to.eql(['constructor', 'prototype']);
+    });
+
+    it('Object prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Object.prototype);
+      }).to.not.throwException(function (e) {
+        expect(e).to.be(undefined);
+      });
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('Function prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Function.prototype);
+      }).to.not.throwException(function (e) {
+        expect(e).to.be(undefined);
+      });
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('Boolean prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Boolean.prototype);
+      }).to.not.throwException(function (e) {
+        expect(e).to.be(undefined);
+      });
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('String prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(String.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('Number prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Number.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('Error prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Error.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('TypeError prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(TypeError.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('SyntaxError prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(SyntaxError.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('RangeError prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(RangeError.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('EvalError prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(EvalError.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('URIError prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(URIError.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('ReferenceError prototypes should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(ReferenceError.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('Date prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Date.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('RegExp prototype should not list', function () {
+      var pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(RegExp.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+
+    it('should not enumerate over non-enumerable properties', function () {
+      var Foo = function () {
+          return;
+        },
+        pKeys;
+
+      expect(function () {
+        pKeys = reiterate.$.keys(Foo.prototype);
+      }).to.not.throwException();
+
+      expect(pKeys).to.eql([]);
+    });
+  });
+}());
+
+},{"../../scripts/":9}],69:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('Object.toStringTag', function () {
+    it('basic', function () {
+      expect(reiterate.$.toStringTag()).to.be('[object Undefined]');
+      expect(reiterate.$.toStringTag(undefined)).to.be('[object Undefined]');
+      expect(reiterate.$.toStringTag(null)).to.be('[object Null]');
+      expect(reiterate.$.toStringTag(1)).to.be('[object Number]');
+      expect(reiterate.$.toStringTag(true)).to.be('[object Boolean]');
+      expect(reiterate.$.toStringTag('x')).to.be('[object String]');
+      expect(reiterate.$.toStringTag([1, 2, 3])).to.be('[object Array]');
+      expect(reiterate.$.toStringTag(reiterate.$.returnArgs()))
+        .to.be('[object Arguments]');
+      expect(reiterate.$.toStringTag({})).to.be('[object Object]');
+      expect(reiterate.$.toStringTag(reiterate.$.noop)).to.be('[object Function]');
+      expect(reiterate.$.toStringTag(new RegExp('c'))).to.be('[object RegExp]');
+      expect(reiterate.$.toStringTag(new Date())).to.be('[object Date]');
+      expect(reiterate.$.toStringTag(new Error('x'))).to.be('[object Error]');
+    });
+
+    it('Object prototypes', function () {
+      expect(reiterate.$.toStringTag(Object.prototype))
+        .to.be('[object Object]');
+      expect(reiterate.$.toStringTag(Array.prototype)).to.be('[object Array]');
+      expect(reiterate.$.toStringTag(Boolean.prototype))
+        .to.be('[object Boolean]');
+      expect(reiterate.$.toStringTag(Number.prototype))
+        .to.be('[object Number]');
+      expect(reiterate.$.toStringTag(String.prototype))
+        .to.be('[object String]');
+      expect(reiterate.$.toStringTag(Error.prototype)).to.be('[object Error]');
+      expect(reiterate.$.toStringTag(Date.prototype)).to.be('[object Date]');
+      expect(reiterate.$.toStringTag(RegExp.prototype))
+        .to.be('[object RegExp]');
+      expect(reiterate.$.toStringTag(Function.prototype))
+        .to.be('[object Function]');
+    });
+  });
+}());
+
+},{"../../scripts/":9}],70:[function(require,module,exports){
+/*jshint
+    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
+    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
+    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
+*/
+/*global require, describe, it */
+
+(function () {
+  'use strict';
+
+  var required = require('../../scripts/'),
+    reiterate = required.subject,
+    expect = required.expect;
+
+  describe('String.isString', function () {
+    it('should not throw an error in each case', function () {
+      expect(reiterate.$.isString(Object('a'))).to.be.ok();
+      expect(reiterate.$.isString(true)).to.not.be.ok();
+      expect(reiterate.$.isString(false)).to.not.be.ok();
+      expect(reiterate.$.isString()).to.not.be.ok();
+      expect(reiterate.$.isString(null)).to.not.be.ok();
+      expect(reiterate.$.isString('')).to.be.ok();
+      expect(reiterate.$.isString(0)).to.not.be.ok();
+      expect(reiterate.$.isString(1)).to.not.be.ok();
+      expect(reiterate.$.isString({})).to.not.be.ok();
+      expect(reiterate.$.isString([])).to.not.be.ok();
+      expect(reiterate.$.isString(String.prototype)).to.be.ok();
+    });
+  });
+}());
+
+},{"../../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,60,61,62,63,64,65,66,67,68,56,57,58,59,69,70]);

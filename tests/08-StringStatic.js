@@ -15,8 +15,8 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    codePointAt = reiterate.codePointAt,
-    map = reiterate.map;
+    codePointAt = reiterate.$.codePointAt,
+    map = reiterate.$.map;
 
   describe('Basic static tests', function () {
     it('UTF-16 string', function () {

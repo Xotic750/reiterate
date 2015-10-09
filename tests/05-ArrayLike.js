@@ -15,8 +15,8 @@
     expect = required.expect,
     reiterate = required.subject,
     forOf = required.forOf,
-    map = reiterate.map,
-    MAX_SAFE_INTEGER = required.MAX_SAFE_INTEGER;
+    map = reiterate.$.map,
+    MAX_SAFE_INTEGER = reiterate.$.MAX_SAFE_INTEGER;
 
   describe('Basic tests', function () {
     it('ArrayLike of primatives', function () {

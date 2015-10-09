@@ -34,7 +34,7 @@
       b = reiterate().from(3).to(6);
       c = reiterate().from(6).to(9);
       d = reiterate().to(10);
-      value = reiterate(a).union(b, c, d).asSet(reiterate.Set);
+      value = reiterate(a).union(b, c, d).asSet(reiterate.$.Set);
       expect(value.size).to.be(11);
       expect(value.has(0)).to.be(true);
       expect(value.has(1)).to.be(true);
@@ -53,13 +53,13 @@
       expect(value).to.eql([1]);
       value = reiterate([]).union([1]).asArray();
       expect(value).to.eql([1]);
-      value = reiterate([]).union().asSet(reiterate.Set);
+      value = reiterate([]).union().asSet(reiterate.$.Set);
       expect(value.size).to.be(0);
-      value = reiterate([]).union([]).asSet(reiterate.Set);
+      value = reiterate([]).union([]).asSet(reiterate.$.Set);
       expect(value.size).to.be(0);
-      value = reiterate([]).union([1]).asSet(reiterate.Set);
+      value = reiterate([]).union([1]).asSet(reiterate.$.Set);
       expect(value.size).to.be(1);
-      value = reiterate([1]).union().asSet(reiterate.Set);
+      value = reiterate([1]).union().asSet(reiterate.$.Set);
       expect(value.size).to.be(1);
     });
   });

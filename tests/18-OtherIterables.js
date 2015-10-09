@@ -1,10 +1,10 @@
-/*jslint maxlen:80, es6:true, this:true */
+/*jslint maxlen:80, es6:false, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
     nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:false, plusplus:true, maxparams:1, maxdepth:2, maxstatements:46,
-    maxcomplexity:9
+    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
+    maxstatements:false, maxcomplexity:false
 */
 /*global require, describe, it */
 
@@ -19,7 +19,7 @@
 
   describe('Basic tests', function () {
     it('Other iterables', function () {
-      var a = new reiterate.Map().set(0, 1).set(1, 2).set(2, 3),
+      var a = new reiterate.$.Map().set(0, 1).set(1, 2).set(2, 3),
         array = reiterate(a).asArray();
 
       expect(array).to.eql([
@@ -32,7 +32,7 @@
       expect(array).to.eql([1, 2, 3]);
       array = reiterate(a.keys()).asArray();
       expect(array).to.eql([0, 1, 2]);
-      a = new reiterate.Set().add(0).add(1).add(2);
+      a = new reiterate.$.Set().add(0).add(1).add(2);
       array = reiterate(a).asArray();
       expect(array).to.eql([0, 1, 2]);
 
@@ -42,7 +42,7 @@
         c: 3
       };
 
-      if (isGeneratorSupported && !reiterate.useShims) {
+      if (isGeneratorSupported) {
         /*jshint evil:true */
         a[symIt] = new Function('return function*(){for(var key in this)' +
           'if(this.hasOwnProperty(key))yield this[key]};')();
@@ -93,7 +93,7 @@
       array = reiterate(a).asArray();
       expect(array.sort()).to.eql([1, 2, 3]);
 
-      if (isGeneratorSupported && !reiterate.useShims) {
+      if (isGeneratorSupported) {
         /*jshint evil:true */
         a[symIt] = new Function('return function*(){for(var key in this)' +
           'if(this.hasOwnProperty(key))yield key};')();

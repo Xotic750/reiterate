@@ -29,7 +29,7 @@
         3: 5
       });
 
-      array = reiterate(a).values().rest().asMap(reiterate.Map);
+      array = reiterate(a).values().rest().asMap(reiterate.$.Map);
       expect(array.size).to.be(4);
       expect(array.get(0)).to.be(2);
       expect(array.get(1)).to.be(3);

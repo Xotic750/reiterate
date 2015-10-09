@@ -13,21 +13,23 @@
 
   var required = require('../scripts/'),
     expect = required.expect,
-    reiterate = required.subject;
+    reiterate = required.subject,
+    MapObject = reiterate.$.Map,
+    SetObject = reiterate.$.Set;
 
   describe('Basic tests', function () {
     var proto = '__proto__';
 
-    it('reiterate.Map existence', function () {
-      expect(reiterate.Map).to.be.ok();
+    it('MapObject existence', function () {
+      expect(MapObject).to.be.ok();
     });
 
-    it('reiterate.Map constructor behavior', function () {
-      expect(new reiterate.Map()).to.be.a(reiterate.Map);
+    it('MapObject constructor behavior', function () {
+      expect(new MapObject()).to.be.a(MapObject);
       var a = 1,
         b = {},
-        c = new reiterate.Map(),
-        m = new reiterate.Map([
+        c = new MapObject(),
+        m = new MapObject([
           [1, 1],
           [b, 2],
           [c, 3]
@@ -38,14 +40,14 @@
       expect(m.has(c)).to.be.ok();
       expect(m.size).to.be(3);
       if (proto in {}) {
-        expect(new reiterate.Map()[proto].isPrototypeOf(new reiterate.Map()))
+        expect(new MapObject()[proto].isPrototypeOf(new MapObject()))
           .to.be.ok();
-        expect(new reiterate.Map()[proto]).to.be(reiterate.Map.prototype);
+        expect(new MapObject()[proto]).to.be(MapObject.prototype);
       }
     });
 
-    it('reiterate.Map#size - Mozilla only', function () {
-      var o = new reiterate.Map();
+    it('MapObject#size - Mozilla only', function () {
+      var o = new MapObject();
 
       if ('size' in o) {
         expect(o.size).to.be(0);
@@ -56,8 +58,8 @@
       }
     });
 
-    it('reiterate.Map#has', function () {
-      var o = new reiterate.Map(),
+    it('MapObject#has', function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -66,8 +68,8 @@
       expect(o.has(callback)).to.be.ok();
     });
 
-    it('reiterate.Map#get', function () {
-      var o = new reiterate.Map(),
+    it('MapObject#get', function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -77,8 +79,8 @@
       expect(o.get(callback)).to.be(generic);
     });
 
-    it('reiterate.Map#set', function () {
-      var o = new reiterate.Map(),
+    it('MapObject#set', function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -111,8 +113,8 @@
       expect(o.get(0)).to.be(generic);
     });
 
-    it("reiterate.Map#['delete']", function () {
-      var o = new reiterate.Map(),
+    it("MapObject#['delete']", function () {
+      var o = new MapObject(),
         generic = {},
         callback = function () {};
 
@@ -130,7 +132,7 @@
     });
 
     it('non object key does not throw an error', function () {
-      var o = new reiterate.Map();
+      var o = new MapObject();
 
       try {
         o.set('key', o);
@@ -141,7 +143,7 @@
 
     it('keys, values, entries behavior', function () {
       // test that things get returned in insertion order as per the specs
-      var o = new reiterate.Map([
+      var o = new MapObject([
           ['1', 1],
           ['2', 2],
           ['3', 3]
@@ -186,8 +188,8 @@
       expect(entriesagain.next().done).to.be.ok();
     });
 
-    it('reiterate.Map#forEach', function () {
-      var o = new reiterate.Map();
+    it('MapObject#forEach', function () {
+      var o = new MapObject();
 
       o.set('key 0', 0);
       o.set('key 1', 1);
@@ -201,8 +203,8 @@
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Map#forEach with mutations', function () {
-      var o = new reiterate.Map([
+    it('MapObject#forEach with mutations', function () {
+      var o = new MapObject([
           ['0', 0],
           ['1', 1],
           ['2', 2]
@@ -226,8 +228,8 @@
       expect(seen).to.eql([0, 1, 3, 0]);
     });
 
-    it('reiterate.Map#clear', function () {
-      var o = new reiterate.Map();
+    it('MapObject#clear', function () {
+      var o = new MapObject();
 
       o.set(1, '1');
       o.set(2, '2');
@@ -236,26 +238,26 @@
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Set existence', function () {
-      expect(reiterate.Set).to.be.ok();
+    it('SetObject existence', function () {
+      expect(SetObject).to.be.ok();
     });
 
-    it('reiterate.Set constructor behavior', function () {
-      expect(new reiterate.Set()).to.be.a(reiterate.Set);
-      var s = new reiterate.Set([1, 2]);
+    it('SetObject constructor behavior', function () {
+      expect(new SetObject()).to.be.a(SetObject);
+      var s = new SetObject([1, 2]);
 
       expect(s.has(1)).to.be.ok();
       expect(s.has(2)).to.be.ok();
       expect(s.size).to.be(2);
       if (proto in {}) {
-        expect(new reiterate.Set()[proto].isPrototypeOf(new reiterate.Set()))
+        expect(new SetObject()[proto].isPrototypeOf(new SetObject()))
           .to.be.ok();
-        expect(new reiterate.Set()[proto]).to.be(reiterate.Set.prototype);
+        expect(new SetObject()[proto]).to.be(SetObject.prototype);
       }
     });
 
-    it('reiterate.Set#size - Mozilla only', function () {
-      var o = new reiterate.Set();
+    it('SetObject#size - Mozilla only', function () {
+      var o = new SetObject();
 
       if ('size' in o) {
         expect(o.size).to.be(0);
@@ -266,15 +268,15 @@
       }
     });
 
-    it('reiterate.Set#add', function () {
-      var o = new reiterate.Set();
+    it('SetObject#add', function () {
+      var o = new SetObject();
 
       expect(o.add(NaN)).to.be.ok();
       expect(o.has(NaN)).to.be.ok();
     });
 
-    it("reiterate.Set#['delete']", function () {
-      var o = new reiterate.Set(),
+    it("SetObject#['delete']", function () {
+      var o = new SetObject(),
         generic = {},
         callback = function () {};
 
@@ -293,7 +295,7 @@
 
     it('values behavior', function () {
       // test that things get returned in insertion order as per the specs
-      var o = new reiterate.Set([1, 2, 3]);
+      var o = new SetObject([1, 2, 3]);
 
       expect(o.keys).to.be(o.values); // same function, as per the specs
       var values = o.values(),
@@ -325,8 +327,8 @@
       expect(entriesagain.next().done).to.be.ok();
     });
 
-    it('reiterate.Set#has', function () {
-      var o = new reiterate.Set(),
+    it('SetObject#has', function () {
+      var o = new SetObject(),
         callback = function () {};
 
       expect(o.has(callback)).to.not.be.ok();
@@ -334,8 +336,8 @@
       expect(o.has(callback)).to.be.ok();
     });
 
-    it('reiterate.Set#forEach', function () {
-      var o = new reiterate.Set(),
+    it('SetObject#forEach', function () {
+      var o = new SetObject(),
         i = 0;
 
       o.add('value 0');
@@ -352,8 +354,8 @@
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Set#forEach with mutations', function () {
-      var o = new reiterate.Set([0, 1, 2]),
+    it('SetObject#forEach with mutations', function () {
+      var o = new SetObject([0, 1, 2]),
         seen = [];
 
       o.forEach(function (value, sameValue, obj) {
@@ -373,8 +375,8 @@
       expect(seen).to.eql([0, 1, 3, 0]);
     });
 
-    it('reiterate.Set#clear', function () {
-      var o = new reiterate.Set();
+    it('SetObject#clear', function () {
+      var o = new SetObject();
 
       o.add(1);
       o.add(2);
@@ -382,9 +384,9 @@
       expect(!o.size).to.be.ok();
     });
 
-    it('reiterate.Set#add, reiterate.Map#set are chainable now', function () {
-      var s = new reiterate.Set(),
-        m = new reiterate.Map(),
+    it('Set#add, Map#set are chainable now', function () {
+      var s = new SetObject(),
+        m = new MapObject(),
         a = {};
 
       s.add(1).add(2);
@@ -395,7 +397,7 @@
     });
 
     it('Recognize any iterable as the constructor input', function () {
-      var a = new reiterate.Set(new reiterate.Set([1, 2]));
+      var a = new SetObject(new SetObject([1, 2]));
 
       expect(a.has(1)).to.be.ok();
     });

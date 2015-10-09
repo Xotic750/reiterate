@@ -47,7 +47,7 @@
       array = reiterate([1, 1, 3, 2, 2])
         .values()
         .intersection(a, b)
-        .asSet(reiterate.Set);
+        .asSet(reiterate.$.Set);
 
       expect(array.size).to.be(2);
       expect(array.has(1)).to.be(true);
