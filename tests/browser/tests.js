@@ -163,9 +163,9 @@
    * @private
    * @type {boolean}
    */
-  if (!_.inStrictMode && $forEach) {
+  if (_.inStrictMode && $forEach) {
     $forEach.call([1], function () {
-      _.hasV8Strictbug = typeof this !== typeObject;
+      _.hasV8Strictbug = typeof this === typeObject;
     }, strFor);
   } else {
     _.hasV8Strictbug = false;
@@ -330,16 +330,6 @@
     };
   } else {
     fixCall = _.reflectArg;
-  }
-
-  function fixV8StrictBug(args) {
-    var fixed = _.chop(args, 1);
-
-    if (_.hasV8Strictbug && fixed.length > 1 && !_.isNil(fixed[1])) {
-      fixed[1] = _.toObject(fixed[1]);
-    }
-
-    return fixed;
   }
 
   /**
@@ -974,9 +964,9 @@
    * Global_Objects/Array/reduce
    */
   /* istanbul ignore else */
-  if ($reduce && !_.useShims) {
+  if ($reduce && !_.hasV8Strictbug && !_.useShims) {
     _.reduce = function reduce(array) {
-      return $reduce.apply(array, fixV8StrictBug(arguments));
+      return $reduce.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.reduce = function reduce(array, callback, initialValue) {
@@ -988,12 +978,12 @@
 
       _.assertIsFunction(callback);
       length = _.toLength(object.length);
-      if (!length && arguments.length === 1) {
+      if (!length && arguments.length === 2) {
         throw new TypeError(reduceError);
       }
 
       index = 0;
-      if (arguments.length > 1) {
+      if (arguments.length > 2) {
         acc = initialValue;
       } else {
         kPresent = false;
@@ -1113,9 +1103,9 @@
     return number;
   };
 
-  if ($map && !_.useShims) {
+  if ($map && !_.hasV8Strictbug && !_.useShims) {
     _.map = function map(array) {
-      return $map.apply(array, fixV8StrictBug(arguments));
+      return $map.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.map = function map(array, callback, thisArg) {
@@ -1145,9 +1135,9 @@
     };
   }
 
-  if ($filter && !_.useShims) {
+  if ($filter && !_.hasV8Strictbug && !_.useShims) {
     _.filter = function filter(array) {
-      return $filter.apply(array, fixV8StrictBug(arguments));
+      return $filter.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.filter = function filter(array, callback, thisArg) {
@@ -1199,9 +1189,9 @@
    * Global_Objects/Array/forEach
    */
   /* istanbul ignore else */
-  if ($forEach && !_.useShims) {
+  if ($forEach && !_.hasV8Strictbug && !_.useShims) {
     _.forEach = function forEach(array) {
-      return $forEach.apply(array, fixV8StrictBug(arguments));
+      return $forEach.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.forEach = function forEach(array, callback, thisArg) {
@@ -1223,9 +1213,9 @@
   }
 
   /* istanbul ignore else */
-  if ($some && !_.useShims) {
+  if ($some && !_.hasV8Strictbug && !_.useShims) {
     _.some = function some(array) {
-      return $some.apply(array, fixV8StrictBug(arguments));
+      return $some.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.some = function some(array, callback, thisArg) {
@@ -1259,9 +1249,9 @@
   }
 
   /* istanbul ignore else */
-  if ($every && !_.useShims) {
+  if ($every && !_.hasV8Strictbug && !_.useShims) {
     _.every = function every(array) {
-      return $every.apply(array, fixV8StrictBug(arguments));
+      return $every.apply(array, _.chop(arguments, 1));
     };
   } else {
     _.every = function every(array, callback, thisArg) {
@@ -1297,9 +1287,11 @@
 
   /* istanbul ignore else */
   if (Object.keys && !_.useShims) {
-    _.keys = Object.keys;
+    _.keys = function keys(subject) {
+      return Object.keys(_.toObject(subject));
+    };
   } else {
-    _.keys = function (subject) {
+    _.keys = function keys(subject) {
       var object = _.toObject(subject),
         ownKeys = [],
         key;
@@ -1328,20 +1320,40 @@
     _.assign = Object.assign;
   } else {
     _.assign = function assign(target) {
-      var object = _.toObject(target);
+      var to = _.toObject(target),
+        length = _.toLength(arguments.length),
+        from,
+        index,
+        keysArray,
+        len,
+        nextIndex,
+        nextKey,
+        arg;
 
-      function copy(key) {
-        /*jshint validthis:true */
-        object[key] = this[key];
+      if (length >= 2) {
+        index = 1;
+        while (index < length) {
+          arg = arguments[index];
+          if (!_.isNil(arg)) {
+            from = _.toObject(arg);
+            keysArray = _.keys(from);
+            len = keysArray.length;
+            nextIndex = 0;
+            while (nextIndex < len) {
+              nextKey = keysArray[nextIndex];
+              if (_.hasProperty(from, nextKey)) {
+                to[nextKey] = from[nextKey];
+              }
+
+              nextIndex += 1;
+            }
+          }
+
+          index += 1;
+        }
       }
 
-      _.forEach(_.chop(arguments, 1), function (arg) {
-        if (!_.isNil(arg)) {
-          _.forEach(_.keys(arg), copy, arg);
-        }
-      });
-
-      return object;
+      return to;
     };
   }
 
