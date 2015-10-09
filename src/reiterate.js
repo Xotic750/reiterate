@@ -1452,10 +1452,27 @@
   };
 
   if ($findIndex && !_.useShims) {
-    _.findIndex = function findIndex(array) {
-      return $findIndex.apply(array, _.chop(arguments, 1));
-    };
-  } else {
+    try {
+      _.findIndex = function findIndex(array) {
+        return $findIndex.apply(array, _.chop(arguments, 1));
+      };
+
+      if (_.findIndex({
+          0: 1,
+          1: 2,
+          2: 3,
+          length: -3
+        }, function () {
+          throw new Error('should not reach here');
+        }) !== -1) {
+        throw new Error('should return -1');
+      }
+    } catch (e) {
+      _.findIndex = !e;
+    }
+  }
+
+  if (!_.findIndex) {
     _.findIndex = function findIndex(array, callback, thisArg) {
       var object = _.toObject(array),
         val,
