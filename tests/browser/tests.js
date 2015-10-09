@@ -835,7 +835,7 @@
   if (!_.useShims || $push.call(testProp, _.noop()) !== 1 ||
     testProp.length !== 1 || testProp[0] !== _.noop()) {
     _.push = function push(array) {
-      return $push.apply(array, _.chop(arguments, 1));
+      return $push.apply(_.requireObjectCoercible(array), _.chop(arguments, 1));
     };
   } else {
     _.push = function push(array) {
@@ -966,7 +966,10 @@
   /* istanbul ignore else */
   if ($reduce && !_.hasV8Strictbug && !_.useShims) {
     _.reduce = function reduce(array) {
-      return $reduce.apply(array, _.chop(arguments, 1));
+      return $reduce.apply(
+        _.requireObjectCoercible(array),
+        _.chop(arguments, 1)
+      );
     };
   } else {
     _.reduce = function reduce(array, callback, initialValue) {
@@ -1105,7 +1108,7 @@
 
   if ($map && !_.hasV8Strictbug && !_.useShims) {
     _.map = function map(array) {
-      return $map.apply(array, _.chop(arguments, 1));
+      return $map.apply(_.requireObjectCoercible(array), _.chop(arguments, 1));
     };
   } else {
     _.map = function map(array, callback, thisArg) {
@@ -1137,7 +1140,10 @@
 
   if ($filter && !_.hasV8Strictbug && !_.useShims) {
     _.filter = function filter(array) {
-      return $filter.apply(array, _.chop(arguments, 1));
+      return $filter.apply(
+        _.requireObjectCoercible(array),
+        _.chop(arguments, 1)
+      );
     };
   } else {
     _.filter = function filter(array, callback, thisArg) {
@@ -1191,7 +1197,10 @@
   /* istanbul ignore else */
   if ($forEach && !_.hasV8Strictbug && !_.useShims) {
     _.forEach = function forEach(array) {
-      return $forEach.apply(array, _.chop(arguments, 1));
+      return $forEach.apply(
+        _.requireObjectCoercible(array),
+        _.chop(arguments, 1)
+      );
     };
   } else {
     _.forEach = function forEach(array, callback, thisArg) {
@@ -1215,7 +1224,7 @@
   /* istanbul ignore else */
   if ($some && !_.hasV8Strictbug && !_.useShims) {
     _.some = function some(array) {
-      return $some.apply(array, _.chop(arguments, 1));
+      return $some.apply(_.requireObjectCoercible(array), _.chop(arguments, 1));
     };
   } else {
     _.some = function some(array, callback, thisArg) {
@@ -1251,7 +1260,10 @@
   /* istanbul ignore else */
   if ($every && !_.hasV8Strictbug && !_.useShims) {
     _.every = function every(array) {
-      return $every.apply(array, _.chop(arguments, 1));
+      return $every.apply(
+        _.requireObjectCoercible(array),
+        _.chop(arguments, 1)
+      );
     };
   } else {
     _.every = function every(array, callback, thisArg) {
@@ -1360,7 +1372,10 @@
   /* istanbul ignore else */
   if ($indexOf && !_.useShims) {
     _.indexOf = function indexOf(array) {
-      return $indexOf.apply(array, _.chop(arguments, 1));
+      return $indexOf.apply(
+        _.requireObjectCoercible(array),
+        _.chop(arguments, 1)
+      );
     };
   } else {
     _.indexOf = function indexOf(array, searchElement, fromIndex) {
@@ -1456,7 +1471,10 @@
   if ($findIndex && !_.useShims) {
     try {
       _.findIndex = function findIndex(array) {
-        return $findIndex.apply(array, _.chop(arguments, 1));
+        return $findIndex.apply(
+          _.requireObjectCoercible(array),
+          _.chop(arguments, 1)
+        );
       };
 
       if (_.findIndex({
@@ -1517,7 +1535,10 @@
 
   if ($includes && !_.useShims) {
     _.includes = function includes(array) {
-      return $includes.apply(array, _.chop(arguments, 1));
+      return $includes.apply(
+        _.requireObjectCoercible(array),
+        _.chop(arguments, 1)
+      );
     };
   } else {
     _.includes = function includes(array, searchElement, fromIndex) {
