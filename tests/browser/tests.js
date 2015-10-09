@@ -1358,8 +1358,18 @@
   }
 
   if (Array.from && !_.useShims) {
-    _.from = Array.from;
-  } else {
+    try {
+      if (Array.from(_.returnArgs(1))[0] === 1) {
+        throw new Error('failed arguments check');
+      }
+      _.from = Array.from;
+    } catch (e) {
+      _.from = !e;
+    }
+
+  }
+
+  if (!_.from) {
     _.from = function from(items, mapfn, thisArg) {
       var usingIterator = items && items[_.symIt],
         iterator,
