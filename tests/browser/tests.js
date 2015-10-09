@@ -1357,80 +1357,6 @@
     };
   }
 
-  if (Array.from && !_.useShims) {
-    try {
-      if (Array.from(_.returnArgs(1))[0] === 1) {
-        throw new Error('failed arguments check');
-      }
-      _.from = Array.from;
-    } catch (e) {
-      _.from = !e;
-    }
-
-  }
-
-  if (!_.from) {
-    _.from = function from(items, mapfn, thisArg) {
-      var usingIterator = items && items[_.symIt],
-        iterator,
-        object,
-        length,
-        array,
-        mapping,
-        index,
-        next;
-
-      if (!_.isUndefined(mapfn)) {
-        mapping = !!_.assertIsFunction(mapfn);
-      }
-
-      index = 0;
-      if (usingIterator) {
-        if (_.isFunction(this)) {
-          array = new this();
-        } else {
-          array = [];
-        }
-
-        iterator = usingIterator();
-        next = iterator.next();
-        while (!next.done) {
-          if (mapping) {
-            array[index] = mapfn.call(fixCall(thisArg), next.value, index);
-          } else {
-            array[index] = next.value;
-          }
-
-          next = iterator.next();
-          index += 1;
-        }
-
-        array.length = index;
-      } else {
-        object = _.toObject(items);
-        length = _.toLength(object.length);
-        if (_.isFunction(this)) {
-          array = new this(length);
-        } else {
-          array = [];
-        }
-
-        array.length = length;
-        while (index < length) {
-          if (mapping) {
-            array[index] = mapfn.call(fixCall(thisArg), object[index], index);
-          } else {
-            array[index] = object[index];
-          }
-
-          index += 1;
-        }
-      }
-
-      return array;
-    };
-  }
-
   /* istanbul ignore else */
   if ($indexOf && !_.useShims) {
     _.indexOf = function indexOf(array) {
@@ -12239,220 +12165,6 @@ process.umask = function() { return 0; };
     reiterate = required.subject,
     expect = required.expect;
 
-  describe('Array.from', function () {
-    it('should create correct array from iterable', function () {
-      expect(reiterate.$.from(reiterate.$.returnArgs(0, 1, 2)))
-        .to.eql([0, 1, 2]);
-
-      expect(reiterate.$.from(required.create(null, undefined, 0.1248, -0, 0)))
-        .to.eql(required.create(null, undefined, 0.1248, -0, 0));
-    });
-
-    it('should handle empty iterables correctly', function () {
-      expect(reiterate.$.from(reiterate.$.returnArgs())).to.eql([]);
-    });
-
-    it('should work with other constructors', function () {
-      var Foo = function (length, args) {
-          /*jslint unparam: true */
-          /*jshint unused: false */
-          this.length = length;
-        },
-        args = ['a', 'b', 'c'],
-        expected = new Foo(args.length);
-
-      reiterate.$.forEach(args, function (arg, index) {
-        expected[index] = arg;
-      });
-
-      expect(reiterate.$.from.call(Foo, args)).to.eql(expected);
-    });
-
-    it('supports a from function', function () {
-      var original = [1, 2, 3],
-        mapper = function (item) {
-          return item * 2;
-        },
-        mapped = reiterate.$.from(original, mapper);
-
-      expect(mapped).to.eql([2, 4, 6]);
-    });
-
-    it('throws when provided a nonfunction second arg', function () {
-      expect(function () {
-        reiterate.$.from([], false);
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        reiterate.$.from([], true);
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        reiterate.$.from([], /a/g);
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        reiterate.$.from([], {});
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        reiterate.$.from([], []);
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        reiterate.$.from([], '');
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-
-      expect(function () {
-        reiterate.$.from([], 3);
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-    });
-
-    it('supports a this arg', function () {
-      var original = [1, 2, 3],
-        context = {},
-        mapper = function (item) {
-          expect(this).to.equal(context);
-
-          return item * 2;
-        },
-        mapped = reiterate.$.from(original, mapper, context);
-
-      expect(mapped).to.eql([2, 4, 6]);
-    });
-
-    it('throws when provided null or undefined', function () {
-      expect(function () {
-        reiterate.$.from();
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-      expect(function () {
-        reiterate.$.from(undefined);
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-      expect(function () {
-        reiterate.$.from(null);
-      }).to.throwException(function (e) {
-        expect(e).to.be.a(TypeError);
-      });
-    });
-
-    it('returns [] when given 3', function () {
-      expect(reiterate.$.from(3)).to.eql([]);
-    });
-
-    it('removes holes', function () {
-      var input = required.create('[0, , 2]'),
-        result = reiterate.$.from(input);
-
-      expect(reiterate.$.hasProperty(input, 1)).not.to.be.ok();
-      expect(reiterate.$.hasProperty(result, 1)).to.be.ok();
-      expect(result).to.eql(required.create(0, undefined, 2));
-    });
-
-    if (required.isStrictMode()) {
-      it('does not autobox the content in strict mode', function () {
-        var actual;
-
-        reiterate.$.from([1], function () {
-          actual = this;
-        }, 'x');
-
-        expect(typeof actual).to.be('string');
-
-        reiterate.$.from([1], function () {
-          actual = this;
-        });
-
-        expect(actual).to.be(undefined);
-
-        reiterate.$.from([1], function () {
-          actual = this;
-        }, undefined);
-
-        expect(actual).to.be(undefined);
-
-        reiterate.$.from([1], function () {
-          actual = this;
-        }, null);
-
-        expect(actual).to.be(null);
-      });
-    }
-  });
-}());
-
-/*jslint sloppy: true */
-(function () {
-  var required = require('../../scripts/'),
-    reiterate = required.subject,
-    expect = required.expect;
-
-  describe('Array.from', function () {
-    it('does autobox the content in non-strict mode', function () {
-      var actual;
-
-      reiterate.$.from([1], function () {
-        actual = this;
-      }, 'x');
-
-      expect(typeof actual).to.be('object');
-
-      reiterate.$.from([1], function () {
-        actual = this;
-      });
-
-      expect(actual).to.be(required.global);
-
-      reiterate.$.from([1], function () {
-        actual = this;
-      }, undefined);
-
-      expect(actual).to.be(required.global);
-
-      reiterate.$.from([1], function () {
-        actual = this;
-      }, null);
-
-      expect(actual).to.be(required.global);
-    });
-  });
-}());
-
-},{"../../scripts/":9}],41:[function(require,module,exports){
-/*jslint maxlen:80, es6:false, this:true */
-/*jshint
-    bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
-    freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
-    nonbsp:true, singleGroups:true, strict:true, undef:true, unused:true,
-    esnext:false, plusplus:true, maxparams:false, maxdepth:false,
-    maxstatements:false, maxcomplexity:false
-*/
-/*global require, describe, it */
-
-(function () {
-  'use strict';
-
-  var required = require('../../scripts/'),
-    reiterate = required.subject,
-    expect = required.expect;
-
   describe('Array.indexOf', function () {
     var arr = [
         'toString',
@@ -12584,7 +12296,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],42:[function(require,module,exports){
+},{"../../scripts/":9}],41:[function(require,module,exports){
 /*jslint maxlen:80, es6:false, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -12648,7 +12360,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],43:[function(require,module,exports){
+},{"../../scripts/":9}],42:[function(require,module,exports){
 /*jslint maxlen:80, es6:false, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -12951,7 +12663,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],44:[function(require,module,exports){
+},{"../../scripts/":9}],43:[function(require,module,exports){
 /*jslint maxlen:80, es6:false, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -13170,7 +12882,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],45:[function(require,module,exports){
+},{"../../scripts/":9}],44:[function(require,module,exports){
 /*jslint maxlen:80, es6:false, this:true */
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
@@ -13390,7 +13102,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],46:[function(require,module,exports){
+},{"../../scripts/":9}],45:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -13693,7 +13405,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],47:[function(require,module,exports){
+},{"../../scripts/":9}],46:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -13729,7 +13441,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],48:[function(require,module,exports){
+},{"../../scripts/":9}],47:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -13812,7 +13524,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],49:[function(require,module,exports){
+},{"../../scripts/":9}],48:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -13838,7 +13550,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],50:[function(require,module,exports){
+},{"../../scripts/":9}],49:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -13865,7 +13577,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],51:[function(require,module,exports){
+},{"../../scripts/":9}],50:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -13953,7 +13665,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],52:[function(require,module,exports){
+},{"../../scripts/":9}],51:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -14032,7 +13744,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],53:[function(require,module,exports){
+},{"../../scripts/":9}],52:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -14204,7 +13916,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],54:[function(require,module,exports){
+},{"../../scripts/":9}],53:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -14312,7 +14024,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],55:[function(require,module,exports){
+},{"../../scripts/":9}],54:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -14504,7 +14216,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],56:[function(require,module,exports){
+},{"../../scripts/":9}],55:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -14596,7 +14308,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],57:[function(require,module,exports){
+},{"../../scripts/":9}],56:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -14789,7 +14501,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],58:[function(require,module,exports){
+},{"../../scripts/":9}],57:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -14873,7 +14585,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],59:[function(require,module,exports){
+},{"../../scripts/":9}],58:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15080,7 +14792,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],60:[function(require,module,exports){
+},{"../../scripts/":9}],59:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15265,7 +14977,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],61:[function(require,module,exports){
+},{"../../scripts/":9}],60:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15479,7 +15191,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],62:[function(require,module,exports){
+},{"../../scripts/":9}],61:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15580,7 +15292,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],63:[function(require,module,exports){
+},{"../../scripts/":9}],62:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15628,7 +15340,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],64:[function(require,module,exports){
+},{"../../scripts/":9}],63:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15661,7 +15373,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],65:[function(require,module,exports){
+},{"../../scripts/":9}],64:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15694,7 +15406,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],66:[function(require,module,exports){
+},{"../../scripts/":9}],65:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15725,7 +15437,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],67:[function(require,module,exports){
+},{"../../scripts/":9}],66:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -15758,7 +15470,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],68:[function(require,module,exports){
+},{"../../scripts/":9}],67:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -16136,7 +15848,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],69:[function(require,module,exports){
+},{"../../scripts/":9}],68:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -16191,7 +15903,7 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}],70:[function(require,module,exports){
+},{"../../scripts/":9}],69:[function(require,module,exports){
 /*jshint
     bitwise:true, camelcase:true, curly:true, eqeqeq:true, forin:true,
     freeze:true, futurehostile:true, latedef:true, newcap:true, nocomma:true,
@@ -16225,4 +15937,4 @@ process.umask = function() { return 0; };
   });
 }());
 
-},{"../../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,60,61,62,63,64,65,66,67,68,56,57,58,59,69,70]);
+},{"../../scripts/":9}]},{},[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,59,60,61,62,63,64,65,66,67,55,56,57,58,68,69]);
